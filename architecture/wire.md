@@ -4,7 +4,7 @@
 `crates/napi` (`@tecpan/napi`) exposes it and the public parts of `tecpan-crypto` to TypeScript, so the vault wallet
 and the desktop app never reimplement cryptography or encoding.
 
-Status: Phase 6 (library and bindings). Keepers send these messages from Phase 8; the vault wallet uses the bindings
+Status: Phase 6 (library and bindings). Keepers send these messages from Phase 8 (over libp2p from Phase 9); the vault wallet uses the bindings
 from Phase 7.
 
 ## Encoding
@@ -33,7 +33,7 @@ Header        { scope: [u8; 32], epoch: u32, id: [u8; 16], created_at: u64 }
 signature     = Ed25519(keeper, "tecpan.wire.v0" ‖ postcard(version, header, body, signer))
 ```
 
-- **Keeper identity.** Each keeper has an Ed25519 identity (`KeeperIdentity`), which is also its future libp2p peer
+- **Keeper identity.** Each keeper has an Ed25519 identity (`KeeperIdentity`), which is also its libp2p peer
   id, and a separate X25519 transport key for envelopes. Verification uses `verify_strict` (no small-order keys,
   canonical `S`). The identity's `Debug` output is redacted.
 - **Signer binding.** `verify_from(expected)` checks the signer is the manifest entry of the member the message
@@ -75,6 +75,8 @@ Variants are append-only: the index is the encoding. Golden bytes for every kind
 |  13 | `Approval`         | proposal id, slot, signature limbs `[s.lo, s.hi, e.lo, e.hi]`                                |                                   |
 |  14 | `ExecutionReceipt` | proposal id, transaction hash                                                                |                                   |
 |  15 | `RelayEnvelope`    | opaque recipient mailbox id, expiry, sealed bytes                                            | 1 byte..=512 KiB                  |
+|  16 | `Echo`             | a dealer's signed `DkgRound1` / `ReshareDeal` frame, forwarded once by a participant         | frame ≤ 64 KiB                    |
+|  17 | `SyncRequest`      | inventory: proposal ids, `(proposal, slot)` approval refs, receipted proposal ids            | ≤ 4096 of each                    |
 
 ### Manifest
 
@@ -102,6 +104,26 @@ Third parties cannot open another member's envelope, so a complaint is resolved 
   expires_at])` (see `contract.md`).
 - `Approval::verify(proposal, vault, signer_key)` requires the approval to name that proposal id and the signature to
   verify exactly as the contract checks it. Approvers recompute `outer_hash` from `payload` before signing.
+
+### Relay mailbox protocol (`tecpan_wire::mailbox`)
+
+Not signed (the relay must not learn who deposits or fetches); canonical postcard with the same rules.
+
+```text
+MailboxRequest  = Deposit(RelayEnvelope) | Fetch { mailboxes } | Delete { ids }
+MailboxResponse = Stored { id } | Rejected(TooLarge | BadExpiry | QuotaExceeded | NotAllowed | Malformed)
+                | Envelopes([{ id, envelope }]) | Deleted(count)
+envelope id     = SHA-256("tecpan.mailbox.envelope.v0" ‖ canonical envelope)
+```
+
+Bounds: 128 mailboxes per fetch, 1024 ids per delete, envelopes ≤ 256 KiB, messages ≤ 4 MiB. Mailbox ids and the
+sealing of envelope contents are defined in `networking.md`.
+
+### libp2p codec (feature `p2p`)
+
+`FrameCodec` frames each request and response with a u32 big-endian length: keeper lanes accept requests up to 1 MiB
+and responses up to 64 bytes (an empty acknowledgement); the mailbox lane accepts 4 MiB. Protocol names are
+`/tecpan/{ecdh,ceremony,sync,mailbox}/0`.
 
 ### Unsigned bodies
 

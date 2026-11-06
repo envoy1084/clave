@@ -5,8 +5,8 @@ or on their own server. It is the only place a viewing share exists. It serves t
 to the other members' keepers, runs the DKG and reshare ceremonies, keeps the proposal store, and activates or destroys
 shares as the vault's on-chain committee changes.
 
-Status: Phase 8. Keepers reach each other over Noise-encrypted TCP; the libp2p mesh, relay and set reconciliation come
-in Phase 9.
+Status: Phases 8–9. Keepers reach each other over a libp2p mesh limited to the committee, with optional relays for
+NAT traversal and offline mailboxes (see `networking.md`).
 
 ## Responsibilities and trust
 
@@ -34,13 +34,20 @@ honestly. Other members' keepers are not trusted beyond their signatures and pro
     pending-<session>.sealed       finished reshare, waiting for on-chain activation
   keeper.db         SQLite (WAL, secure_delete): manifests, ceremonies, proposals, approvals, receipts, audit, observations
   keeper.toml       optional configuration
-  keeper.json       public identity, addresses, RPC socket (written at start)
+  keeper.json       public identity, peer id, addresses, RPC socket (written at start)
   keeper.sock       RPC socket (owner-only); rpc.token when no token is supplied
   salt              Argon2id salt (passphrase mode)
 ```
 
-`tecpan-keeper run` prints one JSON line `{"ready": {identity, transport, addresses, rpcSocket}}` on stdout when the
-socket is listening; logs go to stderr (`--log-format json` for structured logs). SIGTERM or Ctrl-C shuts it down.
+`tecpan-keeper run` prints one JSON line `{"ready": {identity, transport, peerId, addresses, rpcSocket}}` on stdout when
+the socket is listening; logs go to stderr (`--log-format json` for structured logs). SIGTERM or Ctrl-C shuts it down.
+Network flags (all repeatable): `--listen <multiaddr>` (default loopback QUIC and TCP on random ports), `--relay
+<multiaddr>/p2p/<id>`, `--external <multiaddr>`. `tecpan-keeper rpc --socket --token-file <method> [params]` calls one
+RPC method (for operators of server keepers and for scripted tests).
+
+`keeper.toml` may set `listen`, `external`, `relays`, `rpc_socket`, `round_timeout_secs` (120), `ecdh_timeout_ms`
+(15 000), `ecdh_points_per_minute` (60 000), `max_skew_secs`, `sync_interval_secs` (60), `mailbox_interval_secs` (30)
+and `mailbox_ttl_days` (7); command-line flags take precedence.
 
 ## Custody
 
@@ -99,7 +106,11 @@ the share.
 
 **Reshare.** Exactly `t_v` current members deal (sub-share envelopes, kind 2, at the old epoch) to the new committee;
 new members check each deal's constant term against `λ_i · Y_i` from the current manifest, combine, and confirm one
-transcript. A joining member's keeper receives the current manifest from its engine. The new share waits in
+transcript. A joining member's keeper receives the current manifest from its engine.
+
+**Echo.** Every participant forwards each dealer's signed `DkgRound1` / `ReshareDeal` once to the others; two
+different signed packages from one dealer abort the ceremony and blame it. Ceremony sends are retried with backoff
+until the round deadline, so members that start a session a little later still receive everything. The new share waits in
 `pending-<session>` and the old committee keeps serving.
 
 **Activation** (`vault.observeConfig`, called by the engine after each sync with the config version and committee
@@ -123,8 +134,11 @@ messages are missing.
 
 `proposals.put`, `approvals.put` and `receipts.put` store records and push them to the other members, who store them
 after checking the sender is a member. Approvals are verified against the slot's signing key and the proposal's
-approval message before they are stored. `vault.observeTx` raises `unexpectedSpend` for a vault transaction that
-matches no stored receipt. Set reconciliation for members that were offline comes in Phase 9.
+approval message before they are stored; an approval that arrives before its proposal is held until it does.
+`vault.observeTx` raises `unexpectedSpend` for a vault transaction that matches no stored receipt.
+
+Members that were offline catch up two ways: a push that fails is sealed into the recipient's relay mailbox, and every
+minute each keeper sends the others a `SyncRequest` inventory and receives what it lacks (`networking.md`).
 
 ## Local RPC
 
@@ -135,6 +149,8 @@ until then. Requests on a session run concurrently.
 | Method                                                         | Params → result                                                                                                                                         |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `keeper.info`                                                  | → `{ identity, transport, addresses, version }`                                                                                                         |
+| `vault.sync`                                                   | `{ vault }`: sync proposals, approvals and receipts with the other members now                                                                          |
+| `mailbox.poll`                                                 | → `{ delivered }`: fetch and process relay mailboxes now                                                                                                |
 | `vault.list`, `vault.status`                                   | `{ vault }` → `{ manifest, status, index, serving }`                                                                                                    |
 | `vault.register`                                               | `{ session, manifest }` → vault                                                                                                                         |
 | `vault.observeConfig`                                          | `{ vault, version, committeeCommitment }` → `{ observation }`                                                                                           |
@@ -152,14 +168,13 @@ Errors: `-32001` unauthenticated, `-32601` unknown method, `-32700` parse error,
 `@tecpan/vault-wallet` provides `launchKeeper` (spawn with the master key and a fresh token on stdin), `KeeperClient`,
 `KeeperPartialsSource` and `keeperManifest`.
 
-## Peer transport (Phase 8)
+## Peer transport
 
-`Noise_XX_25519_ChaChaPoly_BLAKE2s` over TCP, static keys = the keepers' X25519 transport keys, prologue
-`tecpan.keeper.channel.v0`. An inbound connection completes only if the peer's key belongs to a current committee or
-ceremony; an outbound connection must reach exactly the expected key. Frames (signed wire messages, ≤ 1 MiB) are split
-into Noise messages. One connection per peer serves both directions. Addresses are `tcp://host:port`. The inner
-`SignedMessage` is still verified and its signer must map to the channel's key, so authenticity never depends on the
-transport.
+libp2p (QUIC and TCP with Noise, relay circuits, DCUtR); the peer id is derived from the keeper's Ed25519 identity. The
+allow list holds the members of the keeper's active committees and running ceremonies (recomputed whenever they change)
+plus its relays; every other connection is closed. Inbound frames are delivered only from members, and the inner
+`SignedMessage` signer must be that member, so authenticity never depends on the transport. Protocols, relay and
+mailbox details are in `networking.md`.
 
 ## Known limits
 
@@ -177,6 +192,8 @@ transport.
 | `tests/custody.rs`      | Round trip, file permissions, wrong master key, tampered and swapped files, rename and destroy, passphrase salt                                                                                                                                                          |
 | `tests/ceremony.rs`     | DKG agreement and ECDH, blame for a dealer standing by a bad share, no blame for a valid justification, equivocation, timeout, reshare correctness and old/new share separation, bad dealer                                                                              |
 | `tests/keeper.rs`       | In-memory multi-keeper: ECDH agreement and audit, lying member detected and routed around, budget, reshare activation and removal, forged request from a removed member, timeouts, restart recovery, proposal and approval replication, unexpected spend, unknown config |
-| `tests/transport.rs`    | Noise TCP: 300 KB frames both ways, unknown peer refused, unexpected key refused                                                                                                                                                                                         |
+| `tests/catch_up.rs`     | Equivocating dealer caught by echo, offline member catches up through sync, offline member reads its mailbox hours later (relay sees ciphertext and unlinkable ids only)                                                                                                 |
+| `tests/p2p.rs`          | Real libp2p: DKG, ECDH and replication; outsiders refused; a keeper reachable only through the relay; mailbox delivery after a restart                                                                                                                                   |
+| `tests/network/run.sh`  | Docker: three keepers on separate internal networks, relay only (`networking.md`)                                                                                                                                                                                        |
 | `tests/rpc.rs`          | Socket permissions, authentication, methods, errors, event subscription                                                                                                                                                                                                  |
 | vault-wallet end to end | The Phase 7 suite against four keeper processes: DKG, ECDH for both engines, reshare, activation, removal                                                                                                                                                                |
