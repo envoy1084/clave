@@ -27,6 +27,8 @@ use crate::{Error, Result};
 
 /// Most addresses a keeper advertises (the manifest's limit).
 const MAX_ADVERTISED: usize = 8;
+/// How long to keep collecting listen addresses after every listener has reported one.
+const LISTEN_SETTLE: Duration = Duration::from_millis(150);
 /// Lobby requests a non-member may send per minute.
 const LOBBY_REQUESTS_PER_MINUTE: u32 = 10;
 /// Most non-members whose lobby request rate is tracked at once.
@@ -360,17 +362,35 @@ async fn wait_ready(
 ) -> (Vec<Multiaddr>, HashSet<PeerId>) {
     let deadline = Instant::now() + config.ready_timeout;
     let mut listening = Vec::new();
+    let mut listeners = HashSet::new();
     let mut reserved = HashSet::new();
-    while (listening.len() < config.listen.len() || reserved.len() < relays.len())
-        && Instant::now() < deadline
-    {
-        let Ok(Some(event)) = tokio::time::timeout_at(deadline, swarm.next()).await else {
+    // A wildcard listener (0.0.0.0) reports one address per interface; once every listener has reported, keep
+    // collecting briefly so all of an interface's addresses (and both transports) make it into what we advertise.
+    let mut settle: Option<Instant> = None;
+    loop {
+        let all_listening = listeners.len() >= config.listen.len();
+        if all_listening && reserved.len() >= relays.len() {
+            let until = *settle.get_or_insert_with(|| Instant::now() + LISTEN_SETTLE);
+            if Instant::now() >= until {
+                break;
+            }
+        }
+        let wake = settle.map_or(deadline, |until| until.min(deadline));
+        if Instant::now() >= deadline {
             break;
+        }
+        let Ok(Some(event)) = tokio::time::timeout_at(wake, swarm.next()).await else {
+            if Instant::now() >= deadline {
+                break;
+            }
+            continue;
         };
         match event {
-            SwarmEvent::NewListenAddr { address, .. }
-                if !address.iter().any(|p| p == Protocol::P2pCircuit) =>
-            {
+            SwarmEvent::NewListenAddr {
+                listener_id,
+                address,
+            } if !address.iter().any(|p| p == Protocol::P2pCircuit) => {
+                listeners.insert(listener_id);
                 listening.push(address);
             }
             SwarmEvent::Behaviour(BehaviourEvent::RelayClient(
