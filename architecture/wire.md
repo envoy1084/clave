@@ -122,8 +122,8 @@ throws an `InvalidArg` error on failure.
 - **No secrets in the production addon.** Envelope sealing and opening stay in the keeper (which holds the transport
   key); signing keys stay in the desktop signer service. Helpers that deal or use viewing shares and a test Schnorr
   signer exist only in the separate `@tecpan/napi/testing` binary, built with the `testing` feature.
-- `pnpm --filter @tecpan/napi build` produces `index.js`, `index.d.ts` and `tecpan.<platform>.node` (and the same under
-  `testing/`). They are build output and are not committed.
+- `pnpm --filter @tecpan/napi build` writes `index.js`, `index.d.ts` and `tecpan.<platform>.node` to `dist/` (the
+  testing build to `dist/testing/`). `dist/` is build output and is not committed.
 - Node-API is ABI-stable: the same binary loads in Node 24 and in Electron 45 (verified with Electron 45.2.3,
   Node 24.22.2). Per-platform prebuilds are produced by the release pipeline.
 

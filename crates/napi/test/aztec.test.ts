@@ -14,8 +14,8 @@ import {
 import { deriveEcdhSharedSecretPoint } from "@aztec-labs/stdlib/logs";
 import { describe, expect, it } from "vitest";
 
-import * as napi from "../index.js";
-import * as testing from "../testing/index.js";
+import * as napi from "../dist/index.js";
+import * as testing from "../dist/testing/index.js";
 
 const point = (p: AztecPoint): napi.Point => ({ x: p.x.toString(), y: p.y.toString() });
 const seed = (n: number) => Buffer.alloc(32, n);

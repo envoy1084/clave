@@ -14,7 +14,7 @@
         "../wire/Cargo.toml",
         "../wire/src/**"
       ],
-      "outputs": ["index.js", "index.d.ts", "*.node", "testing/**"]
+      "outputs": ["dist/**"]
     },
     "typecheck": { "dependsOn": ["build"] },
     "test": { "dependsOn": ["build"], "outputs": [] }
