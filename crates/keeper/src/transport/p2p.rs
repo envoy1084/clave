@@ -206,15 +206,22 @@ impl P2pTransport {
         }
 
         let (listening, reserved) = wait_ready(&mut swarm, &config, &relays).await;
-        let mut addresses: Vec<String> = relays
+        // Direct addresses first (peers try them before relaying), relay circuits always included as the fallback.
+        let circuits: Vec<String> = relays
             .iter()
             .filter(|(id, _)| reserved.contains(id))
             .map(|(_, relay)| relay.clone().with(Protocol::P2pCircuit).to_string())
+            .take(MAX_ADVERTISED)
             .collect();
-        addresses.extend(config.external.iter().map(ToString::to_string));
-        addresses.extend(listening.iter().map(ToString::to_string));
+        let mut addresses: Vec<String> = config
+            .external
+            .iter()
+            .chain(&listening)
+            .map(ToString::to_string)
+            .collect();
         addresses.dedup();
-        addresses.truncate(MAX_ADVERTISED);
+        addresses.truncate(MAX_ADVERTISED - circuits.len());
+        addresses.extend(circuits);
         tracing::info!(peer = %local, ?addresses, "p2p node ready");
 
         let (commands, rx) = mpsc::unbounded_channel();
@@ -238,7 +245,7 @@ impl P2pTransport {
         self.peer_id
     }
 
-    /// Addresses to publish in manifests: relay circuits first, then direct addresses.
+    /// Addresses to publish in manifests: direct addresses first, then relay circuits.
     #[must_use]
     pub fn addresses(&self) -> &[String] {
         &self.addresses
