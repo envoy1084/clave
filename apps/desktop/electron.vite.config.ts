@@ -33,6 +33,11 @@ export default defineConfig({
     root: "src/renderer",
     resolve: { alias: { ...shared, "@": resolve(import.meta.dirname, "src/renderer/src") } },
     plugins: [react(), tailwindcss()],
-    build: { outDir: resolve(import.meta.dirname, "dist/renderer"), minify: true },
+    // One bundle loaded from disk: chunk size matters far less than for a website.
+    build: {
+      outDir: resolve(import.meta.dirname, "dist/renderer"),
+      minify: true,
+      chunkSizeWarningLimit: 1200,
+    },
   },
 });
