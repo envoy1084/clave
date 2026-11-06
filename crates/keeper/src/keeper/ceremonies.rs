@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tecpan_crypto::shamir::MemberIndex;
 use tecpan_wire::{
-    IdentityPublic, Message,
-    messages::{Manifest, Member},
+    IdentityPublic, Message, decode,
+    messages::{Echo, Manifest, Member},
     types::{Bytes64, WirePoint},
 };
 
@@ -280,6 +280,7 @@ impl Keeper {
         }
         drop(state);
         self.dispatch(sends);
+        self.periodic(now).await;
     }
 
     /// Persists a finished ceremony and drops its in-memory state.
@@ -439,23 +440,9 @@ impl Keeper {
 
     /// Signs an outbox for `session` and resolves its targets to peers.
     fn resolve(&self, state: &State, session: [u8; 32], outbox: Outbox) -> Vec<(Peer, Vec<u8>)> {
-        let (participants, epoch): (Vec<Participant>, u32) =
-            if let Some(dkg) = state.dkgs.get(&session) {
-                (dkg.params().members.clone(), 0)
-            } else if let Some(reshare) = state.reshares.get(&session) {
-                let params = reshare.params();
-                (
-                    params
-                        .old_members
-                        .iter()
-                        .chain(&params.new_members)
-                        .cloned()
-                        .collect(),
-                    params.old_epoch,
-                )
-            } else {
-                return Vec::new();
-            };
+        let Some((participants, epoch)) = participants_of(state, session) else {
+            return Vec::new();
+        };
         let me = self.identity();
         let mut sends = Vec::new();
         for (target, message) in outbox.0 {
@@ -480,7 +467,9 @@ impl Keeper {
     fn dispatch(&self, sends: Vec<(Peer, Vec<u8>)>) {
         for (peer, frame) in sends {
             let keeper = self.clone();
-            tokio::spawn(async move { keeper.send(peer, frame).await });
+            tokio::spawn(async move {
+                keeper.send(peer, frame).await;
+            });
         }
     }
 
@@ -494,9 +483,74 @@ impl Keeper {
             .early
             .remove(&session)
             .unwrap_or_default();
-        for (_, transport, bytes) in backlog {
-            Box::pin(self.on_inbound(Inbound { transport, bytes })).await;
+        for (_, channel, bytes) in backlog {
+            Box::pin(self.on_inbound(Inbound { channel, bytes })).await;
         }
+    }
+
+    /// Forwards a dealer's signed broadcast to the other participants, once per session and dealer, so that every
+    /// participant sees every version a dealer sent (two different signed versions prove equivocation).
+    pub(super) async fn echo(&self, session: [u8; 32], dealer: IdentityPublic, frame: &[u8]) {
+        let me = self.identity();
+        let sends = {
+            let mut state = self.0.state.lock().await;
+            let Some((participants, epoch)) = participants_of(&state, session) else {
+                return;
+            };
+            if !state.echoed.insert((session, dealer)) {
+                return;
+            }
+            let Ok((signed, _)) = self.sign(
+                session,
+                epoch,
+                Message::Echo(Echo {
+                    frame: frame.to_vec(),
+                }),
+            ) else {
+                return;
+            };
+            let mut peers: Vec<Peer> = participants
+                .iter()
+                .filter(|p| p.identity != me && p.identity != dealer)
+                .map(Peer::from)
+                .collect();
+            peers.dedup_by_key(|p| p.identity);
+            peers.into_iter().map(|p| (p, signed.clone())).collect()
+        };
+        self.dispatch(sends);
+    }
+
+    /// Feeds an echoed dealer broadcast to its ceremony as if the dealer had sent it: its signature proves its origin.
+    pub(super) async fn on_echo(&self, session: [u8; 32], echo: &Echo) {
+        let Ok(inner) = decode(&echo.frame) else {
+            return;
+        };
+        if inner.verify().is_err() || inner.header.scope != session {
+            return;
+        }
+        if matches!(inner.body, Message::DkgRound1(_) | Message::ReshareDeal(_)) {
+            Box::pin(self.on_ceremony_message(inner.signer, session, inner.body)).await;
+        }
+    }
+}
+
+/// Participants and envelope epoch of a running ceremony.
+fn participants_of(state: &State, session: [u8; 32]) -> Option<(Vec<Participant>, u32)> {
+    if let Some(dkg) = state.dkgs.get(&session) {
+        Some((dkg.params().members.clone(), 0))
+    } else {
+        state.reshares.get(&session).map(|reshare| {
+            let params = reshare.params();
+            (
+                params
+                    .old_members
+                    .iter()
+                    .chain(&params.new_members)
+                    .cloned()
+                    .collect(),
+                params.old_epoch,
+            )
+        })
     }
 }
 

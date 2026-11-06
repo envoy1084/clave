@@ -6,7 +6,7 @@ use std::{
 use tecpan_wire::IdentityPublic;
 use tokio::sync::mpsc;
 
-use super::{Inbound, Peer, SendFuture, Transport};
+use super::{Channel, Inbound, Peer, SendFuture, Transport};
 use crate::Error;
 
 /// An endpoint's channel and transport key.
@@ -88,7 +88,7 @@ impl Transport for MemoryTransport {
                 .as_ref()
                 .is_none_or(|f| f(&self.me, &peer.identity, &frame));
             if !deliver {
-                return Ok(());
+                return Err(Error::Transport("peer unreachable".into()));
             }
             let endpoints = self
                 .network
@@ -106,7 +106,7 @@ impl Transport for MemoryTransport {
                 return Err(Error::Transport("peer transport key mismatch".into()));
             }
             tx.send(Inbound {
-                transport: my_transport,
+                channel: Channel::Key(my_transport),
                 bytes: frame,
             })
             .map_err(|_| Error::Transport("peer stopped".into()))

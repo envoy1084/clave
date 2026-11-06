@@ -24,6 +24,14 @@ pub struct FileConfig {
     pub ecdh_points_per_minute: Option<u32>,
     /// Accepted clock skew, seconds.
     pub max_skew_secs: Option<u64>,
+    /// Seconds between proposal syncs.
+    pub sync_interval_secs: Option<u64>,
+    /// Seconds between mailbox polls.
+    pub mailbox_interval_secs: Option<u64>,
+    /// Days mailbox envelopes live at the relay.
+    pub mailbox_ttl_days: Option<u32>,
+    /// Relays (multiaddrs ending in `/p2p/<peer id>`) for circuits and mailboxes.
+    pub relays: Option<Vec<String>>,
 }
 
 impl FileConfig {
@@ -55,6 +63,13 @@ impl FileConfig {
                 .unwrap_or(defaults.ecdh_points_per_minute),
             max_skew_secs: self.max_skew_secs.unwrap_or(defaults.max_skew_secs),
             replay_capacity: defaults.replay_capacity,
+            sync_interval_secs: self
+                .sync_interval_secs
+                .unwrap_or(defaults.sync_interval_secs),
+            mailbox_interval_secs: self
+                .mailbox_interval_secs
+                .unwrap_or(defaults.mailbox_interval_secs),
+            mailbox_ttl_days: self.mailbox_ttl_days.unwrap_or(defaults.mailbox_ttl_days),
         }
     }
 }

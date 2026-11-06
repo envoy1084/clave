@@ -3,11 +3,13 @@
 
 mod ceremonies;
 mod ecdh;
+mod mailbox;
 mod proposals;
+mod sync;
 mod vaults;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex as SyncMutex, PoisonError},
     time::Duration,
 };
@@ -17,7 +19,7 @@ pub use ecdh::MemberPartials;
 use tecpan_crypto::ecdh::AddressSecretShare;
 use tecpan_wire::{
     Header, IdentityPublic, Message, ReplayGuard, SignedMessage, decode, encode,
-    messages::EcdhResponse,
+    messages::{Approval, EcdhResponse},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
 pub use vaults::{Observation, VaultInfo};
@@ -30,9 +32,10 @@ use crate::{
     custody::{KeeperKeys, SecretStore},
     events::Event,
     limits::RateLimiter,
+    mailbox::MailboxService,
     random::random_bytes,
     store::{ManifestStatus, Store},
-    transport::{Inbound, Peer, Transport},
+    transport::{Channel, Inbound, Peer, Transport},
 };
 
 /// Tunables.
@@ -48,6 +51,12 @@ pub struct KeeperConfig {
     pub max_skew_secs: u64,
     /// Remembered message ids for replay protection.
     pub replay_capacity: usize,
+    /// Seconds between proposal syncs with the other members.
+    pub sync_interval_secs: u64,
+    /// Seconds between mailbox polls (with a mailbox service).
+    pub mailbox_interval_secs: u64,
+    /// Days a mailbox envelope lives at the relay.
+    pub mailbox_ttl_days: u32,
 }
 
 impl Default for KeeperConfig {
@@ -58,6 +67,9 @@ impl Default for KeeperConfig {
             ecdh_points_per_minute: 60_000,
             max_skew_secs: 300,
             replay_capacity: 65_536,
+            sync_interval_secs: 60,
+            mailbox_interval_secs: 30,
+            mailbox_ttl_days: 7,
         }
     }
 }
@@ -80,6 +92,8 @@ pub struct KeeperParts {
     pub config: KeeperConfig,
     /// Addresses this keeper is reachable at (published in manifests).
     pub addresses: Vec<String>,
+    /// Relay mailboxes for members who are offline, if any relay is configured.
+    pub mailbox: Option<Arc<dyn MailboxService>>,
 }
 
 /// A running keeper (cheap to clone).
@@ -94,6 +108,7 @@ pub(crate) struct Inner {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) config: KeeperConfig,
     pub(crate) addresses: Vec<String>,
+    pub(crate) mailbox: Option<Arc<dyn MailboxService>>,
     pub(crate) state: Mutex<State>,
     pub(crate) pending: SyncMutex<HashMap<[u8; 16], Waiting>>,
     pub(crate) events: broadcast::Sender<Event>,
@@ -107,6 +122,14 @@ pub(crate) struct State {
     pub(crate) early: HashMap<[u8; 32], Vec<EarlyFrame>>,
     pub(crate) replay: ReplayGuard,
     pub(crate) limiter: RateLimiter,
+    /// Dealer broadcasts this keeper already echoed, by session and dealer.
+    pub(crate) echoed: HashSet<([u8; 32], IdentityPublic)>,
+    /// Last sync per vault (unix seconds).
+    pub(crate) last_sync: HashMap<[u8; 32], u64>,
+    /// Last mailbox poll (unix seconds).
+    pub(crate) last_mailbox_poll: u64,
+    /// Replicated approvals whose proposal has not arrived yet, by proposal id.
+    pub(crate) orphans: HashMap<[u8; 32], Vec<([u8; 32], Approval)>>,
 }
 
 pub(crate) struct VaultState {
@@ -117,8 +140,8 @@ pub(crate) struct VaultState {
 
 /// Where an ECDH batch waits for responses.
 pub(crate) type Waiting = mpsc::UnboundedSender<(IdentityPublic, EcdhResponse)>;
-/// A buffered frame: signer, channel key, bytes.
-pub(crate) type EarlyFrame = (IdentityPublic, [u8; 32], Vec<u8>);
+/// A buffered frame: signer, channel, bytes.
+pub(crate) type EarlyFrame = (IdentityPublic, Channel, Vec<u8>);
 
 const EARLY_SESSIONS: usize = 16;
 const EARLY_PER_SESSION: usize = 64;
@@ -139,6 +162,7 @@ impl Keeper {
             clock,
             config,
             addresses,
+            mailbox,
         } = parts;
         let now = clock.now();
         for session in store.running_ceremonies()? {
@@ -160,6 +184,10 @@ impl Keeper {
             early: HashMap::new(),
             replay: ReplayGuard::new(config.max_skew_secs, config.replay_capacity),
             limiter: RateLimiter::new(config.ecdh_points_per_minute),
+            echoed: HashSet::new(),
+            last_sync: HashMap::new(),
+            last_mailbox_poll: 0,
+            orphans: HashMap::new(),
         };
         let (events, _) = broadcast::channel(1024);
         let keeper = Self(Arc::new(Inner {
@@ -170,6 +198,7 @@ impl Keeper {
             clock,
             config,
             addresses,
+            mailbox,
             state: Mutex::new(state),
             pending: SyncMutex::new(HashMap::new()),
             events,
@@ -245,11 +274,16 @@ impl Keeper {
         Ok((encode(&message)?, id))
     }
 
-    /// Sends a frame, logging failures (protocols time out and report missing members).
-    pub(crate) async fn send(&self, peer: Peer, frame: Vec<u8>) {
+    /// Sends a frame, logging failures (protocols time out and report missing members). Returns whether the transport
+    /// delivered it.
+    pub(crate) async fn send(&self, peer: Peer, frame: Vec<u8>) -> bool {
         let identity = hex::encode(peer.identity.0);
-        if let Err(error) = self.0.transport.send(peer, frame).await {
-            tracing::warn!(peer = %identity, %error, "send failed");
+        match self.0.transport.send(peer, frame).await {
+            Ok(()) => true,
+            Err(error) => {
+                tracing::debug!(peer = %identity, %error, "send failed");
+                false
+            }
         }
     }
 
@@ -329,9 +363,14 @@ impl Keeper {
         let signer = message.signer;
         let scope = message.header.scope;
         let mut state = self.0.state.lock().await;
-        match Self::expected_transport(&state, &signer) {
-            Some(expected) if expected == frame.transport => {}
-            Some(_) => {
+        let bound = match (Self::expected_transport(&state, &signer), frame.channel) {
+            (Some(expected), Channel::Key(key)) => Some(expected == key),
+            (Some(_), Channel::Peer(peer)) => Some(peer == signer),
+            (None, _) => None,
+        };
+        match bound {
+            Some(true) => {}
+            Some(false) => {
                 tracing::warn!("dropped frame: identity does not match the channel");
                 return;
             }
@@ -340,23 +379,33 @@ impl Keeper {
                 if state.early.len() < EARLY_SESSIONS || state.early.contains_key(&scope) {
                     let backlog = state.early.entry(scope).or_default();
                     if backlog.len() < EARLY_PER_SESSION {
-                        backlog.push((signer, frame.transport, frame.bytes));
+                        backlog.push((signer, frame.channel, frame.bytes.clone()));
                     }
                 }
                 return;
             }
             None => return,
         }
-        let expected_epoch = Self::expected_epoch(&state, &message);
-        let now = self.now();
-        if let Err(error) = state
-            .replay
-            .check(&signer, &message.header, expected_epoch, now)
-        {
-            tracing::debug!(%error, "dropped frame");
-            return;
+        // Replicated records are idempotent and verified on their own, and may arrive late through a mailbox or a
+        // sync: they skip the freshness window. Everything else must be fresh and unseen.
+        if !is_replicated(&message.body) {
+            let expected_epoch = Self::expected_epoch(&state, &message);
+            let now = self.now();
+            if let Err(error) = state
+                .replay
+                .check(&signer, &message.header, expected_epoch, now)
+            {
+                tracing::debug!(%error, "dropped frame");
+                return;
+            }
         }
         drop(state);
+        if matches!(
+            message.body,
+            Message::DkgRound1(_) | Message::ReshareDeal(_)
+        ) {
+            self.echo(scope, signer, &frame.bytes).await;
+        }
         match message.body {
             Message::EcdhRequest(request) => {
                 self.on_ecdh_request(signer, message.header, request).await;
@@ -366,6 +415,10 @@ impl Keeper {
                 self.on_replicated(signer, message.header, message.body)
                     .await;
             }
+            Message::SyncRequest(request) => {
+                self.on_sync_request(signer, message.header, request).await;
+            }
+            Message::Echo(echo) => self.on_echo(scope, &echo).await,
             body if is_ceremony_message(&body) => {
                 self.on_ceremony_message(signer, scope, body).await;
             }
@@ -414,5 +467,13 @@ fn is_ceremony_message(body: &Message) -> bool {
             | Message::Complaint(_)
             | Message::Justification(_)
             | Message::Abort(_)
+            | Message::Echo(_)
+    )
+}
+
+fn is_replicated(body: &Message) -> bool {
+    matches!(
+        body,
+        Message::Proposal(_) | Message::Approval(_) | Message::ExecutionReceipt(_)
     )
 }

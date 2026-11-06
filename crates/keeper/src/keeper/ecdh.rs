@@ -168,7 +168,9 @@ impl Keeper {
         };
         let response = Message::EcdhResponse(EcdhResponse::new(header.id, my_index, &partials));
         match self.sign(vault, header.epoch, response) {
-            Ok((frame, _)) => self.send(peer, frame).await,
+            Ok((frame, _)) => {
+                self.send(peer, frame).await;
+            }
             Err(error) => tracing::error!(%error, "cannot sign an ECDH response"),
         }
     }
@@ -238,7 +240,9 @@ impl Keeper {
         for peer in peers {
             let keeper = self.clone();
             let frame = frame.clone();
-            tokio::spawn(async move { keeper.send(peer, frame).await });
+            tokio::spawn(async move {
+                keeper.send(peer, frame).await;
+            });
         }
 
         self.collect(vault, &committee, context, inputs, rx, &mut gathered)

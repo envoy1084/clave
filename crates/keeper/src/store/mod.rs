@@ -376,6 +376,64 @@ impl Store {
         })
     }
 
+    /// Ids of every proposal of `vault`.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn proposal_ids(&self, vault: &[u8; 32]) -> Result<Vec<[u8; 32]>> {
+        self.with(|c| {
+            let mut statement =
+                c.prepare("SELECT id FROM proposals WHERE vault = ?1 ORDER BY created_at, id")?;
+            statement
+                .query_map(params![vault], |row| row.get(0))?
+                .collect()
+        })
+    }
+
+    /// `(proposal, slot)` of every approval of `vault`.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn approval_refs(&self, vault: &[u8; 32]) -> Result<Vec<([u8; 32], u32)>> {
+        self.with(|c| {
+            let mut statement = c.prepare(
+                "SELECT a.proposal, a.slot FROM approvals a JOIN proposals p ON p.id = a.proposal WHERE p.vault = ?1
+                 ORDER BY a.created_at",
+            )?;
+            statement.query_map(params![vault], |row| Ok((row.get(0)?, row.get(1)?)))?.collect()
+        })
+    }
+
+    /// One approval body.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn approval(&self, proposal: &[u8; 32], slot: u32) -> Result<Option<Vec<u8>>> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT body FROM approvals WHERE proposal = ?1 AND slot = ?2",
+                params![proposal, slot],
+                |row| row.get(0),
+            )
+            .optional()
+        })
+    }
+
+    /// `(proposal, tx_hash)` of every receipt of `vault`.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn receipts(&self, vault: &[u8; 32]) -> Result<Vec<([u8; 32], [u8; 32])>> {
+        self.with(|c| {
+            let mut statement = c.prepare(
+                "SELECT proposal, tx_hash FROM receipts WHERE vault = ?1 ORDER BY created_at",
+            )?;
+            statement
+                .query_map(params![vault], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect()
+        })
+    }
+
     /// Records that `proposal` executed in `tx_hash`.
     ///
     /// # Errors

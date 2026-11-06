@@ -27,6 +27,7 @@ use tecpan_keeper::{
     Clock, DkgResult, Keeper, KeeperConfig, KeeperParts,
     ceremony::{Participant, dkg::DkgParams},
     custody::{KeeperKeys, MasterKey, SecretStore},
+    mailbox::{MailboxService, MemoryMailbox},
     store::Store,
     transport::MemoryNetwork,
 };
@@ -82,6 +83,7 @@ pub struct Harness {
     pub net: Arc<MemoryNetwork>,
     pub clock: Arc<ManualClock>,
     pub config: KeeperConfig,
+    pub mailbox: Option<Arc<MemoryMailbox>>,
 }
 
 impl Harness {
@@ -90,6 +92,15 @@ impl Harness {
             net: MemoryNetwork::new(),
             clock: Arc::new(ManualClock::default()),
             config,
+            mailbox: None,
+        }
+    }
+
+    /// A harness whose keepers share an in-memory relay mailbox.
+    pub fn with_mailbox(config: KeeperConfig) -> Self {
+        Self {
+            mailbox: Some(Arc::new(MemoryMailbox::default())),
+            ..Self::new(config)
         }
     }
 
@@ -122,6 +133,7 @@ impl Harness {
             clock: self.clock.clone(),
             config: self.config.clone(),
             addresses: Vec::new(),
+            mailbox: self.mailbox.clone().map(|m| m as Arc<dyn MailboxService>),
         })
         .unwrap()
     }

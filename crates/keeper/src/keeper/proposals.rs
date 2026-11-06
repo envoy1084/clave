@@ -5,6 +5,9 @@ use tecpan_wire::{
 };
 
 use super::Keeper;
+
+/// Approvals held while their proposal has not arrived yet.
+const MAX_ORPHANS: usize = 1024;
 use crate::{Error, Result, events::Event, store::ManifestStatus};
 
 impl Keeper {
@@ -17,6 +20,7 @@ impl Keeper {
             return Err(Error::Invalid("not a proposal".into()));
         };
         let id = self.store_proposal(vault, &proposal)?;
+        self.adopt_orphans(vault, id).await;
         self.broadcast(vault, Message::Proposal(proposal)).await?;
         Ok(id)
     }
@@ -116,8 +120,35 @@ impl Keeper {
             return;
         }
         let result = match body {
-            Message::Proposal(proposal) => self.store_proposal(vault, &proposal).map(drop),
-            Message::Approval(approval) => self.store_approval(vault, &approval).await,
+            Message::Proposal(proposal) => match self.store_proposal(vault, &proposal) {
+                Ok(id) => {
+                    self.adopt_orphans(vault, id).await;
+                    Ok(())
+                }
+                Err(error) => Err(error),
+            },
+            Message::Approval(approval) => {
+                if self
+                    .0
+                    .store
+                    .proposal(&approval.proposal)
+                    .ok()
+                    .flatten()
+                    .is_none()
+                {
+                    // Arrived before its proposal (records are processed concurrently): keep it for later.
+                    let mut state = self.0.state.lock().await;
+                    if state.orphans.values().map(Vec::len).sum::<usize>() < MAX_ORPHANS {
+                        state
+                            .orphans
+                            .entry(approval.proposal)
+                            .or_default()
+                            .push((vault, approval));
+                    }
+                    return;
+                }
+                self.store_approval(vault, &approval).await
+            }
             Message::ExecutionReceipt(receipt) => {
                 self.0
                     .store
@@ -127,6 +158,25 @@ impl Keeper {
         };
         if let Err(error) = result {
             tracing::debug!(%error, "dropped a replicated record");
+        }
+    }
+
+    /// Stores approvals that arrived before proposal `id`.
+    async fn adopt_orphans(&self, vault: [u8; 32], id: [u8; 32]) {
+        let waiting = self
+            .0
+            .state
+            .lock()
+            .await
+            .orphans
+            .remove(&id)
+            .unwrap_or_default();
+        for (orphan_vault, approval) in waiting {
+            if orphan_vault == vault
+                && let Err(error) = self.store_approval(vault, &approval).await
+            {
+                tracing::debug!(%error, "dropped an early approval");
+            }
         }
     }
 
@@ -202,7 +252,14 @@ impl Keeper {
         for peer in peers {
             let keeper = self.clone();
             let frame = frame.clone();
-            tokio::spawn(async move { keeper.send(peer, frame).await });
+            tokio::spawn(async move {
+                // A member that cannot be reached gets the record through its relay mailbox (and the next sync).
+                if !keeper.send(peer.clone(), frame.clone()).await
+                    && let Err(error) = keeper.deposit(&peer, &frame).await
+                {
+                    tracing::debug!(%error, "mailbox deposit failed");
+                }
+            });
         }
         Ok(())
     }

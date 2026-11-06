@@ -13,7 +13,7 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-use super::{Inbound, Peer, SendFuture, Transport, noise};
+use super::{Channel, Inbound, Peer, SendFuture, Transport, noise};
 use crate::{Error, Result};
 
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -142,7 +142,7 @@ impl TcpTransport {
                 if transport
                     .inbound
                     .send(Inbound {
-                        transport: remote,
+                        channel: Channel::Key(remote),
                         bytes,
                     })
                     .is_err()

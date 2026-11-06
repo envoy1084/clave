@@ -35,11 +35,20 @@ impl From<&Member> for Peer {
     }
 }
 
+/// What authenticated the channel a frame arrived on; the frame's signer must match it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Channel {
+    /// A channel keyed by the sender's X25519 transport key (in-memory network, relay mailbox envelopes).
+    Key([u8; 32]),
+    /// A channel authenticated by the sender's identity (libp2p, where the peer id is the keeper identity).
+    Peer(IdentityPublic),
+}
+
 /// A frame received from a peer.
 #[derive(Debug)]
 pub struct Inbound {
-    /// Transport key the channel authenticated (the sender's identity must map to it).
-    pub transport: [u8; 32],
+    /// How the sender was authenticated.
+    pub channel: Channel,
     /// Encoded `SignedMessage`.
     pub bytes: Vec<u8>,
 }

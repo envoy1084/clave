@@ -699,7 +699,7 @@ pub struct Echo {
 }
 
 /// An approval a member holds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ApprovalRef {
     /// Proposal id.
     pub proposal: [u8; 32],

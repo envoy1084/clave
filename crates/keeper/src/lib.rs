@@ -12,6 +12,7 @@ mod error;
 pub mod events;
 mod keeper;
 mod limits;
+pub mod mailbox;
 mod random;
 pub mod rpc;
 pub mod store;

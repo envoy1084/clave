@@ -185,6 +185,7 @@ async fn run(args: Run) -> Result<()> {
         clock: Arc::new(SystemClock),
         config: file.keeper_config(),
         addresses: vec![advertise.clone()],
+        mailbox: None,
     })?;
     let mut ready = public;
     ready["addresses"] = json!([advertise]);

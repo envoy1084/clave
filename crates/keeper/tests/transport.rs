@@ -6,7 +6,7 @@ use std::{net::SocketAddr, time::Duration};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
 use tecpan_crypto::envelope::TransportSecret;
-use tecpan_keeper::transport::{Peer, TcpTransport, Transport};
+use tecpan_keeper::transport::{Channel, Peer, TcpTransport, Transport};
 use tecpan_wire::IdentityPublic;
 
 fn key(seed: u64) -> TransportSecret {
@@ -38,7 +38,7 @@ async fn allowed_peers_exchange_frames_both_ways() {
         .unwrap()
         .unwrap();
     assert_eq!(frame.bytes, big);
-    assert_eq!(frame.transport, ka.public().unwrap().0);
+    assert_eq!(frame.channel, Channel::Key(ka.public().unwrap().0));
 
     // The reply reuses the connection.
     b.send(peer(&ka, &a), b"pong".to_vec()).await.unwrap();

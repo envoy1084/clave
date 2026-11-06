@@ -168,6 +168,12 @@ pub(super) async fn call(keeper: &Keeper, method: &str, value: Value) -> Result<
                 .await?;
             Ok(json!({ "observation": observation }))
         }
+        "vault.sync" => {
+            let p: VaultParam = params(value)?;
+            keeper.sync(parse32(&p.vault)?).await?;
+            Ok(Value::Bool(true))
+        }
+        "mailbox.poll" => Ok(json!({ "delivered": keeper.poll_mailbox().await? })),
         "vault.observeTx" => {
             let p: ObserveTx = params(value)?;
             Ok(json!({ "known": keeper.observe_tx(parse32(&p.vault)?, parse32(&p.tx_hash)?)? }))
