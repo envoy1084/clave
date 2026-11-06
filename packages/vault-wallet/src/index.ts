@@ -4,6 +4,7 @@
  * obtains `address_secret · P` from members through threshold ECDH. See `architecture/pxe-integration.md`.
  */
 export { initBarretenberg } from "./barretenberg.ts";
+export * from "./keeper/index.ts";
 export type { EcdhProvider, EcdhPurpose } from "./keys/ecdh.ts";
 export { fromNapiPoint, toNapiPoint } from "./keys/points.ts";
 export {

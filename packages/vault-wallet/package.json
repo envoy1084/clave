@@ -36,6 +36,7 @@
   "devDependencies": {
     "@aztec-labs/noir-contracts.js": "catalog:",
     "@tecpan/contracts": "workspace:*",
+    "@tecpan/crates": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "klarity": "catalog:",

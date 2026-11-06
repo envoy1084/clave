@@ -347,6 +347,9 @@ importers:
       '@tecpan/contracts':
         specifier: workspace:*
         version: link:../../contracts
+      '@tecpan/crates':
+        specifier: workspace:*
+        version: link:../../crates
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
