@@ -10,6 +10,8 @@ mod error;
 mod identity;
 pub mod mailbox;
 pub mod messages;
+#[cfg(feature = "p2p")]
+pub mod p2p;
 mod replay;
 mod signed;
 pub mod types;

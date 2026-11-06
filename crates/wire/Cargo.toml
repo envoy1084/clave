@@ -9,7 +9,15 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# libp2p request-response codec and protocol names for keepers and relays.
+p2p = ["dep:futures", "dep:libp2p"]
+
 [dependencies]
+futures = { version = "0.3", optional = true }
+libp2p = { version = "0.57", default-features = false, features = [
+  "request-response",
+], optional = true }
 ed25519-dalek = "3"
 postcard = { version = "1.1", default-features = false, features = ["alloc"] }
 rand_core = "0.10"
