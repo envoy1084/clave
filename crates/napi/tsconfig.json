@@ -1,0 +1,5 @@
+{
+  "extends": "klarity/tsconfig/test",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["test/**/*.ts", "*.config.ts"]
+}
