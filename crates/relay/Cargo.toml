@@ -6,5 +6,51 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "tecpan-relay"
+path = "src/main.rs"
+
 [lints]
 workspace = true
+
+[dependencies]
+clap = { version = "4.6", features = ["derive", "env"] }
+futures = "0.3"
+getrandom = "0.4"
+hex = "0.4"
+libp2p = { version = "0.57", features = [
+  "tokio",
+  "quic",
+  "tcp",
+  "dns",
+  "noise",
+  "yamux",
+  "identify",
+  "ping",
+  "request-response",
+  "relay",
+  "macros",
+  "ed25519",
+] }
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde_json = "1"
+tecpan-wire = { workspace = true, features = ["p2p"] }
+thiserror = "2"
+tokio = { version = "1.54", features = [
+  "rt-multi-thread",
+  "macros",
+  "net",
+  "io-util",
+  "sync",
+  "time",
+  "signal",
+  "fs",
+] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+[dev-dependencies]
+tempfile = "3.27"

@@ -6,6 +6,11 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+  # `paste` is a compile-time proc macro flagged as unmaintained (not vulnerable). It is reached only on Linux through
+  # libp2p's interface watcher (if-watch -> netlink-packet-core). Revisit when libp2p drops it.
+  { id = "RUSTSEC-2024-0436", reason = "unmaintained proc macro, compile time only, via libp2p if-watch" },
+]
 
 [licenses]
 version = 2
