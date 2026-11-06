@@ -1,2 +1,23 @@
-extends:
-  - node_modules/klarity/src/lefthook/monorepo.yml
+# Based on klarity/src/lefthook/monorepo.yml, inlined so the format job tolerates commits that only touch files
+# oxfmt ignores (e.g. pnpm-lock.yaml); lefthook lets an extended config override same-named local jobs.
+min_version: 2.1.0
+
+pre-commit:
+  jobs:
+    - name: format
+      glob: "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,css,scss,md,mdx,yaml,yml}"
+      run: pnpm exec oxfmt --write --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    - name: lint
+      glob: "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
+      run: pnpm exec oxlint --deny-warnings {staged_files}
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+
+pre-push:
+  jobs:
+    - name: check
+      run: pnpm exec turbo run lint typecheck test
