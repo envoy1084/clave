@@ -1,0 +1,2 @@
+[workspace]
+members = ["tecpan_contract", "tecpan_test"]
