@@ -49,3 +49,8 @@ pnpm-debug.log*
 
 # Phase 2 throwaway spikes (results go to research/spikes.md)
 /spikes/
+
+# Fuzzing output (corpora are curated and committed in Phase 16)
+crates/crypto/fuzz/artifacts/
+crates/crypto/fuzz/corpus/
+crates/crypto/fuzz/coverage/

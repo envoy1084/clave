@@ -22,8 +22,13 @@ thiserror = "2"
 zeroize = { version = "1.9", features = ["derive"] }
 
 [dev-dependencies]
+criterion = "0.8"
 hex = "0.4"
 proptest = "1.12"
 rand_chacha = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[[bench]]
+name = "crypto"
+harness = false

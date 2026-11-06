@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["agent", "crypto", "napi", "relay", "wire"]
+# Fuzz targets build with nightly via cargo-fuzz and are their own workspace.
+exclude = ["crypto/fuzz"]
 
 [workspace.package]
 version = "0.0.0"
