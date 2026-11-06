@@ -1,0 +1,26 @@
+[package]
+name = "tecpan-napi"
+description = "Node-API bindings of Tecpan crypto and wire for the vault wallet and desktop app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+# Same as the workspace lints, except `unsafe_code`: napi-rs bindings (Phase 6) expand to unsafe FFI code.
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+print_stdout = "warn"
+todo = "warn"
+unwrap_used = "warn"

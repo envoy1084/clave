@@ -1,0 +1,19 @@
+[package]
+name = "tecpan-agent"
+description = "Tecpan member agent: viewing-share custody, threshold ECDH, ceremonies and the peer mesh"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "tecpan-agent"
+path = "src/main.rs"
+
+[lints]
+workspace = true

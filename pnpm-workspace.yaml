@@ -1,5 +1,7 @@
 packages:
   - apps/*
+  - contracts
+  - crates
   - packages/*
 
 catalog:

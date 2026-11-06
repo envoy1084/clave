@@ -1,0 +1,15 @@
+{
+  "name": "@tecpan/crates",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tecpan Rust workspace (Cargo); Turbo orders these tasks, Cargo caches them",
+  "type": "module",
+  "scripts": {
+    "build": "cargo build --workspace --all-targets",
+    "deny": "cargo deny check",
+    "format": "cargo fmt --all",
+    "format:check": "cargo fmt --all --check",
+    "lint": "cargo clippy --workspace --all-targets -- -D warnings",
+    "test": "cargo test --workspace"
+  }
+}
