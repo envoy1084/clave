@@ -21,15 +21,19 @@ pub fn encode(message: &SignedMessage) -> Result<Vec<u8>, Error> {
 
 /// Decodes and bounds-checks a signed message. Does **not** verify the signature: call [`SignedMessage::verify`].
 ///
+/// Only the canonical encoding is accepted (postcard also parses overlong varints), so every message has exactly one
+/// byte form and byte-level deduplication is sound.
+///
 /// # Errors
-/// [`Error::TooLarge`], [`Error::Malformed`], [`Error::UnsupportedVersion`] or [`Error::OutOfBounds`].
+/// [`Error::TooLarge`], [`Error::Malformed`] (including non-canonical bytes), [`Error::UnsupportedVersion`] or
+/// [`Error::OutOfBounds`].
 pub fn decode(bytes: &[u8]) -> Result<SignedMessage, Error> {
     if bytes.len() > MAX_MESSAGE_BYTES {
         return Err(Error::TooLarge(bytes.len()));
     }
     let (message, rest): (SignedMessage, &[u8]) =
         postcard::take_from_bytes(bytes).map_err(|_| Error::Malformed)?;
-    if !rest.is_empty() {
+    if !rest.is_empty() || canonical(&message)? != bytes {
         return Err(Error::Malformed);
     }
     if message.version != WIRE_VERSION {

@@ -10,6 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 tecpan-crypto = { path = ".." }
+tecpan-wire = { path = "../../wire" }
 
 [[bin]]
 name = "decode"
@@ -28,6 +29,13 @@ bench = false
 [[bin]]
 name = "envelope_open"
 path = "fuzz_targets/envelope_open.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wire_decode"
+path = "fuzz_targets/wire_decode.rs"
 test = false
 doc = false
 bench = false

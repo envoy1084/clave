@@ -70,6 +70,16 @@ fn rejects_truncation() {
 }
 
 #[test]
+fn rejects_overlong_varints() {
+    let bytes = encode(&signed(samples().remove(3).1)).unwrap();
+    // The epoch (3) is a one-byte varint at offset 33; re-encode it as the overlong `0x83 0x00`.
+    let mut overlong = bytes[..33].to_vec();
+    overlong.extend_from_slice(&[0x83, 0x00]);
+    overlong.extend_from_slice(&bytes[34..]);
+    assert!(matches!(decode(&overlong), Err(Error::Malformed)));
+}
+
+#[test]
 fn rejects_unknown_variant() {
     let mut bytes = encode(&signed(samples().remove(3).1)).unwrap();
     bytes[BODY_TAG] = 0x7f;
