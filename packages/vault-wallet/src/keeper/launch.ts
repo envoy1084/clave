@@ -14,8 +14,12 @@ export interface KeeperLaunchOptions {
   readonly masterKey: string;
   /** RPC socket path (default `<dataDir>/keeper.sock`). */
   readonly rpcSocket?: string;
-  /** Peer listen address (default `127.0.0.1:0`). */
-  readonly listen?: string;
+  /** libp2p listen multiaddrs (default loopback QUIC and TCP on random ports). */
+  readonly listen?: readonly string[];
+  /** Relay multiaddrs ending in `/p2p/<peer id>`: circuits to unreachable members and offline mailboxes. */
+  readonly relays?: readonly string[];
+  /** Extra multiaddrs to advertise, e.g. a forwarded public address. */
+  readonly external?: readonly string[];
   /** Extra environment (e.g. `RUST_LOG`). */
   readonly env?: NodeJS.ProcessEnv;
 }
@@ -26,6 +30,9 @@ export interface LaunchedKeeper {
   readonly client: KeeperClient;
   readonly identity: string;
   readonly transport: string;
+  /** libp2p peer id (derived from the identity key). */
+  readonly peerId: string;
+  /** Advertised multiaddrs: direct addresses first, then relay circuits. */
   readonly addresses: readonly string[];
   readonly rpcSocket: string;
   /** Stops the keeper (SIGTERM) and closes the client. */
@@ -40,7 +47,9 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
   const token = randomBytes(32).toString("hex");
   const args = ["run", "--data-dir", options.dataDir, "--secrets-stdin"];
   if (options.rpcSocket) args.push("--rpc-socket", options.rpcSocket);
-  if (options.listen) args.push("--listen", options.listen);
+  for (const address of options.listen ?? []) args.push("--listen", address);
+  for (const relay of options.relays ?? []) args.push("--relay", relay);
+  for (const address of options.external ?? []) args.push("--external", address);
   const child = spawn(options.binary, args, {
     stdio: ["pipe", "pipe", "inherit"],
     env: { ...process.env, ...options.env },
@@ -49,6 +58,7 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
   const ready = await new Promise<{
     identity: string;
     transport: string;
+    peerId: string;
     addresses: string[];
     rpcSocket: string;
   }>((resolve, reject) => {
