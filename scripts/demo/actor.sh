@@ -2,11 +2,12 @@
 # One member's terminal in the scripted demo (scripts/demo/run.sh). It waits for the director's cues, "types" each
 # command, runs it in this real terminal (so passphrase prompts and [y/N] confirmations are answered here), and
 # reports the exit code. When the demo ends it leaves an interactive shell for questions.
-#   actor.sh <member> <demo-dir>
+#   actor.sh <member> <demo-dir> <run-id>
 set -uo pipefail
 
 member="$1"
 demo="$2"
+run_id="$3"
 queue="$demo/q/$member"
 source "$demo/env"
 export TECPAN_PROFILE="$member"
@@ -32,7 +33,14 @@ type_out() {
 n=1
 while true; do
   cue="$(printf '%s/%03d.cmd' "$queue" "$n")"
-  until [ -f "$cue" ]; do sleep 0.2; done
+  until [ -f "$cue" ]; do
+    if [ "$(cat "$demo/run" 2>/dev/null)" != "$run_id" ]; then
+      printf '%s\n' "${dim}A newer demo run started; closing this one.${reset}"
+      sleep 2
+      exit 0
+    fi
+    sleep 0.2
+  done
   { IFS= read -r shown; IFS= read -r run; } <"$cue"
   if [ "$run" = "__end__" ]; then
     printf '\n%s\n' "${dim}Demo finished. This is $name's shell: try tecpan status, tecpan proposals, tecpan balance.${reset}"

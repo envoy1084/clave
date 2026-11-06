@@ -43,6 +43,9 @@ export TECPAN_KEEPER_BIN="$root/crates/target/debug/tecpan-keeper"
 stop_daemons
 rm -rf "$demo"
 mkdir -p "$demo/q/alice" "$demo/q/bob"
+# Windows from an earlier run see a different id and close themselves instead of running cues twice.
+run_id="$$-$(date +%s)"
+printf '%s' "$run_id" >"$demo/run"
 yes_flag=""
 if [ -n "$unattended" ]; then
   printf 'correct horse battery staple' >"$demo/passphrase"
@@ -99,14 +102,14 @@ screen_width() {
 open_member() {
   local member="$1" x="$2"
   if [ -n "$unattended" ]; then
-    bash "$root/scripts/demo/actor.sh" "$member" "$demo" >"$demo/$member.log" 2>&1 &
+    bash "$root/scripts/demo/actor.sh" "$member" "$demo" "$run_id" >"$demo/$member.log" 2>&1 &
     pids+=($!)
     return
   fi
   open -na Ghostty.app --args \
     --title="$member" --window-position-x="$x" --window-position-y=40 \
     --window-width=100 --window-height=42 --confirm-close-surface=false \
-    -e /bin/bash "$root/scripts/demo/actor.sh" "$member" "$demo"
+    -e /bin/bash "$root/scripts/demo/actor.sh" "$member" "$demo" "$run_id"
 }
 
 half=$(($(screen_width) / 2))
