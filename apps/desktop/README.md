@@ -12,5 +12,7 @@ pnpm test:e2e                # Playwright: needs `aztec start --local-network`
 pnpm package                 # unpacked app in dist/release (ad-hoc signed)
 ```
 
-Run several members on one machine with `--profile=<name>` (or `TECPAN_PROFILE`, `TECPAN_USER_DATA`).
+Run several members on one machine: `pnpm demo` starts Ana, Bea and Cai (`pnpm demo -- Dee Eli` for other names,
+`pnpm demo -- --fresh` to wipe them). One profile by hand: `electron . --profile=<name>` (or `TECPAN_PROFILE`,
+`TECPAN_USER_DATA`).
 `TECPAN_KEEPER_BIN` points at a specific keeper binary.
