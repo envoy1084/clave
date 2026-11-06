@@ -15,13 +15,16 @@ existing once they are in the tree.
 ## Target layout
 
 ```text
-contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0): vault contract, tests
+contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
+  vault_contract/       the vault account contract (TecpanVault)
+  vault_test/           TestEnvironment tests
+  test_signer_contract/ test-only helper exposing TXE signatures; never deploy
 crates/               Cargo workspace
-  tecpan-crypto/        Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH + DLEQ
-  tecpan-wire/          wire types and canonical encoding shared by agent, relay and app (TS types generated)
-  tecpan-agent/         member daemon: viewing-share custody, ECDH responder, DKG/reshare, p2p, proposal store
-  tecpan-relay/         optional untrusted store-and-forward relay (ciphertext only)
-  tecpan-napi/          Node bindings of tecpan-crypto for the Electron app
+  crypto/               tecpan-crypto: Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH
+  wire/                 tecpan-wire: wire types and canonical encoding shared by agent, relay and app
+  agent/                tecpan-agent: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
+  relay/                tecpan-relay: optional untrusted store-and-forward relay (ciphertext only)
+  napi/                 tecpan-napi: Node bindings of tecpan-crypto for the Electron app
 packages/             TypeScript, only where Aztec requires it
   vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
 apps/
@@ -34,6 +37,9 @@ research/             gitignored plans and investigation; never a build or doc i
 Process boundaries in the desktop app: the renderer is UI only (sandboxed, no Node). The PXE, signing keys and agent
 supervision live in the main process or an Electron `utilityProcess`. Signing keys never leave the member's device.
 Viewing shares live only in `tecpan-agent`, which may run locally or on the member's own server.
+
+Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package names keep it
+(`crates/agent` builds `tecpan-agent`).
 
 ## Toolchain
 
