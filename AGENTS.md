@@ -120,6 +120,7 @@ Narrow lanes:
 ```sh
 pnpm --filter @tecpan/contracts build|test|profile   # aztec compile / aztec test / gate counts
 pnpm --filter @tecpan/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
+cargo test --manifest-path crates/Cargo.toml -p tecpan-keeper   # keeper: custody, ceremonies, multi-keeper, rpc
 pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)

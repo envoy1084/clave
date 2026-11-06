@@ -5,7 +5,8 @@ holding a vault's incoming viewing secret. A 53-line pnpm patch of `@aztec-labs/
 through the key store; `ThresholdKeyStore` answers with threshold ECDH (see `viewing-keys.md`). On top of it,
 `VaultWallet` deploys vaults, verifies their config and runs k-of-n transactions and authwits.
 
-Status: Phase 7. Partials come from in-process test shares; the keeper RPC replaces them in Phase 8.
+Status: Phases 7–8. Partials come from the member's keeper (`KeeperPartialsSource`, see `keeper.md`); in-process test
+shares remain for unit tests and as a second end-to-end backend.
 
 ## The patch (`patches/@aztec-labs__pxe@6.0.0.patch`)
 
@@ -62,10 +63,10 @@ epoch. With the cache: 32 requests for 35 points.
 proof against `A_i` and combines `t_v` valid partials per point. Members with bad proofs are reported and skipped; fewer
 than `t_v` valid partials for any point fails the batch.
 
-| `PartialsSource`          | Where                                          | Status  |
-| ------------------------- | ---------------------------------------------- | ------- |
-| `InProcessPartialsSource` | `@tecpan/vault-wallet/testing`                 | Phase 7 |
-| Keeper RPC                | the member's `tecpan-keeper` (local or remote) | Phase 8 |
+| `PartialsSource`          | Where                                                                       | Status  |
+| ------------------------- | --------------------------------------------------------------------------- | ------- |
+| `InProcessPartialsSource` | `@tecpan/vault-wallet/testing`                                              | Phase 7 |
+| `KeeperPartialsSource`    | the member's `tecpan-keeper` (local RPC; it gathers from the other keepers) | Phase 8 |
 
 A request carries vault, epoch, purpose (`decryption` / `tagging`) and points. Keepers take the address context from
 their own manifest, never from the request.

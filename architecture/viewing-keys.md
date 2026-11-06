@@ -48,7 +48,12 @@ Feldman DKG with Schnorr proofs of knowledge (FROST `KeyGen` shape), as a transp
    `s_i = Σ_j f_j(i)`, `Ivpk = Σ_j C_{j,0}`, and records a transcript hash every member must confirm.
 
 Complaints are publicly checkable: a revealed share that does not match the dealer's commitments
-(`complaint_is_valid`) proves the dealer misbehaved, given the dealer's signature on the envelope.
+(`complaint_is_valid`) proves the dealer misbehaved, given the dealer's signature on the envelope. A revealed share that
+does match is unattributable, so the keeper aborts without blame (see `keeper.md`).
+
+Manifests carry only verification shares; `Commitments::interpolate` rebuilds the committee's Feldman commitments from
+them (rejecting shares that do not lie on one polynomial), which resharing needs, and `KeyShare::restore` rebuilds a
+stored share after checking it against them.
 
 The DKG is custom rather than `frost-core`'s: `frost-core` multiplies secret coefficients through its group type (so a
 constant-time point type would be needed anyway), its refresh cannot move shares to a different committee, and its
