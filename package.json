@@ -8,6 +8,7 @@
     "check": "pnpm format:check && turbo run lint typecheck build deny",
     "cli:install": "scripts/cli-install.sh",
     "codegen": "turbo run codegen",
+    "demo": "scripts/demo/run.sh",
     "dev": "turbo run dev",
     "format": "oxfmt --write . && turbo run format",
     "format:check": "oxfmt --check . && turbo run format:check",
