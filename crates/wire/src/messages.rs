@@ -126,7 +126,7 @@ fn bounded(field: &'static str, len: usize, min: usize, max: usize) -> Result<()
 pub struct Manifest {
     /// Vault address.
     pub vault: WireField,
-    /// Committee epoch (vault config version).
+    /// Committee epoch: the vault config version at which this committee became active.
     pub epoch: u32,
     /// Spending threshold `k`.
     pub threshold: u32,

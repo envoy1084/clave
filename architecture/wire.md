@@ -38,8 +38,10 @@ signature     = Ed25519(keeper, "tecpan.wire.v0" ‖ postcard(version, header, b
   canonical `S`). The identity's `Debug` output is redacted.
 - **Signer binding.** `verify_from(expected)` checks the signer is the manifest entry of the member the message
   claims to come from, before checking the signature.
-- **Scope** is the vault address, or the ceremony session id before the vault exists. **Epoch** is the vault config
-  version.
+- **Scope** is the vault address, or the ceremony session id before the vault exists. **Epoch** is the committee epoch:
+  the vault config version at which the current viewing committee became active (0 from the DKG). Config changes that
+  keep the committee (`set_threshold`, `invalidate_pending`) do not change it; DKG messages use 0 and reshare messages
+  the old committee's epoch.
 
 ### Replay rules (`ReplayGuard`)
 
@@ -88,10 +90,10 @@ Third parties cannot open another member's envelope, so a complaint is resolved 
 
 1. Member `i` broadcasts `Complaint { accused: j }`.
 2. Dealer `j` broadcasts `Justification { complainant: i, share: f_j(i) }`.
-3. Everyone checks `Justification::holds(C_j)`. A share that matches clears `j` (and `i` uses it); a share that does not,
-   or no justification before the round deadline, disqualifies `j` and the ceremony aborts or restarts without `j`.
-
-Revealing `f_j(i)` exposes only that one evaluation, which `i` was meant to receive anyway.
+3. Everyone checks `Justification::holds(C_j)`. A share that does not match, or no justification before the round
+   deadline, blames `j`. A share that matches is unattributable (nobody else saw what `j` sent), so nobody is blamed.
+   Either way the ceremony aborts: the revealed share is now public, and members restart with a new session (without
+   `j` if it was blamed). See `keeper.md`.
 
 ### Proposals and approvals
 

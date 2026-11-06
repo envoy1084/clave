@@ -9,7 +9,8 @@ use crate::{
 pub struct Header {
     /// What the message belongs to: the vault address, or a ceremony session id before the vault exists.
     pub scope: [u8; 32],
-    /// Committee epoch (the vault config version).
+    /// Committee epoch: the vault config version at which the current viewing committee became active (0 for a DKG,
+    /// the old epoch during a reshare).
     pub epoch: u32,
     /// Unique per sender; receivers reject repeats.
     pub id: [u8; 16],
