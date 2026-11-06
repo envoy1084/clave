@@ -98,6 +98,12 @@ pub(crate) fn screen(review: &Review, verb: Verb, style: Style) -> String {
     };
     field("Simulation", &simulation);
     out.push('\n');
+    checks(&mut out, review, verb, style);
+    out
+}
+
+/// The checks the daemon ran and the exact message the signature covers.
+fn checks(out: &mut String, review: &Review, verb: Verb, style: Style) {
     let c = &review.checks;
     let mark = |ok: bool| if ok { style.ok() } else { style.fail() };
     let _ = writeln!(
@@ -111,20 +117,24 @@ pub(crate) fn screen(review: &Review, verb: Verb, style: Style) -> String {
     if let Some(failure) = &c.failure {
         let _ = writeln!(out, "  {:<14}{}", "", style.red(failure));
     }
-    let _ = writeln!(out, "  {:<14}{}", "Signs", review.signs.formula);
-    let _ = writeln!(out, "  {:<14}= {}", "", review.signs.message);
-    out
+    let signs = match verb {
+        Verb::Approve => &review.signs,
+        Verb::Reject => &review.rejects,
+    };
+    let _ = writeln!(out, "  {:<14}{}", "Signs", signs.formula);
+    let _ = writeln!(out, "  {:<14}= {}", "", signs.message);
 }
 
-/// `Approve as cai (slot 3)? [y/N] `.
+/// `Approve as cai (member 3)? [y/N] `.
 pub(crate) fn question(review: &Review, verb: Verb) -> String {
     let word = match verb {
         Verb::Approve => "Approve",
         Verb::Reject => "Reject",
     };
     format!(
-        "{word} as {} (slot {})?",
-        review.my_name, review.proposal.my_slot
+        "{word} as {} (member {})?",
+        review.my_name,
+        review.proposal.my_slot + 1
     )
 }
 
@@ -154,7 +164,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        proposal.my_slot = 3;
+        proposal.my_slot = 2;
         Review {
             proposal,
             vault_name: "Ops".into(),
@@ -185,6 +195,10 @@ mod tests {
                 formula: "Poseidon2(tecpan.approval.v0, [vault, outer hash, v0, expires_at])"
                     .into(),
             },
+            rejects: Signs {
+                message: "0x0bad5eed".into(),
+                formula: "Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])".into(),
+            },
         }
     }
 
@@ -214,7 +228,7 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
         );
         assert_eq!(
             question(&review(), Verb::Approve),
-            "Approve as cai (slot 3)?"
+            "Approve as cai (member 3)?"
         );
     }
 
@@ -233,5 +247,8 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
         assert!(screen.contains("✗ config version current"));
         assert!(screen.contains("config version changed"));
         assert!(screen.contains("(not in address book)"));
+        // A rejection shows the rejection message it signs, never the approval message.
+        assert!(screen.contains("tecpan.rejection.v0"));
+        assert!(!screen.contains("tecpan.approval.v0"));
     }
 }

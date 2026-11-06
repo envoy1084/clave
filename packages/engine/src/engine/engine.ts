@@ -155,6 +155,11 @@ export class Engine {
     return this.#account;
   }
 
+  /** This member's own account address, once the PXE has registered it. */
+  get ownAccount(): string | undefined {
+    return this.#account?.toString();
+  }
+
   get fee() {
     if (!this.#fee) throw new DaemonError("not-ready", "Your Aztec account is not ready yet");
     return this.#fee;

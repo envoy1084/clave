@@ -352,7 +352,10 @@ export interface Review {
     readonly gas?: { readonly da: number; readonly l2: number };
     readonly error?: string;
   };
+  /** What an approval signs. */
   readonly signs: { readonly message: string; readonly formula: string };
+  /** What a rejection signs. */
+  readonly rejects: { readonly message: string; readonly formula: string };
 }
 
 export interface ProposalPreview {

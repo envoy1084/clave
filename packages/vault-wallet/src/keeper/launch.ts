@@ -58,7 +58,10 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
     stdio: ["pipe", "pipe", options.stderr ?? "inherit"],
     env: { ...process.env, ...options.env },
   });
-  child.stdin.end(`${JSON.stringify({ masterKey: options.masterKey, rpcToken: token })}\n`);
+  // Both are pipes (see `stdio`); the types cannot express that once stderr is a variable.
+  const { stdin, stdout } = child;
+  if (!stdin || !stdout) throw new Error("keeper started without pipes");
+  stdin.end(`${JSON.stringify({ masterKey: options.masterKey, rpcToken: token })}\n`);
   const ready = await new Promise<{
     identity: string;
     transport: string;
@@ -66,7 +69,7 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
     addresses: string[];
     rpcSocket: string;
   }>((resolve, reject) => {
-    const lines = createInterface({ input: child.stdout });
+    const lines = createInterface({ input: stdout });
     lines.once("line", (line) => {
       try {
         resolve(JSON.parse(line).ready);

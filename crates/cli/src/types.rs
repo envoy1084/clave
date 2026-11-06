@@ -273,7 +273,10 @@ pub(crate) struct Review {
     pub(crate) action: String,
     pub(crate) recipient: Option<Recipient>,
     pub(crate) simulation: Simulation,
+    /// What an approval signs.
     pub(crate) signs: Signs,
+    /// What a rejection signs.
+    pub(crate) rejects: Signs,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

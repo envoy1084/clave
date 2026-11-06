@@ -44,8 +44,12 @@ is `TECPAN_KEEPER_BIN`, else `$TECPAN_HOME/bin/tecpan-keeper`, else `crates/targ
 Newline-delimited JSON-RPC 2.0 over `daemon.sock`, the keeper's framing: the first call of every connection is
 `session.auth { token }` with the contents of `daemon.token` (compared in constant time); events arrive as
 notifications `{"jsonrpc":"2.0","method":"event","params":<event>}` after `events.subscribe`. Results and params are
-plain JSON: field elements and bytes are `0x` hex, points `{ x, y }`, amounts decimal strings of base units, times unix
-milliseconds unless named `…At` in seconds (`expiresAt` is unix seconds, the chain's clock).
+plain JSON: field elements and bytes are `0x` hex, points `{ x, y }`, amounts decimal strings of base units. Times are
+unix milliseconds (`startedAt`, `foundedAt`, `createdAt`, `unlockedUntil`, `checkedAt`) except the chain's: a proposal's
+`expiresAt` and an execution's `at` are unix seconds, and a received transfer's `at` is its block number. Validation
+beyond the shapes: contact labels and vault aliases match `^[a-z0-9][a-z0-9_-]{0,31}$`, `viewingThreshold` is at least
+2, unlock windows are at least 60 s and at most `unlockTimeoutSecs`. `events.subscribe` is handled by the server itself
+and is not in the engine's method table.
 
 Errors are `{ code, message, data?: { kind } }`. `kind` maps to the CLI's exit codes:
 
@@ -135,7 +139,8 @@ Review      { proposal: ProposalView, vaultName, myName,
               action: string,               // "transfer 25 TTT (25000000000000000000 base units)"
               recipient?: { address, label?, source: "address book" | "member" | null },
               simulation: { ok: boolean, gas?: { da, l2 }, error? },
-              signs: { message: string, formula: string } }
+              signs: { message: string, formula: string },     // what an approval signs
+              rejects: { message: string, formula: string } }   // what a rejection signs
 ```
 
 Status words: `collecting`, `ready`, `blocked`, `executed`, `cancelled`, `expired`, `stale`. A proposal is `blocked`

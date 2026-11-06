@@ -166,7 +166,7 @@ fn show(vault: &VaultSummary, d: &Value, ctx: &Ctx) -> String {
         "  {:<16}{} of {}",
         "View", vault.viewing_threshold, vault.members
     );
-    let _ = writeln!(out, "  {:<16}{}", "Your slot", vault.my_index);
+    let _ = writeln!(out, "  {:<16}{}", "You are member", vault.my_index);
     if d.get("config").is_some_and(|c| !c.is_null()) {
         let _ = writeln!(out, "  {:<16}v{}", "Config", number(d, "/config/version"));
         let _ = writeln!(

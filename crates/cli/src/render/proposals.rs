@@ -250,7 +250,7 @@ pub(crate) fn show(
     for (word, votes) in [("approved", &p.approvals), ("rejected", &p.rejections)] {
         for v in votes {
             let mark = if v.valid { style.ok() } else { style.fail() };
-            let mut line = format!("  {mark} slot {}  {:<10} {word}", v.slot, v.name);
+            let mut line = format!("  {mark} member {}  {:<10} {word}", v.index, v.name);
             if let Some(reason) = v.reason.as_deref().filter(|r| !r.is_empty()) {
                 let _ = write!(line, "  \"{reason}\"");
             }
@@ -399,11 +399,11 @@ c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collect
     fn show_lists_votes_with_reasons() {
         let rendered = show(&call(), &[], NOW, Style::PLAIN);
         assert!(
-            rendered.contains("  ✓ slot 1  ana        approved\n"),
+            rendered.contains("  ✓ member 1  ana        approved\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  ✓ slot 3  cai        rejected  \"not yet\"\n"),
+            rendered.contains("  ✓ member 3  cai        rejected  \"not yet\"\n"),
             "{rendered}"
         );
         assert!(

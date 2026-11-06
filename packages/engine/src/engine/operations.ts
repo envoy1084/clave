@@ -231,6 +231,10 @@ export class Operations {
         message: view.approvalMessage,
         formula: `Poseidon2(tecpan.approval.v0, [vault, outer hash, v${view.configVersion}, ${view.expiresAt}])`,
       },
+      rejects: {
+        message: proposalRejectionMessage(id, vault.address),
+        formula: "Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])",
+      },
     };
   }
 
@@ -641,8 +645,10 @@ export class Operations {
     });
   }
 
-  /** Where a recipient's name comes from: the address book, or nowhere. */
-  #label(address: string): { label?: string; source: "address book" | null } {
+  /** Where a recipient's name comes from: this member's own account, the address book, or nowhere. */
+  #label(address: string): { label?: string; source: "address book" | "member" | null } {
+    if (this.#engine.ownAccount?.toLowerCase() === address.toLowerCase())
+      return { label: `${this.#engine.profile.name} (you)`, source: "member" };
     const contact = this.#engine.host
       .contacts()
       .find((c) => c.address.toLowerCase() === address.toLowerCase());
