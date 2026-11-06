@@ -3,11 +3,14 @@
 //! ceremonies, keeps the proposal store, and activates or destroys shares as the vault's on-chain committee changes.
 //! See `architecture/keeper.md`.
 
+pub mod ceremony;
 mod clock;
+pub mod committee;
 pub mod custody;
 mod error;
 mod random;
 pub mod store;
+pub mod transport;
 
 pub use clock::{Clock, SystemClock};
 pub use error::{Error, Result};
