@@ -26,6 +26,13 @@ export {
   signApproval,
 } from "./vault/approvals.ts";
 export { vaultArtifact } from "./vault/artifact.ts";
+export { MAX_PAYLOAD_BYTES, decodePayload, encodePayload } from "./vault/payload.ts";
+export {
+  ProposalMismatchError,
+  proposalOf,
+  vaultApprovalsOf,
+  vaultTxOf,
+} from "./vault/proposals.ts";
 export { type VaultConfig, readSignerKeys, readVaultConfig } from "./vault/config.ts";
 export {
   MAX_SIGNERS,
