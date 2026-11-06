@@ -6,11 +6,13 @@
 //!
 //! Secret scalars are [`SecretScalar`]: zeroized on drop, never printed, and multiplied with a constant-time ladder.
 
+pub mod aztec;
 mod ct;
 pub mod curve;
 mod error;
 pub mod poseidon2;
 mod secret;
+pub mod vault;
 
 pub use curve::{Base, Point, Scalar};
 pub use error::Error;

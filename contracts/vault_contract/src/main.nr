@@ -6,6 +6,7 @@ pub mod notes;
 pub mod point;
 pub mod signer_set;
 pub mod witness;
+mod wire_vectors;
 
 use aztec::macros::aztec;
 
