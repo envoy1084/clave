@@ -1,15 +1,23 @@
-//! Decoding untrusted wire bytes never panics, accepted messages re-encode to the same bytes, and verification and
-//! crypto conversions of decoded bodies never panic.
+//! Decoding untrusted wire bytes (signed messages and bare bodies) never panics, accepted values re-encode to the
+//! same bytes, and verification and crypto conversions of decoded bodies never panic.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_wire::{Message, decode, encode};
+use tecpan_wire::{Message, decode, decode_body, encode, encode_body};
 
 fuzz_target!(|data: &[u8]| {
+    if let Ok(body) = decode_body(data) {
+        assert_eq!(encode_body(&body).ok().as_deref(), Some(data));
+        exercise(&body);
+    }
     let Ok(message) = decode(data) else { return };
     assert_eq!(encode(&message).ok().as_deref(), Some(data));
     let _ = message.verify();
-    match &message.body {
+    exercise(&message.body);
+});
+
+fn exercise(body: &Message) {
+    match body {
         Message::Manifest(manifest) => {
             let _ = manifest.signer_set_commitment();
             let _ = manifest.committee_commitment();
@@ -29,4 +37,4 @@ fuzz_target!(|data: &[u8]| {
         }
         _ => {}
     }
-});
+}
