@@ -22,9 +22,9 @@ contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
 crates/               Cargo workspace
   crypto/               tecpan-crypto: Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH
   wire/                 tecpan-wire: wire types and canonical encoding shared by keeper, relay and app
-  keeper/                tecpan-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
+  keeper/               tecpan-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
   relay/                tecpan-relay: optional untrusted store-and-forward relay (ciphertext only)
-  napi/                 tecpan-napi: Node bindings of tecpan-crypto for the Electron app
+  napi/                 @tecpan/napi: Node bindings of tecpan-crypto and tecpan-wire (secret helpers only in /testing)
 packages/             TypeScript, only where Aztec requires it
   vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
 apps/
@@ -118,6 +118,7 @@ Narrow lanes:
 ```sh
 pnpm --filter @tecpan/contracts build|test|profile   # aztec compile / aztec test / gate counts
 pnpm --filter @tecpan/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
+pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
 ```
 
