@@ -16,7 +16,10 @@ use tecpan_crypto::{
 };
 use tecpan_wire::{
     Error, Message,
-    messages::{Approval, Ceremony, DkgRound1, EcdhResponse, Justification, Manifest, ReshareDeal},
+    messages::{
+        Approval, Ceremony, DkgRound1, EcdhResponse, Justification, MAX_REASON_BYTES, Manifest,
+        Rejection, ReshareDeal,
+    },
     types::{field, scalar},
 };
 
@@ -140,6 +143,66 @@ fn approvals_verify_against_their_proposal() {
     let mut other = proposal.clone();
     other.summary.push('!');
     assert!(!approval.verify(&other, vault, &public).unwrap());
+}
+
+#[test]
+fn rejections_verify_against_their_proposal_and_vault() {
+    let mut rng = rng();
+    let key = SecretScalar::new(Scalar::from(31u64));
+    let public = Point::generator_mul_secret(&key).unwrap();
+    let vault = tecpan_crypto::Base::from(0x1234u64);
+    let id = proposal().id().unwrap();
+    let signature = schnorr::sign(&key, vault::rejection_message(vault, &id), &mut rng).unwrap();
+    let limbs = signature.to_limbs();
+    let rejection = Rejection {
+        proposal: id,
+        slot: 0,
+        reason: "wrong recipient".into(),
+        signature: [
+            field(&limbs[0]),
+            field(&limbs[1]),
+            field(&limbs[2]),
+            field(&limbs[3]),
+        ],
+    };
+
+    assert!(rejection.verify(vault, &public).unwrap());
+    // Other vault, other signer, other proposal.
+    assert!(
+        !rejection
+            .verify(tecpan_crypto::Base::from(1u64), &public)
+            .unwrap()
+    );
+    assert!(!rejection.verify(vault, &point(5)).unwrap());
+    let mut other = rejection.clone();
+    other.proposal[31] ^= 1;
+    assert!(!other.verify(vault, &public).unwrap());
+    // An approval signature is not a rejection (different domain).
+    let approval =
+        schnorr::sign(&key, proposal().approval_message(vault).unwrap(), &mut rng).unwrap();
+    let limbs = approval.to_limbs();
+    let mut swapped = rejection.clone();
+    swapped.signature = [
+        field(&limbs[0]),
+        field(&limbs[1]),
+        field(&limbs[2]),
+        field(&limbs[3]),
+    ];
+    assert!(!swapped.verify(vault, &public).unwrap());
+}
+
+#[test]
+fn rejection_reasons_are_bounded() {
+    let body = Message::Rejection(Rejection {
+        proposal: [1; 32],
+        slot: 0,
+        reason: "x".repeat(MAX_REASON_BYTES + 1),
+        signature: [[0; 32]; 4],
+    });
+    assert!(matches!(
+        body.validate(),
+        Err(Error::OutOfBounds { field: "reason" })
+    ));
 }
 
 #[test]

@@ -334,6 +334,23 @@ pub(super) async fn call(keeper: &Keeper, method: &str, value: Value) -> Result<
                     .collect::<Vec<_>>()
             ))
         }
+        "rejections.put" => {
+            let p: Body = params(value)?;
+            keeper
+                .put_rejection(parse32(&p.vault)?, &parse_bytes(&p.body)?)
+                .await?;
+            Ok(Value::Bool(true))
+        }
+        "rejections.list" => {
+            let p: ProposalParam = params(value)?;
+            Ok(json!(
+                keeper
+                    .rejections(parse32(&p.proposal)?)?
+                    .iter()
+                    .map(|b| format!("0x{}", hex::encode(b)))
+                    .collect::<Vec<_>>()
+            ))
+        }
         "receipts.put" => {
             let p: Receipt = params(value)?;
             keeper

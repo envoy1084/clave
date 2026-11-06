@@ -76,11 +76,12 @@ Variants are append-only: the index is the encoding. Golden bytes for every kind
 |  14 | `ExecutionReceipt` | proposal id, transaction hash                                                                |                                   |
 |  15 | `RelayEnvelope`    | opaque recipient mailbox id, expiry, sealed bytes                                            | 1 byte..=512 KiB                  |
 |  16 | `Echo`             | a dealer's signed `DkgRound1` / `ReshareDeal` frame, forwarded once by a participant         | frame ≤ 64 KiB                    |
-|  17 | `SyncRequest`      | inventory: proposal ids, `(proposal, slot)` approval refs, receipted proposal ids            | ≤ 4096 of each                    |
+|  17 | `SyncRequest`      | inventory: proposal ids, approval refs, receipted proposal ids, rejection refs               | ≤ 4096 of each                    |
 |  18 | `LobbyJoin`        | lobby id, join proof, the joiner's `LobbyMember`                                             | member name ≤ 64 bytes            |
 |  19 | `LobbyState`       | lobby id, revision, vault name, proposed `k` / `t_v`, members (host first), started          | 1..=8 members                     |
 |  20 | `LobbyPlan`        | lobby id, DKG session, `k`, `t_v`, salt, members in slot order, sealed secrets per member    | ≤ 8 members, sealed ≤ 1040 bytes  |
 |  21 | `LobbyLeave`       | lobby id (from a guest: it leaves; from the host: the lobby is closed)                       |                                   |
+|  22 | `Rejection`        | proposal id, slot, reason, signature limbs over the rejection message                        | reason ≤ 280 bytes                |
 
 ### Manifest
 
@@ -132,6 +133,13 @@ Third parties cannot open another member's envelope, so a complaint is resolved 
   expires_at])` (see `contract.md`).
 - `Approval::verify(proposal, vault, signer_key)` requires the approval to name that proposal id and the signature to
   verify exactly as the contract checks it. Approvers recompute `outer_hash` from `payload` before signing.
+- `Rejection` is an off-chain vote, never seen by the contract: a Schnorr signature by the slot's signer over
+  `Poseidon2("tecpan.rejection.v0", [vault, id_hi, id_lo])`, where `id_hi` and `id_lo` are the big-endian 128-bit
+  halves of the proposal id. The separate domain means an approval signature can never pass as a rejection or the
+  reverse. When more than `n - k` members reject, `k` approvals are out of reach and engines show the proposal as
+  blocked; cancelling it burns its nonce. An approval outranks a rejection from the same slot (it is already a usable
+  signature), so engines refuse to reject after approving.
+- `SyncRequest.rejections` was appended in Phase 13 (v0 has no deployed peers to stay compatible with).
 
 ### Relay mailbox protocol (`tecpan_wire::mailbox`)
 
@@ -164,12 +172,12 @@ napi-rs 3, Node-API 8. Field elements and scalars cross the boundary as `0x`-pre
 `{ x, y }`, byte strings as `Buffer`, timestamps as non-negative integers. Every function validates its input and
 throws an `InvalidArg` error on failure.
 
-| Area    | Functions                                                                                                                                                  |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vault   | `approvalMessage`, `signerSetCommitment`, `committeeCommitment`, `encodeWitness`, `signatureLimbs`, `verifySignature`                                      |
-| Address | `preaddress`, `addressContext` (address, sign, address point), `addressPublicShares` (`A_i` from `Y_i`)                                                    |
-| Viewing | `verifyAndCombine`: verifies every DLEQ proof, combines `t_v` valid partials per input, reports bad members                                                |
-| Wire    | `wireVersion`, `proposalId`, `proposalApprovalMessage`, `encodeProposal` / `decodeProposal`, `encodeApproval` / `decodeApproval`, `verifyProposalApproval` |
+| Area    | Functions                                                                                                                                                                                                                                                |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vault   | `approvalMessage`, `signerSetCommitment`, `committeeCommitment`, `encodeWitness`, `signatureLimbs`, `verifySignature`                                                                                                                                    |
+| Address | `preaddress`, `addressContext` (address, sign, address point), `addressPublicShares` (`A_i` from `Y_i`)                                                                                                                                                  |
+| Viewing | `verifyAndCombine`: verifies every DLEQ proof, combines `t_v` valid partials per input, reports bad members                                                                                                                                              |
+| Wire    | `wireVersion`, `proposalId`, `proposalApprovalMessage`, `encodeProposal` / `decodeProposal`, `encodeApproval` / `decodeApproval`, `verifyProposalApproval`, `proposalRejectionMessage`, `encodeRejection` / `decodeRejection`, `verifyProposalRejection` |
 
 - **No secrets in the production addon.** Envelope sealing and opening stay in the keeper (which holds the transport
   key); signing keys stay in the member's signer. Helpers that deal or use viewing shares and a test Schnorr

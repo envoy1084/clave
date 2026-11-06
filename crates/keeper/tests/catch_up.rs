@@ -12,7 +12,7 @@ use std::time::Duration;
 use common::{Harness, TestKeeper, eventually, manifest, run_dkg};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
-use tecpan_crypto::schnorr;
+use tecpan_crypto::{SecretScalar, schnorr, vault};
 use tecpan_keeper::{
     KeeperConfig,
     ceremony::dkg::{Dkg, DkgParams},
@@ -20,8 +20,8 @@ use tecpan_keeper::{
 };
 use tecpan_wire::{
     Header, Message, SignedMessage, encode, encode_body,
-    messages::{Approval, Proposal},
-    types::parse_field,
+    messages::{Approval, Proposal, Rejection},
+    types::{field, parse_field},
 };
 
 fn config() -> KeeperConfig {
@@ -102,9 +102,10 @@ async fn an_equivocating_dealer_is_caught_by_the_echo() {
 struct Records {
     proposal: Vec<u8>,
     approval: Vec<u8>,
+    rejection: Vec<u8>,
 }
 
-/// A vault of three keepers; member 3 is cut off while member 1 proposes and member 2 approves.
+/// A vault of three keepers; member 3 is cut off while member 1 proposes, member 2 approves and member 1 rejects.
 async fn records_while_member_3_is_away(harness: &Harness) -> (Vec<TestKeeper>, [u8; 32], Records) {
     let keepers: Vec<TestKeeper> = (1..=3).map(|i| harness.keeper(i)).collect();
     let refs: Vec<&TestKeeper> = keepers.iter().collect();
@@ -151,6 +152,20 @@ async fn records_while_member_3_is_away(harness: &Harness) -> (Vec<TestKeeper>, 
         .put_approval(vault, &approval)
         .await
         .unwrap();
+    let rejection = rejection_body(vault, id, 0, &signers[0]);
+    // Signed by member 1 but claiming slot 2: refused.
+    assert!(
+        keepers[0]
+            .keeper
+            .put_rejection(vault, &rejection_body(vault, id, 2, &signers[0]))
+            .await
+            .is_err()
+    );
+    keepers[0]
+        .keeper
+        .put_rejection(vault, &rejection)
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(keepers[2].keeper.proposals(vault).unwrap().is_empty());
     (
@@ -159,6 +174,7 @@ async fn records_while_member_3_is_away(harness: &Harness) -> (Vec<TestKeeper>, 
         Records {
             proposal: proposal_body,
             approval,
+            rejection,
         },
     )
 }
@@ -185,6 +201,29 @@ async fn an_offline_member_catches_up_through_sync() {
         (keepers[2].keeper.approvals(id).unwrap() == vec![records.approval.clone()]).then_some(())
     })
     .await;
+    eventually(async || {
+        (keepers[2].keeper.rejections(id).unwrap() == vec![records.rejection.clone()]).then_some(())
+    })
+    .await;
+}
+
+/// A signed rejection body for `slot`.
+fn rejection_body(vault: [u8; 32], id: [u8; 32], slot: u32, key: &SecretScalar) -> Vec<u8> {
+    let message = vault::rejection_message(parse_field(&vault).unwrap(), &id);
+    let signature = schnorr::sign(key, message, &mut ChaCha20Rng::seed_from_u64(9)).unwrap();
+    let limbs = signature.to_limbs();
+    encode_body(&Message::Rejection(Rejection {
+        proposal: id,
+        slot,
+        reason: "wrong recipient".into(),
+        signature: [
+            field(&limbs[0]),
+            field(&limbs[1]),
+            field(&limbs[2]),
+            field(&limbs[3]),
+        ],
+    }))
+    .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread")]

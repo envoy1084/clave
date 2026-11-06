@@ -1,6 +1,6 @@
 use tecpan_wire::{
     Header, IdentityPublic, Message, decode_body, encode_body,
-    messages::{Approval, ExecutionReceipt, Proposal},
+    messages::{Approval, ExecutionReceipt, Proposal, Rejection},
     types::parse_field,
 };
 
@@ -36,6 +36,19 @@ impl Keeper {
         };
         self.store_approval(vault, &approval).await?;
         self.broadcast(vault, Message::Approval(approval)).await
+    }
+
+    /// Verifies and stores a rejection (signed by the slot's signer over the proposal's rejection message) and pushes
+    /// it to the other members.
+    ///
+    /// # Errors
+    /// [`Error::Invalid`] for an unknown proposal or invalid signature.
+    pub async fn put_rejection(&self, vault: [u8; 32], body: &[u8]) -> Result<()> {
+        let Message::Rejection(rejection) = decode_body(body)? else {
+            return Err(Error::Invalid("not a rejection".into()));
+        };
+        self.store_rejection(vault, &rejection).await?;
+        self.broadcast(vault, Message::Rejection(rejection)).await
     }
 
     /// Records that `proposal` executed in `tx_hash` and tells the other members.
@@ -104,6 +117,14 @@ impl Keeper {
         self.0.store.approvals(&proposal)
     }
 
+    /// Rejection bodies of a proposal.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn rejections(&self, proposal: [u8; 32]) -> Result<Vec<Vec<u8>>> {
+        self.0.store.rejections(&proposal)
+    }
+
     /// The ECDH audit log of `vault`, newest first.
     ///
     /// # Errors
@@ -155,6 +176,8 @@ impl Keeper {
                 }
                 self.store_approval(vault, &approval).await
             }
+            // A rejection that arrives before its proposal is dropped; the next sync brings it again.
+            Message::Rejection(rejection) => self.store_rejection(vault, &rejection).await,
             Message::ExecutionReceipt(receipt) => {
                 self.store_receipt(vault, receipt.proposal, receipt.tx_hash)
             }
@@ -211,35 +234,63 @@ impl Keeper {
         Ok(())
     }
 
-    async fn store_approval(&self, vault: [u8; 32], approval: &Approval) -> Result<()> {
+    /// The stored proposal `id` of `vault`.
+    fn stored_proposal(&self, vault: [u8; 32], id: &[u8; 32]) -> Result<Proposal> {
         let (stored_vault, body) = self
             .0
             .store
-            .proposal(&approval.proposal)?
-            .ok_or_else(|| Error::Invalid("approval for an unknown proposal".into()))?;
+            .proposal(id)?
+            .ok_or_else(|| Error::Invalid("vote for an unknown proposal".into()))?;
         if stored_vault != vault {
-            return Err(Error::Invalid(
-                "approval for another vault's proposal".into(),
-            ));
+            return Err(Error::Invalid("vote for another vault's proposal".into()));
         }
         let Message::Proposal(proposal) = decode_body(&body)? else {
             return Err(Error::Storage("stored proposal is not a proposal".into()));
         };
-        let signer_key = {
-            let state = self.0.state.lock().await;
-            let committee = &state
-                .vaults
-                .get(&vault)
-                .ok_or(Error::UnknownVault)?
-                .committee;
-            let slot = usize::try_from(approval.slot).map_err(|_| Error::Invalid("slot".into()))?;
-            let member = committee
-                .manifest
-                .members
-                .get(slot)
-                .ok_or_else(|| Error::Invalid("approval for an empty slot".into()))?;
-            tecpan_crypto::Point::try_from(&member.signer_key)?
-        };
+        Ok(proposal)
+    }
+
+    /// The signer key of `slot` in `vault`'s committee.
+    async fn signer_key(&self, vault: [u8; 32], slot: u32) -> Result<tecpan_crypto::Point> {
+        let state = self.0.state.lock().await;
+        let committee = &state
+            .vaults
+            .get(&vault)
+            .ok_or(Error::UnknownVault)?
+            .committee;
+        let slot = usize::try_from(slot).map_err(|_| Error::Invalid("slot".into()))?;
+        let member = committee
+            .manifest
+            .members
+            .get(slot)
+            .ok_or_else(|| Error::Invalid("vote for an empty slot".into()))?;
+        Ok(tecpan_crypto::Point::try_from(&member.signer_key)?)
+    }
+
+    async fn store_rejection(&self, vault: [u8; 32], rejection: &Rejection) -> Result<()> {
+        self.stored_proposal(vault, &rejection.proposal)?;
+        let signer_key = self.signer_key(vault, rejection.slot).await?;
+        if !rejection.verify(parse_field(&vault)?, &signer_key)? {
+            return Err(Error::Invalid("invalid rejection signature".into()));
+        }
+        let body = encode_body(&Message::Rejection(rejection.clone()))?;
+        if self
+            .0
+            .store
+            .put_rejection(&rejection.proposal, rejection.slot, &body, self.now())?
+        {
+            self.emit(Event::Rejection {
+                vault: hex::encode(vault),
+                proposal: hex::encode(rejection.proposal),
+                slot: rejection.slot,
+            });
+        }
+        Ok(())
+    }
+
+    async fn store_approval(&self, vault: [u8; 32], approval: &Approval) -> Result<()> {
+        let proposal = self.stored_proposal(vault, &approval.proposal)?;
+        let signer_key = self.signer_key(vault, approval.slot).await?;
         if !approval.verify(&proposal, parse_field(&vault)?, &signer_key)? {
             return Err(Error::Invalid("invalid approval signature".into()));
         }

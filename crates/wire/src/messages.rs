@@ -42,6 +42,8 @@ pub const MAX_SEALED_SHARE_BYTES: usize = 256;
 pub const MAX_RELAY_BYTES: usize = 512 * 1024;
 /// Largest forwarded frame in an [`Echo`].
 pub const MAX_ECHO_BYTES: usize = 64 * 1024;
+/// Longest rejection reason.
+pub const MAX_REASON_BYTES: usize = 280;
 /// Most records of each kind in one [`SyncRequest`].
 pub const MAX_SYNC_ITEMS: usize = 4096;
 /// Domain tag of proposal ids.
@@ -94,6 +96,8 @@ pub enum Message {
     LobbyPlan(LobbyPlan),
     /// A guest leaves a lobby, or the host closes it.
     LobbyLeave(LobbyLeave),
+    /// A member's signed vote against a proposal.
+    Rejection(Rejection),
 }
 
 impl Message {
@@ -120,11 +124,13 @@ impl Message {
             Self::SyncRequest(m) => {
                 bounded("proposals", m.proposals.len(), 0, MAX_SYNC_ITEMS)?;
                 bounded("approvals", m.approvals.len(), 0, MAX_SYNC_ITEMS)?;
-                bounded("receipts", m.receipts.len(), 0, MAX_SYNC_ITEMS)
+                bounded("receipts", m.receipts.len(), 0, MAX_SYNC_ITEMS)?;
+                bounded("rejections", m.rejections.len(), 0, MAX_SYNC_ITEMS)
             }
             Self::LobbyJoin(m) => m.validate(),
             Self::LobbyState(m) => m.validate(),
             Self::LobbyPlan(m) => m.validate(),
+            Self::Rejection(m) => bounded("reason", m.reason.len(), 0, MAX_REASON_BYTES),
             Self::DkgConfirm(_)
             | Self::ReshareConfirm(_)
             | Self::Complaint(_)
@@ -677,6 +683,43 @@ impl Approval {
     }
 }
 
+/// A member's vote against a proposal: a Schnorr signature by the slot's signer over
+/// [`vault::rejection_message`]. Not a veto (the contract counts approvals only); when more than `n - k` members reject,
+/// the threshold can no longer be reached and the proposal is blocked until it is cancelled.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Rejection {
+    /// Rejected proposal id.
+    pub proposal: [u8; 32],
+    /// Signer slot (member index - 1).
+    pub slot: u32,
+    /// The member's reason, shown to the other members (at most [`MAX_REASON_BYTES`]).
+    pub reason: String,
+    /// `[s.lo, s.hi, e.lo, e.hi]`.
+    pub signature: [WireField; 4],
+}
+
+impl Rejection {
+    /// Whether this rejection carries a valid signature by `signer_key` over the rejection message of its proposal on
+    /// `vault`.
+    ///
+    /// # Errors
+    /// [`Error::Crypto`] for malformed limbs.
+    pub fn verify(&self, vault: Base, signer_key: &Point) -> Result<bool, Error> {
+        let limbs = [
+            parse_field(&self.signature[0])?,
+            parse_field(&self.signature[1])?,
+            parse_field(&self.signature[2])?,
+            parse_field(&self.signature[3])?,
+        ];
+        let signature = schnorr::Signature::from_limbs(&limbs)?;
+        Ok(schnorr::verify(
+            signer_key,
+            vault::rejection_message(vault, &self.proposal),
+            &signature,
+        ))
+    }
+}
+
 /// A proposal was executed in `tx_hash`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionReceipt {
@@ -729,4 +772,6 @@ pub struct SyncRequest {
     pub approvals: Vec<ApprovalRef>,
     /// Executed proposal ids.
     pub receipts: Vec<[u8; 32]>,
+    /// Rejections by proposal and slot.
+    pub rejections: Vec<ApprovalRef>,
 }

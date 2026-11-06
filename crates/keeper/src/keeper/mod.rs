@@ -471,7 +471,10 @@ impl Keeper {
                 self.on_ecdh_request(signer, message.header, request).await;
             }
             Message::EcdhResponse(response) => self.on_ecdh_response(signer, response),
-            Message::Proposal(_) | Message::Approval(_) | Message::ExecutionReceipt(_) => {
+            Message::Proposal(_)
+            | Message::Approval(_)
+            | Message::Rejection(_)
+            | Message::ExecutionReceipt(_) => {
                 self.on_replicated(signer, message.header, message.body)
                     .await;
             }
@@ -534,6 +537,9 @@ fn is_ceremony_message(body: &Message) -> bool {
 fn is_replicated(body: &Message) -> bool {
     matches!(
         body,
-        Message::Proposal(_) | Message::Approval(_) | Message::ExecutionReceipt(_)
+        Message::Proposal(_)
+            | Message::Approval(_)
+            | Message::Rejection(_)
+            | Message::ExecutionReceipt(_)
     )
 }

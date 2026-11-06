@@ -69,4 +69,14 @@ pub(super) const MIGRATIONS: &[&str] = &[
         updated_at INTEGER NOT NULL
     );
     ",
+    // 3: signed rejection votes (one per proposal and slot).
+    "
+    CREATE TABLE rejections (
+        proposal BLOB NOT NULL,
+        slot INTEGER NOT NULL,
+        body BLOB NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (proposal, slot)
+    );
+    ",
 ];

@@ -1,8 +1,8 @@
-//! Proposal and approval bodies in the canonical wire encoding (signed and sent by the member's keeper).
+//! Proposal, approval and rejection bodies in the canonical wire encoding (signed and sent by the member's keeper).
 
 use napi::{Result, bindgen_prelude::Buffer};
 use napi_derive::napi;
-use tecpan_crypto::schnorr;
+use tecpan_crypto::{schnorr, vault};
 use tecpan_wire::{Message, WIRE_VERSION, decode_body, encode_body, messages};
 
 use crate::convert::{
@@ -38,6 +38,19 @@ pub struct Approval {
     /// Signer slot.
     pub slot: u32,
     /// Signature limbs `[s.lo, s.hi, e.lo, e.hi]`.
+    pub signature: Vec<String>,
+}
+
+/// A member's signed vote against a proposal.
+#[napi(object)]
+pub struct Rejection {
+    /// Proposal id (32-byte hex).
+    pub proposal: String,
+    /// Signer slot.
+    pub slot: u32,
+    /// The member's reason (at most 280 bytes).
+    pub reason: String,
+    /// Signature limbs `[s.lo, s.hi, e.lo, e.hi]` over [`proposal_rejection_message`].
     pub signature: Vec<String>,
 }
 
@@ -120,6 +133,65 @@ pub fn verify_proposal_approval(
     approval
         .verify(&to_wire(&proposal)?, base(&vault)?, &point(&signer_key)?)
         .map_err(invalid)
+}
+
+/// The message a member signs to reject proposal `proposalId` on `vault`.
+#[napi]
+pub fn proposal_rejection_message(proposal_id: String, vault: String) -> Result<String> {
+    Ok(base_hex(&vault::rejection_message(
+        base(&vault)?,
+        &bytes32(&proposal_id)?,
+    )))
+}
+
+/// Canonical bytes of a rejection body.
+#[napi]
+pub fn encode_rejection(rejection: Rejection) -> Result<Buffer> {
+    Ok(
+        encode_body(&Message::Rejection(rejection_to_wire(&rejection)?))
+            .map_err(invalid)?
+            .into(),
+    )
+}
+
+/// Decodes a rejection body.
+#[napi]
+pub fn decode_rejection(bytes: Buffer) -> Result<Rejection> {
+    match decode_body(&bytes).map_err(invalid)? {
+        Message::Rejection(rejection) => Ok(Rejection {
+            proposal: hex32(&rejection.proposal),
+            slot: rejection.slot,
+            reason: rejection.reason,
+            signature: rejection.signature.iter().map(hex32).collect(),
+        }),
+        _ => Err(invalid("not a rejection")),
+    }
+}
+
+/// Whether `rejection` carries a valid signature by `signerKey` over its proposal's rejection message on `vault`.
+#[napi]
+pub fn verify_proposal_rejection(
+    rejection: Rejection,
+    vault: String,
+    signer_key: Point,
+) -> Result<bool> {
+    let rejection = rejection_to_wire(&rejection)?;
+    if schnorr::Signature::from_limbs(&limbs(&rejection.signature.map(|l| hex32(&l)))?).is_err() {
+        return Ok(false);
+    }
+    rejection
+        .verify(base(&vault)?, &point(&signer_key)?)
+        .map_err(invalid)
+}
+
+fn rejection_to_wire(rejection: &Rejection) -> Result<messages::Rejection> {
+    let parsed = limbs(&rejection.signature)?;
+    Ok(messages::Rejection {
+        proposal: bytes32(&rejection.proposal)?,
+        slot: rejection.slot,
+        reason: rejection.reason.clone(),
+        signature: parsed.map(|limb| tecpan_wire::types::field(&limb)),
+    })
 }
 
 fn to_wire(proposal: &Proposal) -> Result<messages::Proposal> {

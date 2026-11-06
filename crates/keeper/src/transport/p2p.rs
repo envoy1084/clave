@@ -133,6 +133,7 @@ fn lane(frame: &[u8]) -> Lane {
         Ok(
             Message::Proposal(_)
             | Message::Approval(_)
+            | Message::Rejection(_)
             | Message::ExecutionReceipt(_)
             | Message::SyncRequest(_),
         ) => Lane::Sync,

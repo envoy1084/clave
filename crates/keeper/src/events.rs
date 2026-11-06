@@ -68,6 +68,15 @@ pub enum Event {
         /// Signer slot.
         slot: u32,
     },
+    /// A rejection arrived or was stored.
+    Rejection {
+        /// Vault (hex).
+        vault: String,
+        /// Proposal id (hex).
+        proposal: String,
+        /// Signer slot.
+        slot: u32,
+    },
     /// An execution receipt was stored (put locally or replicated from a member).
     Receipt {
         /// Vault (hex).

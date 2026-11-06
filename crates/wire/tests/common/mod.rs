@@ -17,7 +17,8 @@ use tecpan_wire::{
     messages::{
         Abort, AbortReason, Approval, ApprovalRef, Ceremony, Complaint, Confirm, DkgRound1,
         EcdhPurpose, EcdhRequest, EcdhResponse, Echo, ExecutionReceipt, Justification, Manifest,
-        Member, Proposal, RelayEnvelope, ReshareDeal, SealedShare, SyncRequest, WirePartial,
+        Member, Proposal, Rejection, RelayEnvelope, ReshareDeal, SealedShare, SyncRequest,
+        WirePartial,
     },
     types::{Bytes64, WirePoint},
 };
@@ -218,6 +219,10 @@ pub fn samples() -> Vec<(&'static str, Message)> {
                     slot: 1,
                 }],
                 receipts: vec![],
+                rejections: vec![ApprovalRef {
+                    proposal: [0x0d; 32],
+                    slot: 2,
+                }],
             }),
         ),
         (
@@ -266,6 +271,15 @@ pub fn samples() -> Vec<(&'static str, Message)> {
         (
             "lobby_leave",
             Message::LobbyLeave(LobbyLeave { lobby: [0x31; 16] }),
+        ),
+        (
+            "rejection",
+            Message::Rejection(Rejection {
+                proposal: [0x0d; 32],
+                slot: 2,
+                reason: "wrong recipient".into(),
+                signature: [[0x41; 32], [0x42; 32], [0x43; 32], [0x44; 32]],
+            }),
         ),
     ]
 }

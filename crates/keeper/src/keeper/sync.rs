@@ -55,6 +55,13 @@ impl Keeper {
                     .map(|(p, _)| p)
                     .collect(),
             ),
+            rejections: newest(
+                store
+                    .rejection_refs(&vault)?
+                    .into_iter()
+                    .map(|(proposal, slot)| ApprovalRef { proposal, slot })
+                    .collect(),
+            ),
         };
         let (frame, _) = self.sign(vault, epoch, Message::SyncRequest(request))?;
         for peer in peers {
@@ -67,7 +74,8 @@ impl Keeper {
         Ok(())
     }
 
-    /// Answers a member's sync request with the proposals, approvals and receipts it lacks (proposals first).
+    /// Answers a member's sync request with the proposals, approvals, rejections and receipts it lacks (proposals
+    /// first).
     pub(super) async fn on_sync_request(
         &self,
         from: IdentityPublic,
@@ -114,6 +122,7 @@ impl Keeper {
         let theirs: HashSet<[u8; 32]> = request.proposals.iter().copied().collect();
         let their_approvals: HashSet<ApprovalRef> = request.approvals.iter().copied().collect();
         let their_receipts: HashSet<[u8; 32]> = request.receipts.iter().copied().collect();
+        let their_rejections: HashSet<ApprovalRef> = request.rejections.iter().copied().collect();
         let mut records = Vec::new();
         for id in store
             .proposal_ids(vault)?
@@ -127,6 +136,13 @@ impl Keeper {
         for (proposal, slot) in store.approval_refs(vault)? {
             if !their_approvals.contains(&ApprovalRef { proposal, slot })
                 && let Some(body) = store.approval(&proposal, slot)?
+            {
+                records.push(decode_body(&body)?);
+            }
+        }
+        for (proposal, slot) in store.rejection_refs(vault)? {
+            if !their_rejections.contains(&ApprovalRef { proposal, slot })
+                && let Some(body) = store.rejection(&proposal, slot)?
             {
                 records.push(decode_body(&body)?);
             }

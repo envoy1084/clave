@@ -34,7 +34,7 @@ honestly. Other members' keepers are not trusted beyond their signatures and pro
     dkg-<session>.sealed           finished DKG, waiting for vault registration
     pending-<session>.sealed       finished reshare, waiting for on-chain activation
     lobby-<id>.sealed              invite secret of an open lobby (destroyed when it starts or closes)
-  keeper.db         SQLite (WAL, secure_delete): manifests, ceremonies, proposals, approvals, receipts, audit, observations,
+  keeper.db         SQLite (WAL, secure_delete): manifests, ceremonies, proposals, approvals, rejections, receipts, audit, observations,
                     lobbies
   keeper.toml       optional configuration
   keeper.json       public identity, peer id, addresses, RPC socket (written at start)
@@ -173,13 +173,14 @@ every engine:  lobby.status → plan → ceremony.dkg { session = plan.session, 
 
 ## Proposals
 
-`proposals.put`, `approvals.put` and `receipts.put` store records and push them to the other members, who store them
-after checking the sender is a member. Approvals are verified against the slot's signing key and the proposal's
-approval message before they are stored; an approval that arrives before its proposal is held until it does.
+`proposals.put`, `approvals.put`, `rejections.put` and `receipts.put` store records and push them to the other members,
+who store them after checking the sender is a member. Approvals and rejections are verified against the slot's signing
+key (and the proposal's approval or rejection message) before they are stored, one of each per slot; an approval that
+arrives before its proposal is held until it does, a rejection is dropped and comes back with the next sync.
 `vault.observeTx` raises `unexpectedSpend` for a vault transaction that matches no stored receipt.
 
 Every newly stored record raises an event, whether it was put locally or arrived from a member by push, sync or
-mailbox: `proposal`, `approval` and `receipt`, each naming its vault. Storing the same record again raises nothing; a
+mailbox: `proposal`, `approval`, `rejection` and `receipt`, each naming its vault. Storing the same record again raises nothing; a
 receipt that names a different transaction for the same proposal replaces the old one and is reported again.
 
 Members that were offline catch up two ways: a push that fails is sealed into the recipient's relay mailbox, and every
@@ -191,31 +192,31 @@ JSON-RPC 2.0, one JSON object per line, on an owner-only Unix socket (a named pi
 Windows). The first call must be `session.auth { token }` (compared in constant time); everything else is refused
 until then. Requests on a session run concurrently.
 
-| Method                                                         | Params → result                                                                                                                                                             |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `keeper.info`                                                  | → `{ identity, transport, addresses, version }`                                                                                                                             |
-| `peers.status`                                                 | `{ vault }` → reachability of every committee member (below)                                                                                                                |
-| `vault.sync`                                                   | `{ vault }`: sync proposals, approvals and receipts with the other members now                                                                                              |
-| `mailbox.poll`                                                 | → `{ delivered }`: fetch and process relay mailboxes now                                                                                                                    |
-| `vault.list`, `vault.status`                                   | `{ vault }` → `{ manifest, status, index, serving }`                                                                                                                        |
-| `vault.register`                                               | `{ session, manifest }` → vault                                                                                                                                             |
-| `vault.observeConfig`                                          | `{ vault, version, committeeCommitment }` → `{ observation }`                                                                                                               |
-| `vault.observeTx`                                              | `{ vault, txHash }` → `{ known }`                                                                                                                                           |
-| `ecdh.batch`                                                   | `{ vault, epoch, purpose, points }` → `{ epoch, responses: MemberPartials[] }` (napi shape)                                                                                 |
-| `ceremony.dkg`                                                 | `{ session, threshold, members }`                                                                                                                                           |
-| `ceremony.reshare`                                             | `{ session, vault, current?, dealers, newThreshold, newSpendingThreshold, newMembers }`                                                                                     |
-| `ceremony.status`                                              | `{ session }` → `{ kind, status, failure, result }`                                                                                                                         |
-| `proposals.put/list/get`, `approvals.put/list`, `receipts.put` | canonical wire bodies as hex                                                                                                                                                |
-| `receipts.list`                                                | `{ vault }` → `[{ proposal, txHash, at }]`, newest first (`at`: unix seconds the receipt was stored)                                                                        |
-| `audit.list`                                                   | `{ vault, limit }` → audit entries                                                                                                                                          |
-| `lobby.open`                                                   | `{ name, threshold, viewingThreshold, network, member: { name, signerKey } }` → `{ lobby, invite }`                                                                         |
-| `lobby.inspect`                                                | `{ invite }` → `{ lobby, name, hostName, threshold, viewingThreshold, network, host: { identity, transport, addresses } }` (decode only)                                    |
-| `lobby.join`                                                   | `{ invite, member: { name, signerKey } }` → `{ lobby }` once the host acknowledged (up to ~30 s)                                                                            |
-| `lobby.status`                                                 | `{ lobby }` → lobby (below), with `plan.secrets`                                                                                                                            |
-| `lobby.list`                                                   | → lobbies, without `plan.secrets`                                                                                                                                           |
-| `lobby.start`                                                  | `{ lobby, threshold, viewingThreshold, salt, secrets }` (host; `secrets` one hex blob for every member) → lobby                                                             |
-| `lobby.close`, `lobby.leave`                                   | `{ lobby }` (host closes / guest leaves an open lobby) → lobby                                                                                                              |
-| `events.subscribe`                                             | then `event` notifications: `ceremony`, `invalidPartials`, `committeeActivated`, `removed`, `configMismatch`, `unexpectedSpend`, `proposal`, `approval`, `receipt`, `lobby` |
+| Method                                                                                | Params → result                                                                                                                                                             |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keeper.info`                                                                         | → `{ identity, transport, addresses, version }`                                                                                                                             |
+| `peers.status`                                                                        | `{ vault }` → reachability of every committee member (below)                                                                                                                |
+| `vault.sync`                                                                          | `{ vault }`: sync proposals, approvals, rejections and receipts with the other members now                                                                                  |
+| `mailbox.poll`                                                                        | → `{ delivered }`: fetch and process relay mailboxes now                                                                                                                    |
+| `vault.list`, `vault.status`                                                          | `{ vault }` → `{ manifest, status, index, serving }`                                                                                                                        |
+| `vault.register`                                                                      | `{ session, manifest }` → vault                                                                                                                                             |
+| `vault.observeConfig`                                                                 | `{ vault, version, committeeCommitment }` → `{ observation }`                                                                                                               |
+| `vault.observeTx`                                                                     | `{ vault, txHash }` → `{ known }`                                                                                                                                           |
+| `ecdh.batch`                                                                          | `{ vault, epoch, purpose, points }` → `{ epoch, responses: MemberPartials[] }` (napi shape)                                                                                 |
+| `ceremony.dkg`                                                                        | `{ session, threshold, members }`                                                                                                                                           |
+| `ceremony.reshare`                                                                    | `{ session, vault, current?, dealers, newThreshold, newSpendingThreshold, newMembers }`                                                                                     |
+| `ceremony.status`                                                                     | `{ session }` → `{ kind, status, failure, result }`                                                                                                                         |
+| `proposals.put/list/get`, `approvals.put/list`, `rejections.put/list`, `receipts.put` | canonical wire bodies as hex                                                                                                                                                |
+| `receipts.list`                                                                       | `{ vault }` → `[{ proposal, txHash, at }]`, newest first (`at`: unix seconds the receipt was stored)                                                                        |
+| `audit.list`                                                                          | `{ vault, limit }` → audit entries                                                                                                                                          |
+| `lobby.open`                                                                          | `{ name, threshold, viewingThreshold, network, member: { name, signerKey } }` → `{ lobby, invite }`                                                                         |
+| `lobby.inspect`                                                                       | `{ invite }` → `{ lobby, name, hostName, threshold, viewingThreshold, network, host: { identity, transport, addresses } }` (decode only)                                    |
+| `lobby.join`                                                                          | `{ invite, member: { name, signerKey } }` → `{ lobby }` once the host acknowledged (up to ~30 s)                                                                            |
+| `lobby.status`                                                                        | `{ lobby }` → lobby (below), with `plan.secrets`                                                                                                                            |
+| `lobby.list`                                                                          | → lobbies, without `plan.secrets`                                                                                                                                           |
+| `lobby.start`                                                                         | `{ lobby, threshold, viewingThreshold, salt, secrets }` (host; `secrets` one hex blob for every member) → lobby                                                             |
+| `lobby.close`, `lobby.leave`                                                          | `{ lobby }` (host closes / guest leaves an open lobby) → lobby                                                                                                              |
+| `events.subscribe`                                                                    | then `event` notifications: `ceremony`, `invalidPartials`, `committeeActivated`, `removed`, `configMismatch`, `unexpectedSpend`, `proposal`, `approval`, `receipt`, `lobby` |
 
 A lobby: `{ lobby, role: "host" | "guest", status: "open" | "started" | "closed", name, hostName, threshold,
 viewingThreshold, network, host: { identity, transport, addresses }, members: [{ index, name, signerKey, identity,

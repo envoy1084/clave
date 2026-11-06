@@ -430,6 +430,69 @@ impl Store {
         })
     }
 
+    /// Stores a rejection body (one per slot; idempotent).
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn put_rejection(
+        &self,
+        proposal: &[u8; 32],
+        slot: u32,
+        body: &[u8],
+        now: u64,
+    ) -> Result<bool> {
+        self.with(|c| {
+            c.execute(
+                "INSERT OR IGNORE INTO rejections (proposal, slot, body, created_at) VALUES (?1, ?2, ?3, ?4)",
+                params![proposal, slot, body, ts(now)],
+            )
+            .map(|n| n > 0)
+        })
+    }
+
+    /// Rejection bodies of a proposal, by slot.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn rejections(&self, proposal: &[u8; 32]) -> Result<Vec<Vec<u8>>> {
+        self.with(|c| {
+            let mut statement =
+                c.prepare("SELECT body FROM rejections WHERE proposal = ?1 ORDER BY slot")?;
+            statement
+                .query_map(params![proposal], |row| row.get(0))?
+                .collect()
+        })
+    }
+
+    /// `(proposal, slot)` of every rejection of `vault`.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn rejection_refs(&self, vault: &[u8; 32]) -> Result<Vec<([u8; 32], u32)>> {
+        self.with(|c| {
+            let mut statement = c.prepare(
+                "SELECT r.proposal, r.slot FROM rejections r JOIN proposals p ON p.id = r.proposal WHERE p.vault = ?1
+                 ORDER BY r.created_at",
+            )?;
+            statement.query_map(params![vault], |row| Ok((row.get(0)?, row.get(1)?)))?.collect()
+        })
+    }
+
+    /// One rejection body.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn rejection(&self, proposal: &[u8; 32], slot: u32) -> Result<Option<Vec<u8>>> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT body FROM rejections WHERE proposal = ?1 AND slot = ?2",
+                params![proposal, slot],
+                |row| row.get(0),
+            )
+            .optional()
+        })
+    }
+
     /// `(proposal, tx_hash)` of every receipt of `vault`.
     ///
     /// # Errors

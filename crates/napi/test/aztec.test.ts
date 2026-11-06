@@ -206,6 +206,26 @@ describe("approvals", () => {
     ).toThrow();
     expect(napi.wireVersion()).toBe(0);
   });
+
+  it("verifies Aztec Schnorr rejections, which never pass as approvals", async () => {
+    const key = new Fq(0xbeefn);
+    const publicKey = point(await schnorr.computePublicKey(key));
+    const id = napi.proposalId(proposal);
+    const message = napi.proposalRejectionMessage(id, vault);
+    expect(message).not.toBe(napi.proposalApprovalMessage(proposal, vault));
+    const signature = await schnorr.constructSignature(Fr.fromString(message), key);
+    const rejection: napi.Rejection = {
+      proposal: id,
+      slot: 1,
+      reason: "wrong recipient",
+      signature: signature.toLimbFields().map((f) => f.toString()),
+    };
+    expect(napi.verifyProposalRejection(rejection, vault, publicKey)).toBe(true);
+    expect(napi.verifyProposalRejection(rejection, new Fr(1n).toString(), publicKey)).toBe(false);
+    expect(napi.verifyProposalApproval(proposal, rejection, vault, publicKey)).toBe(false);
+    expect(napi.decodeRejection(napi.encodeRejection(rejection))).toEqual(rejection);
+    expect(() => napi.encodeRejection({ ...rejection, reason: "x".repeat(281) })).toThrow();
+  });
 });
 
 /** `count` points `(from + i) · G`, matching the Noir and Rust `points(count, seed)` test helpers. */

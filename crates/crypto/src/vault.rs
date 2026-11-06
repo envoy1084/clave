@@ -13,6 +13,8 @@ pub const WITNESS_LEN: usize = MAX_SIGNERS * (2 + SIGNATURE_LEN) + 1;
 
 /// ASCII `tecpan.approval.v0`.
 pub const DOM_SEP_APPROVAL: &[u8] = b"tecpan.approval.v0";
+/// ASCII `tecpan.rejection.v0`. Rejections are off-chain votes; the contract never sees them.
+pub const DOM_SEP_REJECTION: &[u8] = b"tecpan.rejection.v0";
 /// ASCII `tecpan.signers.v0`.
 pub const DOM_SEP_SIGNER_SET: &[u8] = b"tecpan.signers.v0";
 /// ASCII `tecpan.committee.v0`.
@@ -84,6 +86,20 @@ pub fn approval_message(
             outer_hash,
             Base::from(config_version),
             Base::from(expires_at),
+        ],
+    )
+}
+
+/// The message a member signs to reject a proposal: `Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])`, where
+/// `id_hi` and `id_lo` are the big-endian 128-bit halves of the 32-byte proposal id (which does not fit one field).
+#[must_use]
+pub fn rejection_message(vault: Base, proposal_id: &[u8; 32]) -> Base {
+    poseidon2::hash_with_separator(
+        domain_separator(DOM_SEP_REJECTION),
+        &[
+            vault,
+            Base::from_be_bytes_mod_order(&proposal_id[..16]),
+            Base::from_be_bytes_mod_order(&proposal_id[16..]),
         ],
     )
 }
