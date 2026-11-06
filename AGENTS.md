@@ -79,6 +79,8 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
   would lock members out). Signer notes are discovery-only and may use unconstrained delivery.
 - Config changes are `#[only_self]` functions that bump the config version; membership and the viewing committee change
   together in `rotate_membership`, which removes at most `t_v - 1` members.
+- The PXE patch (`patches/`) stays minimal: every changed line is marked `// tecpan:` and guarded so a stock key store
+  behaves as stock. Port it on every Aztec upgrade following `architecture/pxe-integration.md`.
 - Wire formats shared across Noir, Rust and TypeScript (witness layout, approval message, committee commitment) change
   only together with their `architecture/` page and every encoder.
 
@@ -120,6 +122,7 @@ pnpm --filter @tecpan/contracts build|test|profile   # aztec compile / aztec tes
 pnpm --filter @tecpan/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
 pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
+pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 ```
 
 Hooks: pre-commit runs oxfmt, oxlint, rustfmt and nargo fmt on staged files; commit-msg runs commitlint; pre-push runs
