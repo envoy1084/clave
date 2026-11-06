@@ -57,18 +57,19 @@ export function Start() {
             transition={{ duration: 0.4, ease: EASE_OUT }}
             className="serif-display text-[2.6rem] leading-[1.05]"
           >
-            Start a vault, or join one.
+            Vaults
           </motion.h1>
           <p className="mt-2 text-muted-foreground">
-            Vaults are set up together. Whoever starts it invites the others.
+            A vault is founded by all its members together: the host opens a lobby, members join
+            with its invite, then everyone runs the DKG.
           </p>
 
           <div className="mt-10 grid grid-cols-2 gap-5">
             <Choice
               index={0}
               to="/new"
-              title="Start a new vault"
-              body="Pick the rules, get an invite code, and found the vault once your co-signers join."
+              title="Open a lobby"
+              body="Set k and t_v, share the invite, start the DKG when members have joined. You deploy the account contract."
               art={
                 <div className="relative h-full overflow-hidden bg-[#0E1530]">
                   <Terrain
@@ -85,8 +86,8 @@ export function Start() {
             <Choice
               index={1}
               to="/join"
-              title="Join with an invite"
-              body="Paste the code someone sent you. You'll see who invited you and the vault's rules before you join."
+              title="Join a lobby"
+              body="Paste a tecpan-invite-v0 string. It is decoded locally first: host, k, t_v and network."
               art={
                 <div className="relative grid h-full place-items-center overflow-hidden bg-paper-2">
                   <div className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-[0_0_0_1px_var(--border),0_12px_32px_-12px_rgb(21_24_15/0.25)]">
@@ -103,7 +104,7 @@ export function Start() {
 
           {pending.length > 0 && (
             <section className="mt-14">
-              <h2 className="text-sm font-medium text-muted-foreground">In progress</h2>
+              <h2 className="text-sm font-medium text-muted-foreground">Lobbies</h2>
               <ul className="mt-3 divide-y divide-border overflow-hidden rounded-xl bg-card shadow-[0_0_0_1px_var(--border)]">
                 {pending.map((lobby) => (
                   <li key={lobby.lobby}>

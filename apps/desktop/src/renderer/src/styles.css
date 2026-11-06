@@ -233,17 +233,3 @@
     animation-iteration-count: 1 !important;
   }
 }
-
-/* Mosaic pixels slowly resolve and dissolve: decorative, off for reduced motion. */
-@keyframes pixel {
-  0%,
-  100% {
-    opacity: var(--tw-pixel-from, 0.85);
-  }
-  45% {
-    opacity: 0.08;
-  }
-  60% {
-    opacity: 0.08;
-  }
-}

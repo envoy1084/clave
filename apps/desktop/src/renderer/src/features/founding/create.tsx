@@ -9,14 +9,17 @@ import { Seats, Stepper } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { l1Name } from "@/lib/format";
 import { call } from "@/lib/ipc";
 import { EASE_OUT } from "@/lib/motion";
+import { useNodeStatus } from "@/lib/state";
 
 import { rememberExpected } from "./expected";
 import { FocusFrame } from "./focus-frame";
 
 export function CreateVault() {
   const navigate = useNavigate();
+  const node = useNodeStatus();
   const [name, setName] = useState("");
   const [members, setMembers] = useState(3);
   const [threshold, setThreshold] = useState(2);
@@ -49,13 +52,14 @@ export function CreateVault() {
   };
 
   return (
-    <FocusFrame back="/start" title="New vault">
+    <FocusFrame back="/start" title="Open lobby">
       <form onSubmit={(e) => void submit(e)} className="grid grid-cols-[1fr_300px] gap-12">
         <div className="space-y-10">
           <div>
-            <h1 className="serif-display text-[2.4rem] leading-[1.05]">Set the rules</h1>
+            <h1 className="serif-display text-[2.4rem] leading-[1.05]">Vault parameters</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Everyone sees these before they join. They're fixed when the vault is founded.
+              Members see these in the invite before joining. Fixed at deployment; change later with
+              rotate_membership or set_threshold.
             </p>
           </div>
 
@@ -65,7 +69,7 @@ export function CreateVault() {
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Founders vault"
+              placeholder="Treasury"
               maxLength={48}
               data-testid="vault-name"
               className="h-11 rounded-xl px-3.5 text-[0.95rem]"
@@ -73,14 +77,14 @@ export function CreateVault() {
           </label>
 
           <Rule
-            title="Members"
-            body="Everyone who will hold a key, including you."
+            title="Members (n)"
+            body="Signers and viewing-share holders, including you. Up to 8 slots."
             control={
               <Stepper value={members} min={2} max={8} onChange={changeMembers} label="members" />
             }
           />
           <Rule
-            title="Approvals to spend"
+            title="Spending threshold (k)"
             body={`Any ${threshold} of the ${members} members can approve a payment together.`}
             control={
               <Stepper
@@ -94,13 +98,13 @@ export function CreateVault() {
             footer={<Seats k={threshold} n={members} tone="olive" />}
             warning={
               threshold === 1
-                ? "With 1 approval, any single member can move funds alone."
+                ? "k = 1: any single member's signature executes a payload."
                 : undefined
             }
           />
           <Rule
-            title="Members to read"
-            body={`The vault's balance and history open only when ${viewing} members' keepers work together. Fewer see nothing.`}
+            title="Viewing threshold (t_v)"
+            body={`Keepers that must answer an ECDH request (address_secret·P) for the PXE to decrypt a note. Minimum 2, so no single keeper can read.`}
             control={
               <Stepper
                 value={viewing}
@@ -120,27 +124,27 @@ export function CreateVault() {
 
         <aside className="sticky top-0 self-start">
           <div className="rounded-2xl bg-ink p-6 text-paper shadow-[0_24px_48px_-24px_rgb(21_24_15/0.6)]">
-            <p className="text-xs text-paper/55">You're creating</p>
+            <p className="text-xs text-paper/55">Lobby</p>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.p
                 key={name.trim() || "placeholder"}
-                initial={{ opacity: 0, y: 4, filter: "blur(2px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.18, ease: EASE_OUT }}
                 className="mt-1 truncate font-serif text-[1.7rem] leading-tight tracking-[-0.015em]"
               >
-                {name.trim() || "Untitled vault"}
+                {name.trim() || "Unnamed"}
               </motion.p>
             </AnimatePresence>
             <dl className="mt-6 space-y-4 text-sm">
-              <Summary label="Spend" value={`${threshold} of ${members}`} tone="bg-signal" />
-              <Summary label="Read" value={`${viewing} of ${members}`} tone="bg-peri" />
-              <Summary label="Network" value="Aztec, private" tone="bg-paper/40" />
+              <Summary label="k" value={`${threshold} of ${members}`} tone="bg-signal" />
+              <Summary label="t_v" value={`${viewing} of ${members}`} tone="bg-peri" />
+              <Summary label="L1" value={l1Name(node.data?.l1ChainId)} tone="bg-paper/40" />
             </dl>
             <p className="mt-6 border-t border-paper/10 pt-4 text-xs leading-relaxed text-paper/55">
-              Next you'll get an invite code. When your co-signers have joined, you found the vault
-              together.
+              The name stays in the lobby and in members' local records. k, t_v and the signer set
+              go on chain only as commitments in the account's private config note.
             </p>
           </div>
           <Button
@@ -151,7 +155,7 @@ export function CreateVault() {
             data-testid="vault-create"
           >
             {busy ? <Spinner /> : null}
-            Create invite
+            Open lobby
             {!busy && <ArrowRightIcon data-icon="inline-end" />}
           </Button>
         </aside>

@@ -44,10 +44,10 @@ export function LobbyScreen() {
 
   const view = lobby.data;
   return (
-    <FocusFrame back="/start" title={view?.name ?? "Vault setup"} wide>
+    <FocusFrame back="/start" title={view?.name ?? "Lobby"} wide>
       {!view ? (
         <div className="grid h-64 place-items-center text-muted-foreground">
-          {lobby.isError ? "This setup no longer exists." : <Spinner />}
+          {lobby.isError ? "Lobby not found in your keeper." : <Spinner />}
         </div>
       ) : founding.data ? (
         <Ceremony lobby={view} founding={founding.data} />
@@ -112,7 +112,9 @@ function Room({ lobby }: { lobby: LobbyView }) {
         viewingThreshold: lobby.viewingThreshold,
       });
     } catch (e) {
-      toast.error("Couldn't start", { description: e instanceof Error ? e.message : String(e) });
+      toast.error("lobby.start failed", {
+        description: e instanceof Error ? e.message : String(e),
+      });
       setStarting(false);
     }
   };
@@ -128,8 +130,8 @@ function Room({ lobby }: { lobby: LobbyView }) {
         lobby={lobby}
         subtitle={
           lobby.role === "host"
-            ? "Share the invite. Members appear here as they join."
-            : `Waiting for ${host?.name ?? "the host"} to found the vault.`
+            ? "Lobby open. Members appear as their keepers connect with the invite secret."
+            : `Waiting for ${host?.name ?? "the host"} to start the DKG.`
         }
       />
       <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-8">
@@ -193,12 +195,12 @@ function Room({ lobby }: { lobby: LobbyView }) {
                 data-testid="lobby-start"
               >
                 {starting && <Spinner />}
-                {missing > 0 && canStart ? `Found with ${count} members` : "Found the vault"}
+                {missing > 0 && canStart ? `Start DKG with ${count}` : "Start DKG"}
                 {!starting && <ArrowRightIcon data-icon="inline-end" />}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
                 {canStart
-                  ? "Everyone in the room will make their share of the vault's keys."
+                  ? "Sends the plan (members, k, t_v, salt, sealed protocol secrets) to every member."
                   : `Needs at least ${minimum} members for these rules.`}
               </p>
             </div>
@@ -296,8 +298,8 @@ function InviteCard({ invite }: { invite: string }) {
       <Dialog open={qr} onOpenChange={setQr}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Scan to join</DialogTitle>
-            <DialogDescription>Or copy the code. Both work the same way.</DialogDescription>
+            <DialogTitle>Invite</DialogTitle>
+            <DialogDescription>tecpan-invite-v0 string as a QR code.</DialogDescription>
           </DialogHeader>
           <div className="grid place-items-center rounded-xl bg-paper p-6">
             <QRCodeSVG value={invite} size={232} bgColor="#FBF8F2" fgColor="#15180F" level="M" />
@@ -318,7 +320,7 @@ function Review({ lobby }: { lobby: LobbyView }) {
     try {
       await call("founding.begin", { lobby: lobby.lobby });
     } catch (e) {
-      toast.error("Couldn't begin", { description: e instanceof Error ? e.message : String(e) });
+      toast.error("DKG start failed", { description: e instanceof Error ? e.message : String(e) });
       setBusy(false);
     }
   };
@@ -327,19 +329,17 @@ function Review({ lobby }: { lobby: LobbyView }) {
       <div>
         <h1 className="serif-display text-[2.6rem] leading-[1.02]">Review the vault</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {host?.name ?? "The host"} is ready. Check the plan, then make your share of the keys.
+          {host?.name ?? "The host"} started. Your keeper joins the DKG only after you confirm this
+          plan.
         </p>
       </div>
       <div className="overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
         <dl className="divide-y divide-border text-sm">
-          <Fact term="Vault" value={lobby.name} />
-          <Fact term="You" value={`Member ${me?.index ?? "?"} of ${lobby.members.length}`} />
+          <Fact term="Name" value={lobby.name} />
+          <Fact term="Your slot" value={`Member ${me?.index ?? "?"} of ${lobby.members.length}`} />
+          <Fact term="k" value={`Any ${lobby.threshold} of ${lobby.members.length} approve`} />
           <Fact
-            term="To spend"
-            value={`Any ${lobby.threshold} of ${lobby.members.length} approve`}
-          />
-          <Fact
-            term="To read"
+            term="t_v"
             value={`Any ${lobby.viewingThreshold} of ${lobby.members.length} keepers together`}
           />
         </dl>

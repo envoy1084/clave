@@ -70,13 +70,13 @@ export class Founding {
       const host = lobby.members.find((m) => m.index === 1);
       this.#finish(
         "agree",
-        `${lobby.members.length} members, ${plan.threshold} to spend, ${plan.viewingThreshold} to read`,
+        `n=${lobby.members.length}, k=${plan.threshold}, t_v=${plan.viewingThreshold}`,
       );
 
       current = "dkg";
-      this.#begin("dkg", `Exchanging key shares with ${lobby.members.length - 1} co-founders`);
+      this.#begin("dkg", `Feldman rounds with ${lobby.members.length - 1} keepers`);
       const dkg = await this.#dkg(plan.session, plan.viewingThreshold, lobby);
-      this.#finish("dkg", `Transcript ${dkg.transcript.slice(0, 12)}…`);
+      this.#finish("dkg", `transcript ${dkg.transcript.slice(0, 18)}…`);
 
       current = "derive";
       this.#begin("derive");
@@ -121,11 +121,11 @@ export class Founding {
       };
       const wallet = await this.#engine.wallet();
       await this.#engine.registerVault(wallet, record);
-      this.#finish("register", "Keeper and PXE know the vault");
+      this.#finish("register", "vault.register on the keeper; account and committee in the PXE");
 
       current = "deploy";
       if (me.index === 1) {
-        this.#begin("deploy", "Proving and sending the deployment");
+        this.#begin("deploy", "Proving and sending the private constructor");
         const receipt = await wallet.deployVault(deployment.address, {
           from: this.#engine.account,
           fee: this.#engine.fee,
@@ -133,16 +133,19 @@ export class Founding {
         record = { ...record, deployTx: receipt.txHash.toString() };
         this.#finish("deploy", receipt.txHash.toString());
       } else {
-        this.#begin("deploy", `Waiting for ${host?.name ?? "the host"} to deploy it`);
+        this.#begin("deploy", `Waiting for ${host?.name ?? "the host"} to deploy`);
         await this.#waitForDeployment(() => wallet.verifyVaultConfig(deployment.address));
-        this.#finish("deploy", "Deployed by the host");
+        this.#finish("deploy", "Deployed by member 1");
       }
 
       current = "verify";
       this.#begin("verify");
       const config = await wallet.verifyVaultConfig(deployment.address);
       await this.#engine.adoptVault(record);
-      this.#finish("verify", `Config version ${config.version} matches what you agreed`);
+      this.#finish(
+        "verify",
+        `config v${config.version}: commitments and thresholds match the plan`,
+      );
       this.#done = true;
       this.#emit();
     } catch (error) {

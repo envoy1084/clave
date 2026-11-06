@@ -30,9 +30,9 @@ export function CopyIconSwap({ copied, className }: { copied: boolean; className
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span
           key={copied ? "check" : "copy"}
-          initial={{ opacity: 0, scale: 0.6, filter: "blur(3px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 0.6, filter: "blur(3px)" }}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.6 }}
           transition={{ type: "spring", duration: 0.3, bounce: 0 }}
           className="col-start-1 row-start-1 grid place-items-center"
         >

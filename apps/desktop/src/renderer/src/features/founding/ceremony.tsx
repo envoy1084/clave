@@ -15,26 +15,29 @@ import { EASE_OUT, EASE_IN_OUT } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const COPY: Record<FoundingStepId, { title: string; body: string }> = {
-  agree: { title: "Agree on the plan", body: "Members, rules and the vault's shared settings." },
+  agree: {
+    title: "Plan",
+    body: "Members, k, t_v, salt and sealed protocol secrets from the host keeper.",
+  },
   dkg: {
-    title: "Make the viewing key together",
-    body: "Each keeper makes a share. No one, you included, ever holds the whole key.",
+    title: "DKG",
+    body: "Feldman DKG among keepers. Each holds one share of ivsk; it is never assembled.",
   },
   derive: {
-    title: "Work out the vault address",
-    body: "Every member computes it independently and gets the same one.",
+    title: "Derive address",
+    body: "x(preaddress·G + Ivpk), computed independently by every member.",
   },
   register: {
-    title: "Register on this device",
-    body: "Your keeper and private engine learn about the vault.",
+    title: "Register",
+    body: "vault.register with the keeper; account and committee into the PXE.",
   },
   deploy: {
-    title: "Deploy on Aztec",
-    body: "The host sends one private transaction that creates the vault.",
+    title: "Deploy",
+    body: "Host sends the private constructor (universal deploy, sponsored fee).",
   },
   verify: {
-    title: "Check the rules on chain",
-    body: "Your device reads the vault back and compares it to the plan.",
+    title: "Verify",
+    body: "Reads the config note and compares commitments and thresholds with the plan.",
   },
 };
 
@@ -56,24 +59,24 @@ export function Ceremony({ lobby, founding }: { lobby: LobbyView; founding: Foun
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={founding.done ? "done" : founding.error ? "error" : "running"}
-            initial={{ opacity: 0, y: 6, filter: "blur(2px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -4, filter: "blur(2px)", transition: { duration: 0.12 } }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
             transition={{ duration: 0.3, ease: EASE_OUT }}
           >
             <h1 className="serif-display text-[2.6rem] leading-[1.02]" data-testid="ceremony-title">
               {founding.done
-                ? `${lobby.name} is ready`
+                ? `${lobby.name} deployed`
                 : founding.error
-                  ? "Founding stopped"
+                  ? "Founding failed"
                   : `Founding ${lobby.name}`}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {founding.done
-                ? "Every member's device has checked the vault on chain."
+                ? "On-chain config verified on this device."
                 : founding.error
-                  ? "Nothing was spent and no keys left anyone's device."
-                  : "Keep Tecpan open. This usually takes under a minute."}
+                  ? "No funds moved; no key material left any device."
+                  : "Keep the app open until every step completes."}
             </p>
           </motion.div>
         </AnimatePresence>
@@ -127,7 +130,7 @@ export function Ceremony({ lobby, founding }: { lobby: LobbyView; founding: Foun
               className={cn("size-36", founding.done ? "text-signal" : "text-white")}
             />
           </div>
-          <div className="relative border-t border-white/10 bg-[#0E1530]/70 px-6 py-5 backdrop-blur-sm">
+          <div className="relative border-t border-white/10 bg-[#0E1530]/70 px-6 py-5">
             <AnimatePresence mode="wait" initial={false}>
               {founding.vault ? (
                 <motion.div key="addr" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

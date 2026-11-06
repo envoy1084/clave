@@ -40,8 +40,8 @@ export function FocusFrame({
       </header>
       <main className="quiet-scroll flex-1 overflow-y-auto px-10 pb-16">
         <motion.div
-          initial={{ opacity: 0, y: 8, filter: "blur(2px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.32, ease: EASE_OUT }}
           className={wide ? "mx-auto max-w-[980px] pt-10" : "mx-auto max-w-[860px] pt-12"}
         >

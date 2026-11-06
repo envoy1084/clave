@@ -39,12 +39,11 @@ export function AssemblingMark({
   const piece = (visible: boolean, from: { x?: number; y?: number }) => ({
     initial: false as const,
     animate: visible
-      ? { opacity: 1, x: 0, y: 0, filter: "blur(0px)" }
+      ? { opacity: 1, x: 0, y: 0 }
       : {
           opacity: 0.12,
           x: reduce ? 0 : (from.x ?? 0),
           y: reduce ? 0 : (from.y ?? 0),
-          filter: "blur(1px)",
         },
     transition: spring,
   });

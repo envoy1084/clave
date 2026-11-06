@@ -46,7 +46,7 @@ export function JoinVault() {
   const paste = async () => {
     const text = await call("clipboard.readInvite");
     if (text) setInvite(text);
-    else setError("Your clipboard doesn't hold a Tecpan invite.");
+    else setError("Clipboard has no tecpan-invite-v0 string.");
   };
 
   const join = async () => {
@@ -63,11 +63,11 @@ export function JoinVault() {
 
   const p = preview.data;
   return (
-    <FocusFrame back="/start" title="Join a vault">
+    <FocusFrame back="/start" title="Join lobby">
       <div className="mx-auto max-w-[560px]">
-        <h1 className="serif-display text-[2.4rem] leading-[1.05]">Paste your invite</h1>
+        <h1 className="serif-display text-[2.4rem] leading-[1.05]">Paste invite</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          The person who started the vault sent you a code that begins with{" "}
+          Decoded locally before any network traffic. Starts with{" "}
           <span className="font-mono text-ink">tecpan-invite</span>.
         </p>
 
@@ -111,12 +111,12 @@ export function JoinVault() {
             >
               {preview.isLoading && (
                 <div className="flex items-center gap-2 rounded-2xl bg-card px-5 py-6 text-sm text-muted-foreground shadow-[0_0_0_1px_var(--border)]">
-                  <Spinner /> Reading the invite…
+                  <Spinner /> Decoding
                 </div>
               )}
               {preview.isError && (
                 <div className="rounded-2xl bg-coral-soft px-5 py-4 text-sm text-coral">
-                  This invite can't be read. Ask for a fresh one.
+                  Not a valid invite (bad encoding, length or version).
                 </div>
               )}
               {p && (
@@ -132,27 +132,27 @@ export function JoinVault() {
                       >
                         {p.name}
                       </p>
-                      <p className="text-sm text-muted-foreground">Invited by {p.hostName}</p>
+                      <p className="text-sm text-muted-foreground">host {p.hostName}</p>
                     </div>
                   </div>
                   <div className="mt-6 grid grid-cols-2 gap-px border-t border-border bg-border">
                     <div className="bg-card px-6 py-4">
-                      <p className="text-xs text-muted-foreground">To spend</p>
-                      <p className="mt-1 font-serif text-xl">{p.threshold} approvals</p>
+                      <p className="text-xs text-muted-foreground">k</p>
+                      <p className="mt-1 font-serif text-xl">{p.threshold} signatures</p>
                     </div>
                     <div className="bg-card px-6 py-4">
-                      <p className="text-xs text-muted-foreground">To read</p>
+                      <p className="text-xs text-muted-foreground">t_v</p>
                       <p className="mt-1 font-serif text-xl">{p.viewingThreshold} keepers</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-3.5 text-[0.8rem]">
                     {p.sameNetwork ? (
                       <span className="flex items-center gap-1.5 text-olive-ink">
-                        <ShieldCheckIcon className="size-4" /> Same Aztec network as you
+                        <ShieldCheckIcon className="size-4" /> Network matches ({p.network})
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5 text-coral">
-                        <ShieldAlertIcon className="size-4" /> Different network ({p.network})
+                        <ShieldAlertIcon className="size-4" /> Network mismatch: invite {p.network}
                       </span>
                     )}
                     {state?.settings.technicalDetails && (
@@ -171,7 +171,8 @@ export function JoinVault() {
 
         <div className="mt-8 flex items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            Joining shares your name, signing key and keeper address with the host. Nothing else.
+            Sends your display name, Grumpkin signing public key and keeper identity, transport key
+            and addresses to the host keeper.
           </p>
           <Button
             size="xl"
@@ -180,7 +181,7 @@ export function JoinVault() {
             data-testid="invite-join"
           >
             {joining && <Spinner />}
-            Join as {state?.profile?.name.split(" ")[0] ?? "you"}
+            Join lobby
           </Button>
         </div>
       </div>
