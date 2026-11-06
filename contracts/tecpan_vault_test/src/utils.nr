@@ -8,8 +8,13 @@ use aztec::{
     },
 };
 use tecpan_vault_contract::{
-    constants::MAX_SIGNERS, point::Point, signer_set::test_utils::points, TecpanVault,
+    authorization::approval_message,
+    constants::{MAX_SIGNERS, POINT_LEN, SIGNATURE_LEN, WITNESS_LEN},
+    point::Point,
+    signer_set::test_utils::points,
+    TecpanVault,
 };
+use test_signer_contract::TestSigner;
 
 /// Seed for deterministic viewing verification shares (any distinct on-curve points will do in contract tests).
 pub global COMMITTEE_SEED: Field = 1000;
@@ -18,6 +23,7 @@ pub global COMMITTEE_SEED: Field = 1000;
 pub struct Fixture {
     pub env: TestEnvironment,
     pub vault: AztecAddress,
+    pub test_signer: AztecAddress,
     pub accounts: [AztecAddress; MAX_SIGNERS],
     pub keys: [Point; MAX_SIGNERS],
     pub committee_shares: [Point; MAX_SIGNERS],
@@ -100,10 +106,12 @@ pub unconstrained fn setup(signer_count: u32, threshold: u32, viewing_threshold:
         viewing_threshold,
         committee_shares,
     );
+    let test_signer = env.deploy("@test_signer_contract/TestSigner").without_initializer();
 
     let fixture = Fixture {
         env,
         vault,
+        test_signer,
         accounts,
         keys,
         committee_shares,
@@ -125,4 +133,74 @@ impl Fixture {
     {
         self.env.execute_utility_opts(ExecuteUtilityOptions::new().with_from(self.vault), call)
     }
+
+    /// Timestamp of the latest block, which inline private contexts use as their anchor.
+    pub unconstrained fn now(self) -> u64 {
+        self.env.last_block_timestamp()
+    }
+
+    /// Schnorr signature by `account` over `message`.
+    pub unconstrained fn sign(
+        self,
+        account: AztecAddress,
+        message: Field,
+    ) -> [Field; SIGNATURE_LEN] {
+        txe_oracles::add_authwit(account, message);
+        self.env.call_private(account, TestSigner::at(self.test_signer).signature(message))
+    }
+
+    /// The message members sign to approve `outer_hash` under `config_version` until `expires_at`.
+    pub unconstrained fn approval_message(
+        self,
+        outer_hash: Field,
+        config_version: u32,
+        expires_at: u64,
+    ) -> Field {
+        approval_message(self.vault, outer_hash, config_version, expires_at)
+    }
+
+    /// Witness with the vault's signer set, an approval of `message` from each slot where `approving` is true, and
+    /// `expires_at`.
+    pub unconstrained fn witness(
+        self,
+        message: Field,
+        approving: [bool; MAX_SIGNERS],
+        expires_at: u64,
+    ) -> [Field; WITNESS_LEN] {
+        let mut signatures = [[0; SIGNATURE_LEN]; MAX_SIGNERS];
+        for i in 0..MAX_SIGNERS {
+            if approving[i] {
+                signatures[i] = self.sign(self.accounts[i], message);
+            }
+        }
+        encode_witness(self.keys, signatures, expires_at)
+    }
+}
+
+/// Encodes signer keys, per-slot signatures and the deadline in the contract's witness layout.
+pub fn encode_witness(
+    keys: [Point; MAX_SIGNERS],
+    signatures: [[Field; SIGNATURE_LEN]; MAX_SIGNERS],
+    expires_at: u64,
+) -> [Field; WITNESS_LEN] {
+    let signatures_offset = MAX_SIGNERS * POINT_LEN;
+    let mut fields = [0; WITNESS_LEN];
+    for i in 0..MAX_SIGNERS {
+        fields[i * POINT_LEN] = keys[i].x;
+        fields[i * POINT_LEN + 1] = keys[i].y;
+        for j in 0..SIGNATURE_LEN {
+            fields[signatures_offset + i * SIGNATURE_LEN + j] = signatures[i][j];
+        }
+    }
+    fields[WITNESS_LEN - 1] = expires_at as Field;
+    fields
+}
+
+/// `[true; n]` followed by `false` for the remaining slots.
+pub fn first(n: u32) -> [bool; MAX_SIGNERS] {
+    let mut approving = [false; MAX_SIGNERS];
+    for i in 0..MAX_SIGNERS {
+        approving[i] = i < n;
+    }
+    approving
 }

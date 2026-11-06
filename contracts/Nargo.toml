@@ -1,2 +1,2 @@
 [workspace]
-members = ["tecpan_vault_contract", "tecpan_vault_test"]
+members = ["tecpan_vault_contract", "tecpan_vault_test", "test_signer_contract"]

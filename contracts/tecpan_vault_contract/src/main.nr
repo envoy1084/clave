@@ -1,3 +1,4 @@
+pub mod authorization;
 pub mod committee;
 pub mod constants;
 pub mod notes;
@@ -14,18 +15,35 @@ use aztec::macros::aztec;
 #[aztec]
 pub contract TecpanVault {
     use aztec::{
-        macros::{functions::{external, initializer}, storage::storage},
+        authwit::{
+            account::AccountActions,
+            auth::{compute_authwit_message_hash, compute_authwit_nullifier},
+            entrypoint::app::AppPayload,
+        },
+        context::PrivateContext,
+        hash::compute_siloed_nullifier,
+        macros::{
+            functions::{allow_phase_change, external, initializer, noinitcheck, view},
+            storage::storage,
+        },
         messages::delivery::MessageDelivery,
         note::note_viewer_options::NoteViewerOptions,
-        state_vars::{Owned, PrivateSet, SinglePrivateMutable},
+        oracle::{
+            auth_witness::get_auth_witness,
+            get_nullifier_membership_witness::get_low_nullifier_membership_witness,
+        },
+        protocol::address::AztecAddress,
+        state_vars::{Owned, PrivateSet, SinglePrivateMutable, StateVariable},
     };
 
     use crate::{
+        authorization,
         committee::Committee,
-        constants::MAX_SIGNERS,
+        constants::{MAX_SIGNERS, WITNESS_LEN},
         notes::{config_note::ConfigNote, signer_note::SignerNote},
         point::Point,
         signer_set::SignerSet,
+        witness::ApprovalWitness,
     };
 
     #[storage]
@@ -80,6 +98,23 @@ pub contract TecpanVault {
         }
     }
 
+    // @dev: Keep this signature in sync with the default account entrypoint ABI used by Aztec.js.
+    #[external("private")]
+    #[noinitcheck]
+    #[allow_phase_change]
+    fn entrypoint(app_payload: AppPayload, fee_payment_method: u8, cancellable: bool) {
+        let actions = AccountActions::init(self.context, is_valid_impl);
+        actions.entrypoint(app_payload, fee_payment_method, cancellable);
+    }
+
+    #[external("private")]
+    #[noinitcheck]
+    #[view]
+    fn verify_private_authwit(inner_hash: Field) -> Field {
+        let actions = AccountActions::init(self.context, is_valid_impl);
+        actions.verify_private_authwit(inner_hash)
+    }
+
     /// Current policy: thresholds, signer count, config version and commitments.
     #[external("utility")]
     unconstrained fn get_config() -> ConfigNote {
@@ -98,5 +133,45 @@ pub contract TecpanVault {
             keys[note.slot] = Point { x: note.x, y: note.y };
         }
         SignerSet { keys, count: config.signer_count }
+    }
+
+    /// Whether the auth witness held by the PXE approves `inner_hash` for `consumer` and has not been consumed yet.
+    ///
+    /// Reverts when the witness is malformed (wrong signer set, invalid signature, expired) rather than returning
+    /// `false`.
+    #[external("utility")]
+    unconstrained fn lookup_validity(consumer: AztecAddress, inner_hash: Field) -> bool {
+        let config = self.storage.config.view_note();
+        let block_header = self.context.block_header();
+        let message_hash = compute_authwit_message_hash(
+            consumer,
+            self.context.chain_id(),
+            self.context.version(),
+            inner_hash,
+        );
+
+        let fields: [Field; WITNESS_LEN] = get_auth_witness(message_hash);
+        let witness = ApprovalWitness::from_fields(fields, config.signer_count);
+        let approved = authorization::check_witness(
+            config,
+            witness,
+            self.address,
+            message_hash,
+            block_header.timestamp(),
+        );
+
+        let nullifier = compute_authwit_nullifier(self.address, inner_hash);
+        let siloed_nullifier = compute_siloed_nullifier(consumer, nullifier);
+        let (low_leaf_preimage, _witness) =
+            get_low_nullifier_membership_witness(block_header, siloed_nullifier);
+        let is_spent = low_leaf_preimage.nullifier == siloed_nullifier;
+
+        approved & !is_spent
+    }
+
+    #[contract_library_method]
+    fn is_valid_impl(context: &mut PrivateContext, outer_hash: Field) -> bool {
+        let config_slot = Storage::init(context).config.get_storage_slot();
+        authorization::is_authorized(context, config_slot, outer_hash)
     }
 }
