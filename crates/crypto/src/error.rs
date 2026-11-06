@@ -18,6 +18,23 @@ pub enum Error {
         /// Actual number.
         actual: usize,
     },
+    /// Member indices start at one.
+    #[error("invalid member index")]
+    InvalidIndex,
+    /// The same member index appears twice.
+    #[error("duplicate member index {0}")]
+    DuplicateIndex(u32),
+    /// A threshold must be at least one and at most the number of members.
+    #[error("invalid threshold")]
+    InvalidThreshold,
+    /// Fewer shares or partials than the threshold.
+    #[error("insufficient shares: need {needed}, got {actual}")]
+    InsufficientShares {
+        /// Threshold.
+        needed: usize,
+        /// Provided.
+        actual: usize,
+    },
     /// Input has the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {

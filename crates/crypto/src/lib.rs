@@ -12,6 +12,7 @@ pub mod curve;
 mod error;
 pub mod poseidon2;
 mod secret;
+pub mod shamir;
 pub mod vault;
 
 pub use curve::{Base, Point, Scalar};
