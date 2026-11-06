@@ -22,6 +22,8 @@ export interface KeeperLaunchOptions {
   readonly external?: readonly string[];
   /** Extra environment (e.g. `RUST_LOG`). */
   readonly env?: NodeJS.ProcessEnv;
+  /** Where the keeper's log (stderr) goes: an open file descriptor, or this process's stderr (default). */
+  readonly stderr?: number;
 }
 
 /** A running keeper. */
@@ -53,7 +55,7 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
   for (const relay of options.relays ?? []) args.push("--relay", relay);
   for (const address of options.external ?? []) args.push("--external", address);
   const child = spawn(options.binary, args, {
-    stdio: ["pipe", "pipe", "inherit"],
+    stdio: ["pipe", "pipe", options.stderr ?? "inherit"],
     env: { ...process.env, ...options.env },
   });
   child.stdin.end(`${JSON.stringify({ masterKey: options.masterKey, rpcToken: token })}\n`);

@@ -1,0 +1,40 @@
+{
+  "name": "@tecpan/engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "tecpand: the member's background daemon (PXE, signer, founding and proposals) behind the tecpan CLI",
+  "bin": {
+    "engine": "./dist/tecpand.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/tecpand.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "lint": "oxlint --deny-warnings .",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@aztec-foundation/bb.js": "catalog:",
+    "@aztec-labs/aztec.js": "catalog:",
+    "@aztec-labs/foundation": "catalog:",
+    "@aztec-labs/noir-contracts.js": "catalog:",
+    "@aztec-labs/stdlib": "catalog:",
+    "@tecpan/napi": "workspace:*",
+    "@tecpan/vault-wallet": "workspace:*",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "klarity": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
