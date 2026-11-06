@@ -11,6 +11,13 @@ pre-commit:
     - name: lint
       glob: "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
       run: pnpm exec oxlint --deny-warnings {staged_files}
+    - name: rust-format
+      glob: "crates/**/*.rs"
+      run: cargo fmt --manifest-path crates/Cargo.toml --all --check
+    - name: noir-format
+      glob: "contracts/**/*.nr"
+      root: "contracts/"
+      run: aztec-nargo fmt --workspace --check
 
 commit-msg:
   jobs:
@@ -20,4 +27,4 @@ commit-msg:
 pre-push:
   jobs:
     - name: check
-      run: pnpm exec turbo run lint typecheck test
+      run: pnpm exec turbo run format:check lint typecheck test

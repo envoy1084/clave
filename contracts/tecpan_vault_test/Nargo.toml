@@ -3,5 +3,5 @@ name = "tecpan_vault_test"
 type = "lib"
 
 [dependencies]
-aztec = { git="https://github.com/aztec-labs-eng/aztec-nr", tag="v6.0.0", directory="aztec" }
+aztec = { git = "https://github.com/aztec-labs-eng/aztec-nr", tag = "v6.0.0", directory = "aztec" }
 tecpan_vault_contract = { path = "../tecpan_vault_contract" }

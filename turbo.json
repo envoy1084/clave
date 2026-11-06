@@ -7,14 +7,44 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**", "build/**"]
     },
-    "codegen": { "dependsOn": ["^codegen"], "outputs": [] },
-    "dev": { "cache": false, "persistent": true },
-    "format": { "cache": false },
-    "format:check": { "outputs": [] },
-    "lint": { "outputs": [] },
-    "typecheck": { "dependsOn": ["^typecheck"], "outputs": [] },
-    "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
-    "test:watch": { "cache": false, "persistent": true },
-    "clean": { "cache": false }
+    "codegen": {
+      "dependsOn": ["^codegen"],
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "format": {
+      "cache": false
+    },
+    "format:check": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    },
+    "clean": {
+      "cache": false
+    },
+    "deny": {
+      "cache": false
+    },
+    "profile": {
+      "dependsOn": ["build"],
+      "cache": false
+    }
   }
 }
