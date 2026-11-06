@@ -13,9 +13,10 @@ files:
   - "!**/*.map"
   # The napi testing build exposes secret helpers for tests; it must never ship.
   - "!**/node_modules/@tecpan/napi/dist/testing/**"
-  # Only the SponsoredFPC artifact is used (fee payment on local networks); the other 60 MB of contracts are not.
+  # Only SponsoredFPC (fees) and Token (assets) artifacts are used; the other 60 MB of contracts are not.
   - "!**/node_modules/@aztec-labs/noir-contracts.js/artifacts/**"
   - "**/node_modules/@aztec-labs/noir-contracts.js/artifacts/sponsored_fpc_contract-SponsoredFPC.json"
+  - "**/node_modules/@aztec-labs/noir-contracts.js/artifacts/token_contract-Token.json"
 # Native code must live outside the asar: Barretenberg's `bb` prover binary, Node-API addons (napi, lmdb, Aztec's).
 asarUnpack:
   - "**/node_modules/@aztec-foundation/bb.js/build/**/bb"

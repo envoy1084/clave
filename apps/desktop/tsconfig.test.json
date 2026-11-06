@@ -8,5 +8,5 @@
     },
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["test/**/*.ts", "e2e/**/*.ts"]
+  "include": ["test/**/*.ts", "e2e/**/*.ts", "src/preload/api.d.ts"]
 }
