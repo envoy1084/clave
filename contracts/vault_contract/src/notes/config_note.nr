@@ -3,7 +3,7 @@ use aztec::{macros::notes::note, protocol::traits::{Deserialize, Packable, Seria
 /// Current policy of the vault: spending threshold, signer set and viewing committee.
 ///
 /// Authorization reads only this note. The signer keys and verification shares are committed to, not stored:
-/// approvals carry the signer keys in the witness, and member agents carry the verification shares. `version`
+/// approvals carry the signer keys in the witness, and keepers carry the verification shares. `version`
 /// increases on every config change and is bound into every approval.
 #[derive(Deserialize, Eq, Packable, Serialize)]
 #[note]

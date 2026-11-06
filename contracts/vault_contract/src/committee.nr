@@ -7,7 +7,7 @@ use aztec::protocol::hash::poseidon2_hash_with_separator;
 /// Viewing committee: the threshold `t_v` and each member's public verification share `Y_i = s_i · G` from the
 /// distributed key generation. Member `i` of the committee is signer `i` of the vault.
 ///
-/// Only the commitment is stored on-chain; member agents check every threshold ECDH request and reshare against it.
+/// Only the commitment is stored on-chain; keepers check every threshold ECDH request and reshare against it.
 pub struct Committee {
     pub viewing_threshold: u32,
     pub shares: [Point; MAX_SIGNERS],

@@ -96,7 +96,7 @@ pub contract TecpanVault {
     ///
     /// `current_signer_keys` must equal the stored signer set; at most `t_v - 1` current members may be absent from the
     /// new set. `committee_shares` are the verification shares produced by the reshare that prepares this rotation:
-    /// member agents activate their new shares once this transaction is included.
+    /// keepers activate their new shares once this transaction is included.
     #[external("private")]
     #[only_self]
     fn rotate_membership(

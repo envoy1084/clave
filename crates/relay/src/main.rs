@@ -1,4 +1,4 @@
-//! `tecpan-relay`: untrusted libp2p circuit relay and ciphertext mailbox for Tecpan agents.
+//! `tecpan-relay`: untrusted libp2p circuit relay and ciphertext mailbox for Tecpan keepers.
 //!
 //! Implemented in Phase 9; this binary is a placeholder until then.
 

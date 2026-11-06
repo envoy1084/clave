@@ -5,8 +5,8 @@ vault's spending policy (signer set, threshold `k`) and a commitment to its view
 verification shares), and it authorizes `entrypoint` and `verify_private_authwit` only with valid signatures from at
 least `k` signers before an approval deadline.
 
-Viewing is enforced off-chain by member agents (threshold ECDH over shares of the vault's incoming viewing secret);
-the contract only stores the committee commitment those agents check against.
+Viewing is enforced off-chain by keepers (threshold ECDH over shares of the vault's incoming viewing secret);
+the contract only stores the committee commitment those keepers check against.
 
 Status: Phases 3–4 (authorization and governance).
 
@@ -137,17 +137,17 @@ reordering are all expressed as a new ordered set.
 
 ### Rotation protocol
 
-The committee commitment covers the **new** members' verification shares, which exist only after the agents reshare,
+The committee commitment covers the **new** members' verification shares, which exist only after the keepers reshare,
 so the reshare is prepared before the rotation executes:
 
 1. A member proposes the new membership.
-2. The staying agents run the reshare and hold the resulting shares as pending; this yields the new verification
+2. The staying keepers run the reshare and hold the resulting shares as pending; this yields the new verification
    shares and their commitment.
 3. The `rotate_membership` proposal carries those shares; members approve it.
-4. When the transaction is included, every agent sees the new version with a matching `committee_commitment`,
+4. When the transaction is included, every keeper sees the new version with a matching `committee_commitment`,
    activates its pending share and erases the old one. If the transaction expires, pending shares are discarded.
 
-`set_threshold` and `invalidate_pending` bump the version without changing `committee_commitment`; agents reshare only
+`set_threshold` and `invalidate_pending` bump the version without changing `committee_commitment`; keepers reshare only
 when the committee commitment changes.
 
 ## Functions

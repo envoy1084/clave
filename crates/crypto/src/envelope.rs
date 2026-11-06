@@ -1,7 +1,7 @@
 //! Authenticated envelopes for private protocol messages (DKG and reshare shares).
 //!
 //! HPKE (RFC 9180) in Auth mode with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and ChaCha20-Poly1305. The recipient learns
-//! which agent sealed the envelope (sender authentication); third-party verifiable attribution for complaints comes
+//! which keeper sealed the envelope (sender authentication); third-party verifiable attribution for complaints comes
 //! from the sender's signature at the wire layer. The [`Context`] goes into the HPKE `info`, so an envelope opens only
 //! for the ceremony, epoch, message kind, sender and recipient it was sealed for.
 
@@ -55,10 +55,10 @@ impl Context {
     }
 }
 
-/// An agent's long-lived transport secret key (X25519). Zeroized on drop; never printed.
+/// An keeper's long-lived transport secret key (X25519). Zeroized on drop; never printed.
 pub struct TransportSecret(Zeroizing<[u8; KEY_BYTES]>);
 
-/// An agent's transport public key.
+/// An keeper's transport public key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TransportPublic(pub [u8; KEY_BYTES]);
 

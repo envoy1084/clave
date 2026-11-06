@@ -21,8 +21,8 @@ contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
   test_signer_contract/ test-only helper exposing TXE signatures; never deploy
 crates/               Cargo workspace
   crypto/               tecpan-crypto: Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH
-  wire/                 tecpan-wire: wire types and canonical encoding shared by agent, relay and app
-  agent/                tecpan-agent: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
+  wire/                 tecpan-wire: wire types and canonical encoding shared by keeper, relay and app
+  keeper/                tecpan-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
   relay/                tecpan-relay: optional untrusted store-and-forward relay (ciphertext only)
   napi/                 tecpan-napi: Node bindings of tecpan-crypto for the Electron app
 packages/             TypeScript, only where Aztec requires it
@@ -34,12 +34,12 @@ architecture/         maintained design docs (verified decisions only)
 research/             gitignored plans and investigation; never a build or doc input
 ```
 
-Process boundaries in the desktop app: the renderer is UI only (sandboxed, no Node). The PXE, signing keys and agent
+Process boundaries in the desktop app: the renderer is UI only (sandboxed, no Node). The PXE, signing keys and keeper
 supervision live in the main process or an Electron `utilityProcess`. Signing keys never leave the member's device.
-Viewing shares live only in `tecpan-agent`, which may run locally or on the member's own server.
+Viewing shares live only in `tecpan-keeper`, which may run locally or on the member's own server.
 
 Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package names keep it
-(`crates/agent` builds `tecpan-agent`).
+(`crates/keeper` builds `tecpan-keeper`).
 
 ## Toolchain
 
@@ -59,7 +59,7 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
 
 - Inspect branch, working tree and recent commits before changing anything; preserve unrelated work.
 - Commit after each coherent change with a Conventional Commit, e.g. `feat(contracts): verify k-of-n witness`.
-  Scopes are kebab-case package or area names (`contracts`, `crypto`, `wire`, `agent`, `relay`, `napi`,
+  Scopes are kebab-case package or area names (`contracts`, `crypto`, `wire`, `keeper`, `relay`, `napi`,
   `vault-wallet`, `desktop`, `repo`).
 - Never commit `research/`, `.env` files, keys, shares, or generated `target/`, `out/` and artifact output.
 - Keep files focused and split by responsibility. Reuse a helper only for real repeated use or a domain invariant.

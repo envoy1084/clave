@@ -1,6 +1,6 @@
 [package]
 name = "tecpan-wire"
-description = "Wire format for messages exchanged between Tecpan engines, agents and relays"
+description = "Wire format for messages exchanged between Tecpan engines, keepers and relays"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

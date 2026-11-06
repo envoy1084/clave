@@ -1269,10 +1269,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tecpan-agent"
-version = "0.0.0"
-
-[[package]]
 name = "tecpan-crypto"
 version = "0.0.0"
 dependencies = [
@@ -1293,6 +1289,10 @@ dependencies = [
  "thiserror",
  "zeroize",
 ]
+
+[[package]]
+name = "tecpan-keeper"
+version = "0.0.0"
 
 [[package]]
 name = "tecpan-napi"

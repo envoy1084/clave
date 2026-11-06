@@ -1,4 +1,4 @@
-//! Canonical, versioned wire format for messages exchanged between Tecpan engines, agents and relays.
+//! Canonical, versioned wire format for messages exchanged between Tecpan engines, keepers and relays.
 //!
 //! Implemented in Phase 6; this crate is an empty placeholder until then.
 

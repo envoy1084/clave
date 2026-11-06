@@ -1,4 +1,4 @@
-//! Benchmarks for the operations agents and engines run: partials, verify + combine per sync batch, ceremonies.
+//! Benchmarks for the operations keepers and engines run: partials, verify + combine per sync batch, ceremonies.
 #![allow(missing_docs, clippy::unwrap_used)]
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
