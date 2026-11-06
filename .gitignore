@@ -17,7 +17,7 @@ coverage/
 target/
 codegenCache.json
 contracts/**/Prover.toml
-packages/sdk/src/artifacts/
+contracts/artifacts/
 
 # Environment and secrets
 .env

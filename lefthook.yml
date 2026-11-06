@@ -1,0 +1,9 @@
+extends:
+  - node_modules/klarity/src/lefthook/monorepo.yml
+
+pre-commit:
+  jobs:
+    - name: noir-format
+      glob: "contracts/**/*.nr"
+      root: "contracts/"
+      run: aztec-nargo fmt --workspace --check

@@ -32,17 +32,17 @@ imports only browser-safe exports.
 
 ## Toolchain
 
-| Concern            | Tool                                                                     |
-| ------------------ | ------------------------------------------------------------------------ |
-| Runtime            | Node.js 24, pnpm workspaces, Turborepo                                   |
-| Shared config      | `klarity` presets (tsconfig, oxlint, oxfmt, tsdown, vitest, lefthook)    |
-| TypeScript         | TypeScript 7, strict Klarity presets; one environment preset per package |
-| Format / lint      | oxfmt, oxlint                                                            |
-| Hooks / commits    | lefthook, commitlint (`klarity/commitlint`)                              |
-| TS application     | Effect v4: HttpApi, Schema, Layers, Effect Atom (`@effect/atom-react`)   |
-| Database           | Drizzle ORM 1.0 RC on PostgreSQL via Effect SQL                          |
-| Contracts          | Aztec 6.0.0 toolchain (`aztec compile`, `aztec test`, `aztec codegen`)   |
-| Tests              | Vitest + `@effect/vitest`; Aztec `TestEnvironment` for Noir              |
+| Concern         | Tool                                                                     |
+| --------------- | ------------------------------------------------------------------------ |
+| Runtime         | Node.js 24, pnpm workspaces, Turborepo                                   |
+| Shared config   | `klarity` presets (tsconfig, oxlint, oxfmt, tsdown, vitest, lefthook)    |
+| TypeScript      | TypeScript 7, strict Klarity presets; one environment preset per package |
+| Format / lint   | oxfmt, oxlint                                                            |
+| Hooks / commits | lefthook, commitlint (`klarity/commitlint`)                              |
+| TS application  | Effect v4: HttpApi, Schema, Layers, Effect Atom (`@effect/atom-react`)   |
+| Database        | Drizzle ORM 1.0 RC on PostgreSQL via Effect SQL                          |
+| Contracts       | Aztec 6.0.0 toolchain (`aztec compile`, `aztec test`, `aztec codegen`)   |
+| Tests           | Vitest + `@effect/vitest`; Aztec `TestEnvironment` for Noir              |
 
 Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, tsup) or Effect v3 APIs.
 
