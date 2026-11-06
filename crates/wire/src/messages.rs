@@ -19,6 +19,7 @@ use tecpan_crypto::{
 use crate::{
     Error, IdentityPublic,
     codec::canonical,
+    lobby::{LobbyJoin, LobbyLeave, LobbyPlan, LobbyState},
     types::{
         Bytes64, WireField, WirePoint, WireScalar, field, parse_field, parse_points, parse_scalar,
         scalar,
@@ -85,6 +86,14 @@ pub enum Message {
     Echo(Echo),
     /// A member lists what it holds so peers send what it is missing.
     SyncRequest(SyncRequest),
+    /// A guest asks to join a lobby.
+    LobbyJoin(LobbyJoin),
+    /// A lobby's roster, from its host.
+    LobbyState(LobbyState),
+    /// A started lobby's plan, from its host.
+    LobbyPlan(LobbyPlan),
+    /// A guest leaves a lobby, or the host closes it.
+    LobbyLeave(LobbyLeave),
 }
 
 impl Message {
@@ -113,13 +122,17 @@ impl Message {
                 bounded("approvals", m.approvals.len(), 0, MAX_SYNC_ITEMS)?;
                 bounded("receipts", m.receipts.len(), 0, MAX_SYNC_ITEMS)
             }
+            Self::LobbyJoin(m) => m.validate(),
+            Self::LobbyState(m) => m.validate(),
+            Self::LobbyPlan(m) => m.validate(),
             Self::DkgConfirm(_)
             | Self::ReshareConfirm(_)
             | Self::Complaint(_)
             | Self::Justification(_)
             | Self::Abort(_)
             | Self::Approval(_)
-            | Self::ExecutionReceipt(_) => Ok(()),
+            | Self::ExecutionReceipt(_)
+            | Self::LobbyLeave(_) => Ok(()),
         }
     }
 }

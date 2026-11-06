@@ -101,6 +101,19 @@ HPKE (RFC 9180) Auth mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Pol
 message kind and member pair. HPKE authenticates the sender to the recipient only; third-party attribution for
 complaints comes from the sender's signature at the wire layer.
 
+| Kind | Carries                                        | Session            | Epoch     | Sender / recipient        |
+| ---: | ---------------------------------------------- | ------------------ | --------- | ------------------------- |
+|    1 | DKG round 2 share                              | DKG session        | 0         | dealer / member index     |
+|    2 | Reshare sub-share                              | reshare session    | old epoch | dealer / new member index |
+|    3 | Relay mailbox payload (`mailbox`)              | mailbox id         | UTC day   | 0 / 0                     |
+|    4 | Lobby protocol secrets (`lobby::seal_secrets`) | lobby plan session | 0         | 1 (host) / member index   |
+
+## Lobby helpers (`lobby`)
+
+`join_proof = HMAC-SHA256(invite secret, "tecpan.lobby.join.v0" ‖ lobby id ‖ joiner identity ‖ joiner transport)`,
+verified with a constant-time comparison. `seal_secrets` / `open_secrets` carry the engine's opaque protocol secrets from
+a lobby's host to each member as envelope kind 4 (see `keeper.md`, lobbies).
+
 ## Side-channel posture
 
 - Secret scalars (`SecretScalar`) are zeroized on drop, compared with `subtle`, and have a redacted `Debug`.

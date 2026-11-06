@@ -77,6 +77,10 @@ Variants are append-only: the index is the encoding. Golden bytes for every kind
 |  15 | `RelayEnvelope`    | opaque recipient mailbox id, expiry, sealed bytes                                            | 1 byte..=512 KiB                  |
 |  16 | `Echo`             | a dealer's signed `DkgRound1` / `ReshareDeal` frame, forwarded once by a participant         | frame ≤ 64 KiB                    |
 |  17 | `SyncRequest`      | inventory: proposal ids, `(proposal, slot)` approval refs, receipted proposal ids            | ≤ 4096 of each                    |
+|  18 | `LobbyJoin`        | lobby id, join proof, the joiner's `LobbyMember`                                             | member name ≤ 64 bytes            |
+|  19 | `LobbyState`       | lobby id, revision, vault name, proposed `k` / `t_v`, members (host first), started          | 1..=8 members                     |
+|  20 | `LobbyPlan`        | lobby id, DKG session, `k`, `t_v`, salt, members in slot order, sealed secrets per member    | ≤ 8 members, sealed ≤ 1040 bytes  |
+|  21 | `LobbyLeave`       | lobby id (from a guest: it leaves; from the host: the lobby is closed)                       |                                   |
 
 ### Manifest
 
@@ -85,6 +89,30 @@ identity, transport key and up to 8 addresses (≤ 256 bytes each). `validate` c
 identities, `1 ≤ k ≤ n` and `2 ≤ t_v ≤ n`. A manifest is trusted only after
 `signer_set_commitment()` and `committee_commitment()` equal the vault's on-chain config and `address_context()`
 confirms the vault address from `preaddress` and `Ivpk`.
+
+### Lobbies (`tecpan_wire::lobby`)
+
+A founder's keeper hosts a lobby that co-founders join before any committee exists (flow and checks in `keeper.md`).
+Lobby frames are ordinary `SignedMessage`s with `scope` = the 16-byte lobby id zero-padded to 32 bytes and epoch 0.
+
+```text
+KeeperContact { identity: [u8; 32], transport: [u8; 32], addresses: Vec<String> }      ≤ 8 addresses of ≤ 256 bytes
+LobbyMember   { name: String, signer_key: WirePoint, participant: KeeperContact }      name ≤ 64 bytes
+Invite        { lobby: [u8; 16], secret: [u8; 32], host: KeeperContact, host_name: String, name: String,
+                threshold: u8, viewing_threshold: u8, network: String }                 names ≤ 64 bytes, 1 ≤ k ≤ 8, 2 ≤ t_v ≤ 8
+SealedSecrets { index: u8, enc: [u8; 32], ciphertext: Vec<u8> }                         1..=1040 bytes
+proof         = HMAC-SHA256(secret, "tecpan.lobby.join.v0" ‖ lobby ‖ joiner identity ‖ joiner transport)
+```
+
+- **Invite string.** `tecpan-invite-v0:` followed by base64url without padding of the invite's canonical postcard bytes,
+  at most 4096 characters. Decoding accepts only the canonical bytes and the canonical base64 form (no padding, no
+  non-zero trailing bits), applies the bounds above, and ignores surrounding whitespace. The secret is zeroized on drop
+  and omitted from `Debug`. `network` is an opaque label set by the engine. Anyone holding the invite can join while the
+  lobby is open, so it is shared like a password.
+- **Plan secrets** are the engine's opaque protocol secrets (≤ 1 KiB, never interpreted by keepers), sealed per member
+  with envelope kind 4: session = plan session, epoch 0, sender 1 (the host), recipient = the member's 1-based index
+  (`viewing-keys.md`).
+- `LobbyState.revision` increases with every roster change; members apply only newer states, since sends race.
 
 ### Ceremony complaints
 
@@ -123,7 +151,7 @@ sealing of envelope contents are defined in `networking.md`.
 
 `FrameCodec` frames each request and response with a u32 big-endian length: keeper lanes accept requests up to 1 MiB
 and responses up to 64 bytes (an empty acknowledgement); the mailbox lane accepts 4 MiB. Protocol names are
-`/tecpan/{ecdh,ceremony,sync,mailbox}/0`.
+`/tecpan/{ecdh,ceremony,sync,lobby,mailbox}/0`.
 
 ### Unsigned bodies
 
@@ -155,11 +183,12 @@ throws an `InvalidArg` error on failure.
 
 | Suite                              | Covers                                                                                                                                                                                    |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `crates/wire/tests/lobby.rs`       | Invite string round trip, redacted `Debug`, prefix / padding / alphabet / trailing-bit / truncation / overlong-varint rejection, invite and lobby message bounds                          |
 | `crates/wire/tests/codec.rs`       | Round trips, golden bytes, variant tags, truncation, trailing bytes, overlong varints, unknown variants, versions, size and count bounds                                                  |
 | `crates/wire/tests/signed.rs`      | Signatures over every kind, signer binding, every flipped bit rejected, replay guard                                                                                                      |
 | `crates/wire/tests/messages.rs`    | Manifest validation and commitments vs the contract vectors, approvals with real Schnorr, proposal id, DKG / reshare / ECDH conversions with real ceremonies, justifications              |
 | `crates/napi/test/aztec.test.ts`   | Against live `@aztec-labs` 6.0.0: address and sign (both branches), preaddress, 2-of-3 threshold ECDH vs `deriveEcdhSharedSecretPoint`, Aztec Schnorr approvals, codecs, contract vectors |
-| `crates/crypto/fuzz` `wire_decode` | Decoding signed messages and bare bodies never panics; accepted input re-encodes identically                                                                                              |
+| `crates/crypto/fuzz` `wire_decode` | Decoding signed messages, bare bodies and invites never panics; accepted input re-encodes identically                                                                                     |
 
 Regenerate golden bytes only for an intended format change:
 `UPDATE_WIRE_FIXTURES=1 cargo test -p tecpan-wire --test codec`.

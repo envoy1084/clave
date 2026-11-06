@@ -10,6 +10,10 @@
 use tecpan_crypto::{Point, Scalar, SecretScalar};
 use tecpan_wire::{
     Header, KeeperIdentity, Message, SignedMessage,
+    lobby::{
+        Invite, KeeperContact, LobbyJoin, LobbyLeave, LobbyMember, LobbyPlan, LobbyState,
+        SealedSecrets,
+    },
     messages::{
         Abort, AbortReason, Approval, ApprovalRef, Ceremony, Complaint, Confirm, DkgRound1,
         EcdhPurpose, EcdhRequest, EcdhResponse, Echo, ExecutionReceipt, Justification, Manifest,
@@ -38,6 +42,35 @@ pub fn header(id: u8) -> Header {
         epoch: 3,
         id: [id; 16],
         created_at: NOW,
+    }
+}
+
+pub fn contact(n: u8) -> KeeperContact {
+    KeeperContact {
+        identity: identity(n).public(),
+        transport: [n; 32],
+        addresses: vec![format!("/ip4/127.0.0.1/udp/410{n}/quic-v1")],
+    }
+}
+
+pub fn lobby_member(n: u8) -> LobbyMember {
+    LobbyMember {
+        name: format!("member {n}"),
+        signer_key: wire_point(u64::from(n) + 20),
+        participant: contact(n),
+    }
+}
+
+pub fn invite() -> Invite {
+    Invite {
+        lobby: [0x31; 16],
+        secret: zeroize::Zeroizing::new([0x32; 32]),
+        host: contact(1),
+        host_name: "Ada".to_owned(),
+        name: "Treasury".to_owned(),
+        threshold: 2,
+        viewing_threshold: 2,
+        network: "aztec-testnet".to_owned(),
     }
 }
 
@@ -186,6 +219,53 @@ pub fn samples() -> Vec<(&'static str, Message)> {
                 }],
                 receipts: vec![],
             }),
+        ),
+        (
+            "lobby_join",
+            Message::LobbyJoin(LobbyJoin {
+                lobby: [0x31; 16],
+                proof: [0x33; 32],
+                member: lobby_member(2),
+            }),
+        ),
+        (
+            "lobby_state",
+            Message::LobbyState(LobbyState {
+                lobby: [0x31; 16],
+                revision: 2,
+                name: "Treasury".to_owned(),
+                threshold: 2,
+                viewing_threshold: 2,
+                members: vec![lobby_member(1), lobby_member(2)],
+                started: false,
+            }),
+        ),
+        (
+            "lobby_plan",
+            Message::LobbyPlan(LobbyPlan {
+                lobby: [0x31; 16],
+                session: [0x34; 32],
+                threshold: 2,
+                viewing_threshold: 2,
+                salt: [0x05; 32],
+                members: vec![lobby_member(1), lobby_member(2)],
+                secrets: vec![
+                    SealedSecrets {
+                        index: 1,
+                        enc: [0x35; 32],
+                        ciphertext: vec![0x36; 24],
+                    },
+                    SealedSecrets {
+                        index: 2,
+                        enc: [0x37; 32],
+                        ciphertext: vec![0x38; 24],
+                    },
+                ],
+            }),
+        ),
+        (
+            "lobby_leave",
+            Message::LobbyLeave(LobbyLeave { lobby: [0x31; 16] }),
         ),
     ]
 }

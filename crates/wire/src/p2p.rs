@@ -15,6 +15,8 @@ pub const ECDH: StreamProtocol = StreamProtocol::new("/tecpan/ecdh/0");
 pub const CEREMONY: StreamProtocol = StreamProtocol::new("/tecpan/ceremony/0");
 /// Proposals, approvals, receipts and sync requests.
 pub const SYNC: StreamProtocol = StreamProtocol::new("/tecpan/sync/0");
+/// Vault-founding lobbies: the only lane on which a keeper hosting an open lobby accepts frames from non-members.
+pub const LOBBY: StreamProtocol = StreamProtocol::new("/tecpan/lobby/0");
 /// Keeper to relay mailbox.
 pub const MAILBOX: StreamProtocol = StreamProtocol::new("/tecpan/mailbox/0");
 /// libp2p identify protocol version of Tecpan nodes.

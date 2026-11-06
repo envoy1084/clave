@@ -1,11 +1,19 @@
-//! Decoding untrusted wire bytes (signed messages and bare bodies) never panics, accepted values re-encode to the
-//! same bytes, and verification and crypto conversions of decoded bodies never panic.
+//! Decoding untrusted wire bytes (signed messages, bare bodies and lobby invites) never panics, accepted values
+//! re-encode to the same bytes, and verification and crypto conversions of decoded bodies never panic.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_wire::{Message, decode, decode_body, encode, encode_body, mailbox};
+use tecpan_wire::{Message, decode, decode_body, encode, encode_body, lobby::Invite, mailbox};
 
 fuzz_target!(|data: &[u8]| {
+    if let Ok(invite) = Invite::from_bytes(data) {
+        assert_eq!(invite.to_bytes().ok().as_deref(), Some(data));
+    }
+    if let Ok(text) = core::str::from_utf8(data)
+        && let Ok(invite) = Invite::decode(text)
+    {
+        assert_eq!(invite.encode().ok().as_deref(), Some(text.trim()));
+    }
     if let Ok(request) = mailbox::decode_request(data) {
         assert_eq!(mailbox::encode(&request).ok().as_deref(), Some(data));
     }

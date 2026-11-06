@@ -175,6 +175,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "block-buffer"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -803,12 +809,14 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-grumpkin",
+ "hmac",
  "hpke",
  "rand_core 0.10.1",
  "sha2",
  "subtle",
  "taceo-poseidon2",
  "thiserror",
+ "x25519-dalek",
  "zeroize",
 ]
 
@@ -825,6 +833,7 @@ dependencies = [
 name = "tecpan-wire"
 version = "0.0.0"
 dependencies = [
+ "base64",
  "ed25519-dalek",
  "postcard",
  "rand_core 0.10.1",
@@ -926,6 +935,7 @@ version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13084392c5e4bc371903e2935a5eaeed24905a7511356b883835e18a78f6879"
 dependencies = [
+ "serde",
  "zeroize_derive",
 ]
 

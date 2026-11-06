@@ -8,6 +8,7 @@
 mod codec;
 mod error;
 mod identity;
+pub mod lobby;
 pub mod mailbox;
 pub mod messages;
 #[cfg(feature = "p2p")]
