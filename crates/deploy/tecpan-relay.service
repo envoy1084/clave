@@ -1,0 +1,31 @@
+# systemd unit for a Tecpan relay. Install the binary at /usr/local/bin/tecpan-relay.
+[Unit]
+Description=Tecpan relay (circuit relay and ciphertext mailbox)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=tecpan-relay
+Environment=TECPAN_RELAY_DATA=/var/lib/tecpan-relay
+ExecStart=/usr/local/bin/tecpan-relay run --health 127.0.0.1:9090 --log-format json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

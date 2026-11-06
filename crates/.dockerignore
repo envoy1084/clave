@@ -1,0 +1,7 @@
+target
+**/target
+crypto/fuzz/corpus
+crypto/fuzz/artifacts
+napi/dist
+napi/node_modules
+**/*.node
