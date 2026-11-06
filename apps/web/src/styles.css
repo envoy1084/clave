@@ -1,0 +1,93 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/newsreader/wght-italic.css";
+
+/* Hover only where a real pointer hovers (no sticky hover after a tap). */
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader Variable", ui-serif, Georgia, serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-paper: #fbf8f2;
+  --color-paper-2: #f2eee5;
+  --color-ink: #15180f;
+  --color-ink-2: #23271b;
+  --color-ink-soft: #55574b;
+  --color-muted: #5e6053;
+  --color-line: rgb(21 24 15 / 0.1);
+  --color-signal: #c8f500;
+  --color-olive: #4f6300;
+  --color-olive-soft: #eef4d2;
+  --color-peri: #a7a9ff;
+  --color-peri-soft: #ededff;
+  --color-peri-ink: #3b2f7a;
+  --color-night: #0e1530;
+  --color-coral: #c4432a;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+@layer base {
+  html {
+    @apply bg-paper font-sans text-ink antialiased;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-signal) 70%, transparent);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-olive);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  a,
+  button,
+  summary,
+  [role="tab"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  /* Grid items may shrink below their content (code blocks scroll instead of widening the page). */
+  .grid > * {
+    min-width: 0;
+  }
+}
+
+@utility serif-display {
+  font-family: var(--font-serif);
+  font-weight: 340;
+  font-optical-sizing: auto;
+  letter-spacing: -0.022em;
+}
+
+@utility serif-em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 340;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

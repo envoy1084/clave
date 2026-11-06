@@ -1,0 +1,8 @@
+{
+  "extends": "klarity/tsconfig/app/vite",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": false,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+}
