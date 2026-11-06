@@ -1,4 +1,4 @@
-use crate::{Error, SignedMessage};
+use crate::{Error, Message, SignedMessage};
 
 /// Wire version this build speaks. New message kinds are appended to [`crate::Message`]; incompatible changes bump it.
 pub const WIRE_VERSION: u16 = 0;
@@ -41,6 +41,36 @@ pub fn decode(bytes: &[u8]) -> Result<SignedMessage, Error> {
     }
     message.body.validate()?;
     Ok(message)
+}
+
+/// Canonical encoding of an unsigned message body, as passed between an engine and its own keeper before signing.
+///
+/// # Errors
+/// [`Error::OutOfBounds`] from [`Message::validate`], [`Error::TooLarge`] above [`MAX_MESSAGE_BYTES`].
+pub fn encode_body(body: &Message) -> Result<Vec<u8>, Error> {
+    body.validate()?;
+    let bytes = canonical(body)?;
+    if bytes.len() > MAX_MESSAGE_BYTES {
+        return Err(Error::TooLarge(bytes.len()));
+    }
+    Ok(bytes)
+}
+
+/// Decodes and bounds-checks an unsigned message body; only the canonical encoding is accepted.
+///
+/// # Errors
+/// [`Error::TooLarge`], [`Error::Malformed`] or [`Error::OutOfBounds`].
+pub fn decode_body(bytes: &[u8]) -> Result<Message, Error> {
+    if bytes.len() > MAX_MESSAGE_BYTES {
+        return Err(Error::TooLarge(bytes.len()));
+    }
+    let (body, rest): (Message, &[u8]) =
+        postcard::take_from_bytes(bytes).map_err(|_| Error::Malformed)?;
+    if !rest.is_empty() || canonical(&body)? != bytes {
+        return Err(Error::Malformed);
+    }
+    body.validate()?;
+    Ok(body)
 }
 
 /// Canonical bytes of any serialisable value (signing payloads, proposal ids).

@@ -55,6 +55,17 @@ fn variant_tags_follow_declaration_order() {
 }
 
 #[test]
+fn bodies_round_trip_without_a_signature() {
+    for (name, body) in samples() {
+        let bytes = tecpan_wire::encode_body(&body).unwrap();
+        assert_eq!(tecpan_wire::decode_body(&bytes).unwrap(), body, "{name}");
+        let mut trailing = bytes.clone();
+        trailing.push(0);
+        assert!(tecpan_wire::decode_body(&trailing).is_err(), "{name}");
+    }
+}
+
+#[test]
 fn rejects_trailing_bytes() {
     let mut bytes = encode(&signed(samples().remove(0).1)).unwrap();
     bytes.push(0);

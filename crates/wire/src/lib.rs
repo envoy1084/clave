@@ -13,7 +13,7 @@ mod replay;
 mod signed;
 pub mod types;
 
-pub use codec::{MAX_MESSAGE_BYTES, WIRE_VERSION, decode, encode};
+pub use codec::{MAX_MESSAGE_BYTES, WIRE_VERSION, decode, decode_body, encode, encode_body};
 pub use error::Error;
 pub use identity::{IdentityPublic, KeeperIdentity};
 pub use messages::Message;
