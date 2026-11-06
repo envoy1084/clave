@@ -4,7 +4,14 @@ import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Live app state: TanStack Query caches every engine/main call; events from the main process update the cache in
 // place, so screens re-render without polling.
-import type { AppEvent, AppState, FoundingState, LobbyView, NodeStatus } from "@shared/types.ts";
+import type {
+  AppEvent,
+  AppState,
+  ExecutionProgress,
+  FoundingState,
+  LobbyView,
+  NodeStatus,
+} from "@shared/types.ts";
 
 import { call, onEvent } from "./ipc.ts";
 
@@ -23,6 +30,17 @@ export const keys = {
   vault: (address: string) => ["vault.details", address.toLowerCase()] as const,
   audit: (address: string) => ["vault.audit", address.toLowerCase()] as const,
   pxe: ["pxe.status"] as const,
+  /** Everything that changes when a vault's records or notes change. */
+  vaultData: (address: string) => ["vault-data", address.toLowerCase()] as const,
+  tokens: (address: string) => ["vault-data", address.toLowerCase(), "tokens"] as const,
+  proposals: (address: string) => ["vault-data", address.toLowerCase(), "proposals"] as const,
+  proposal: (address: string, id: string) =>
+    ["vault-data", address.toLowerCase(), "proposal", id.toLowerCase()] as const,
+  activity: (address: string) => ["vault-data", address.toLowerCase(), "activity"] as const,
+  peers: (address: string) => ["vault-peers", address.toLowerCase()] as const,
+  execution: (address: string, id: string) =>
+    ["execution", address.toLowerCase(), id.toLowerCase()] as const,
+  contacts: ["contacts.list"] as const,
 };
 
 /** Installs the event bridge once, at the root. */
@@ -44,6 +62,15 @@ export function useEventBridge(): void {
             break;
           case "founding":
             client.setQueryData<FoundingState>(keys.founding(event.founding.lobby), event.founding);
+            break;
+          case "vault-activity":
+            void client.invalidateQueries({ queryKey: keys.vaultData(event.vault) });
+            break;
+          case "execution":
+            client.setQueryData<ExecutionProgress>(
+              keys.execution(event.execution.vault, event.execution.proposal),
+              event.execution,
+            );
             break;
         }
       }),

@@ -4,7 +4,10 @@ import { Link, Outlet, useLocation, useNavigate, useParams } from "@tanstack/rea
 
 import type { VaultSummary } from "@shared/types.ts";
 import {
+  BookUserIcon,
   ChevronsUpDownIcon,
+  FileSignatureIcon,
+  HistoryIcon,
   CpuIcon,
   LayoutGridIcon,
   PlusIcon,
@@ -59,6 +62,20 @@ export function VaultShell() {
                 Overview
               </NavItem>
               <NavItem
+                to="/vault/$address/proposals"
+                address={current.address}
+                icon={<FileSignatureIcon />}
+              >
+                Proposals
+              </NavItem>
+              <NavItem
+                to="/vault/$address/activity"
+                address={current.address}
+                icon={<HistoryIcon />}
+              >
+                Activity
+              </NavItem>
+              <NavItem
                 to="/vault/$address/members"
                 address={current.address}
                 icon={<UsersRoundIcon />}
@@ -72,6 +89,9 @@ export function VaultShell() {
           ) : null}
         </nav>
         <div className="mt-auto space-y-0.5 px-3 pb-3">
+          <NavItem to="/contacts" icon={<BookUserIcon />}>
+            Address book
+          </NavItem>
           <NavItem to="/settings" icon={<Settings2Icon />}>
             Settings
           </NavItem>
@@ -102,7 +122,14 @@ function NavItem({
   children,
   exact = false,
 }: {
-  to: "/vault/$address" | "/vault/$address/members" | "/vault/$address/internals" | "/settings";
+  to:
+    | "/vault/$address"
+    | "/vault/$address/proposals"
+    | "/vault/$address/activity"
+    | "/vault/$address/members"
+    | "/vault/$address/internals"
+    | "/contacts"
+    | "/settings";
   address?: string;
   icon: ReactNode;
   children: ReactNode;
