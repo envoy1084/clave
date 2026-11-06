@@ -4,8 +4,6 @@ description = "Wire format for messages exchanged between Tecpan engines, agents
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
-repository.workspace = true
 publish.workspace = true
 
 [lints]

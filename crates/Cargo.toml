@@ -6,8 +6,6 @@ members = ["tecpan-agent", "tecpan-crypto", "tecpan-napi", "tecpan-relay", "tecp
 version = "0.0.0"
 edition = "2024"
 rust-version = "1.96"
-license = "MIT"
-repository = "https://github.com/envoy1084/tecpan"
 publish = false
 
 # Shared dependency versions; crates opt in with `dep = { workspace = true }`.
