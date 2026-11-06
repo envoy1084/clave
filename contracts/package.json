@@ -4,6 +4,9 @@
   "private": true,
   "description": "Tecpan vault contract (Aztec.nr v6, Noir 1.0)",
   "type": "module",
+  "exports": {
+    "./TecpanVault.json": "./target/vault_contract-TecpanVault.json"
+  },
   "scripts": {
     "build": "aztec compile",
     "codegen": "aztec codegen target -o artifacts",

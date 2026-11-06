@@ -9,16 +9,33 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
+    "./testing": "./dist/testing.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsdown",
     "lint": "oxlint --deny-warnings .",
     "test": "vitest run",
+    "test:e2e": "vitest run -c vitest.e2e.config.ts",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
+  "dependencies": {
+    "@aztec-foundation/bb.js": "catalog:",
+    "@aztec-labs/accounts": "catalog:",
+    "@aztec-labs/aztec.js": "catalog:",
+    "@aztec-labs/entrypoints": "catalog:",
+    "@aztec-labs/foundation": "catalog:",
+    "@aztec-labs/key-store": "catalog:",
+    "@aztec-labs/kv-store": "catalog:",
+    "@aztec-labs/pxe": "catalog:",
+    "@aztec-labs/stdlib": "catalog:",
+    "@aztec-labs/wallet-sdk": "catalog:",
+    "@tecpan/napi": "workspace:*"
+  },
   "devDependencies": {
+    "@aztec-labs/noir-contracts.js": "catalog:",
+    "@tecpan/contracts": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "klarity": "catalog:",
