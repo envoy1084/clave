@@ -213,10 +213,14 @@ impl P2pTransport {
             .map(|(_, relay)| relay.clone().with(Protocol::P2pCircuit).to_string())
             .take(MAX_ADVERTISED)
             .collect();
+        // A wildcard listener reports loopback too. Advertised to another host, a loopback address dials the dialer
+        // itself, and libp2p settles a dial on its first transport success, so that self-connection (wrong peer id)
+        // would fail the whole dial, relay circuit included. Loopback is advertised only by a loopback-only keeper.
+        let routable = listening.iter().any(|a| !is_loopback(a));
         let mut addresses: Vec<String> = config
             .external
             .iter()
-            .chain(&listening)
+            .chain(listening.iter().filter(|a| !(routable && is_loopback(a))))
             .map(ToString::to_string)
             .collect();
         addresses.dedup();
@@ -297,6 +301,24 @@ impl Transport for Arc<P2pTransport> {
 }
 
 /// Waits until every listen address is bound and every relay accepted a reservation, or the timeout passes.
+/// Records a peer's advertised addresses, skipping any of our own: a member behind another NAT may advertise the same
+/// private address and port, and dialing it would reach this keeper and fail the whole dial.
+fn add_addresses(swarm: &mut Swarm<Behaviour>, id: PeerId, addresses: &[String]) {
+    for address in addresses.iter().filter_map(|a| a.parse::<Multiaddr>().ok()) {
+        if !swarm.listeners().any(|own| *own == address) {
+            swarm.add_peer_address(id, address);
+        }
+    }
+}
+
+fn is_loopback(address: &Multiaddr) -> bool {
+    address.iter().any(|p| match p {
+        Protocol::Ip4(ip) => ip.is_loopback(),
+        Protocol::Ip6(ip) => ip.is_loopback(),
+        _ => false,
+    })
+}
+
 async fn wait_ready(
     swarm: &mut Swarm<Behaviour>,
     config: &P2pConfig,
@@ -373,13 +395,7 @@ fn on_command(
                 let _ = reply.send(Err(Error::Transport("peer is not in any committee".into())));
                 return;
             }
-            for address in peer
-                .addresses
-                .iter()
-                .filter_map(|a| a.parse::<Multiaddr>().ok())
-            {
-                swarm.add_peer_address(id, address);
-            }
+            add_addresses(swarm, id, &peer.addresses);
             let behaviour = swarm.behaviour_mut();
             let request = match lane(&frame) {
                 Lane::Ecdh => behaviour.ecdh.send_request(&id, frame),
@@ -401,13 +417,7 @@ fn on_command(
             let mut next = HashMap::new();
             for peer in peers {
                 if let Ok(id) = peer_id(&peer.identity) {
-                    for address in peer
-                        .addresses
-                        .iter()
-                        .filter_map(|a| a.parse::<Multiaddr>().ok())
-                    {
-                        swarm.add_peer_address(id, address);
-                    }
+                    add_addresses(swarm, id, &peer.addresses);
                     next.insert(id, peer.identity);
                 }
             }
