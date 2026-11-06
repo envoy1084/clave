@@ -26,7 +26,7 @@ pub use vaults::{Observation, VaultInfo};
 
 use crate::{
     Result,
-    ceremony::{dkg::Dkg, reshare::Reshare},
+    ceremony::{Participant, dkg::Dkg, reshare::Reshare},
     clock::Clock,
     committee::Committee,
     custody::{KeeperKeys, SecretStore},
@@ -130,6 +130,9 @@ pub(crate) struct State {
     pub(crate) last_mailbox_poll: u64,
     /// Replicated approvals whose proposal has not arrived yet, by proposal id.
     pub(crate) orphans: HashMap<[u8; 32], Vec<([u8; 32], Approval)>>,
+    /// Participants of finished ceremonies with the time they stay reachable: a member that finishes first must still
+    /// deliver its last messages (and accept retries) to members that are not in any of its committees yet.
+    pub(crate) lingering: HashMap<[u8; 32], (u64, Vec<Participant>)>,
 }
 
 pub(crate) struct VaultState {
@@ -188,6 +191,7 @@ impl Keeper {
             last_sync: HashMap::new(),
             last_mailbox_poll: 0,
             orphans: HashMap::new(),
+            lingering: HashMap::new(),
         };
         let (events, _) = broadcast::channel(1024);
         let keeper = Self(Arc::new(Inner {
@@ -325,6 +329,14 @@ impl Keeper {
             peers.extend(
                 dkg.params()
                     .members
+                    .iter()
+                    .filter(|p| p.identity != me)
+                    .map(Peer::from),
+            );
+        }
+        for (_, participants) in state.lingering.values() {
+            peers.extend(
+                participants
                     .iter()
                     .filter(|p| p.identity != me)
                     .map(Peer::from),

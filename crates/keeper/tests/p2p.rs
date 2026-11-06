@@ -1,5 +1,6 @@
-//! Keepers over libp2p on localhost: DKG, threshold ECDH and replication; outsiders refused; a keeper reachable only
-//! through a relay circuit; a member that was offline catching up from its relay mailbox.
+//! Keepers over libp2p on localhost: DKG, threshold ECDH and replication; a reshare with a joining member; outsiders
+//! refused; a keeper reachable only through a relay circuit; a member that was offline catching up from its relay
+//! mailbox.
 #![allow(
     clippy::unwrap_used,
     clippy::missing_panics_doc,
@@ -13,14 +14,17 @@ use std::{path::Path, sync::Arc, time::Duration};
 use common::{ecdh, eventually, manifest_of, point, run_dkg_among};
 use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
 use tecpan_keeper::{
-    Keeper, KeeperConfig, KeeperParts, SystemClock,
+    Keeper, KeeperConfig, KeeperParts, NewMember, ReshareRequest, SystemClock,
     custody::{KeeperKeys, MasterKey, SecretStore},
     mailbox::MailboxService,
     store::Store,
     transport::{P2pConfig, P2pTransport, Peer, RelayMailbox, Transport},
 };
 use tecpan_relay::{Limits, Relay, RelayConfig, store::MailboxStore};
-use tecpan_wire::{Message, encode_body, messages::Proposal};
+use tecpan_wire::{
+    Message, encode_body,
+    messages::{Manifest, Proposal},
+};
 use tempfile::TempDir;
 
 struct Node {
@@ -97,13 +101,17 @@ async fn node(seed: u8, relays: &[Multiaddr], direct: bool) -> Node {
 }
 
 async fn vault_of(nodes: &[&Node]) -> [u8; 32] {
+    manifest_for(nodes).await.vault
+}
+
+async fn manifest_for(nodes: &[&Node]) -> Manifest {
     let keepers: Vec<&Keeper> = nodes.iter().map(|n| &n.keeper).collect();
     let result = run_dkg_among(&keepers, 2, [1; 32]).await;
     let (manifest, _) = manifest_of(&keepers, &result, 3);
     for k in &keepers {
         k.register_vault([1; 32], manifest.clone()).await.unwrap();
     }
-    manifest.vault
+    manifest
 }
 
 fn proposal(summary: &str) -> Vec<u8> {
@@ -147,6 +155,52 @@ async fn keepers_run_dkg_ecdh_and_replication_over_libp2p() {
             (n.keeper.proposals(vault).unwrap() == vec![body.clone()]).then_some(())
         })
         .await;
+    }
+}
+
+// A joining member is in no committee of the others; the member that finishes first must still deliver its last
+// messages to it.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_joining_member_completes_a_reshare_over_libp2p() {
+    let nodes = [
+        node(1, &[], true).await,
+        node(2, &[], true).await,
+        node(3, &[], true).await,
+    ];
+    let refs: Vec<&Node> = nodes.iter().collect();
+    let manifest = manifest_for(&refs).await;
+    let newcomer = node(4, &[], true).await;
+    let request = ReshareRequest {
+        session: [2; 32],
+        vault: manifest.vault,
+        current: None,
+        dealers: vec![1, 2],
+        new_threshold: 2,
+        new_spending_threshold: 2,
+        new_members: [&nodes[0], &nodes[1], &newcomer]
+            .iter()
+            .zip(&manifest.members)
+            .map(|(n, member)| NewMember {
+                identity: n.keeper.identity(),
+                transport: n.keeper.transport_key(),
+                addresses: n.keeper.addresses().to_vec(),
+                signer_key: member.signer_key,
+            })
+            .collect(),
+    };
+    for n in &nodes[..2] {
+        n.keeper.start_reshare(request.clone()).await.unwrap();
+    }
+    newcomer
+        .keeper
+        .start_reshare(ReshareRequest {
+            current: Some(manifest.clone()),
+            ..request
+        })
+        .await
+        .unwrap();
+    for keeper in [&nodes[0].keeper, &nodes[1].keeper, &newcomer.keeper] {
+        eventually(async || (common::status(keeper, [2; 32]) == "completed").then_some(())).await;
     }
 }
 

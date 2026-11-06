@@ -280,6 +280,11 @@ impl Keeper {
             sends.extend(self.resolve(&state, session, outbox));
             self.settle(&mut state, session);
         }
+        let before = state.lingering.len();
+        state.lingering.retain(|_, (until, _)| *until > now);
+        if state.lingering.len() != before {
+            self.refresh_allowlist(&state);
+        }
         drop(state);
         self.dispatch(sends);
         self.periodic(now).await;
@@ -288,6 +293,7 @@ impl Keeper {
     /// Persists a finished ceremony and drops its in-memory state.
     fn settle(&self, state: &mut State, session: [u8; 32]) {
         let now = self.now();
+        let finished = participants_of(state, session).map(|(participants, _)| participants);
         if let Some(dkg) = state.dkgs.get_mut(&session) {
             match dkg.status().clone() {
                 Status::Running => return,
@@ -346,6 +352,10 @@ impl Keeper {
             state.reshares.remove(&session);
         } else {
             return;
+        }
+        if let Some(participants) = finished {
+            let until = now + self.0.config.round_timeout_secs;
+            state.lingering.insert(session, (until, participants));
         }
         self.refresh_allowlist(state);
     }
