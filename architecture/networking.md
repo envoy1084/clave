@@ -18,6 +18,10 @@ Status: Phase 9.
                                    (ciphertext mailbox)
 ```
 
+- **Routable addresses only.** A wildcard listener also reports `127.0.0.1`; a keeper with any routable address
+  never advertises loopback, and a keeper never records a peer address equal to one of its own listen addresses.
+  Either would make the dialer reach itself: libp2p settles a dial on its first transport success, so that
+  self-connection (wrong peer id) fails the whole dial, relay circuit included. The namespace test caught this.
 - **Direct first.** A keeper advertises its external and listen addresses first and its relay circuits
   (`<relay>/p2p-circuit`) last, at most 8 in total. Peers dial them in order; DCUtR upgrades a relayed connection to a
   direct one when hole punching works.
@@ -125,11 +129,11 @@ metadata run their own relay or keep direct connectivity.
 
 ## Measured
 
-| Scenario                                                                                                                                    | Result                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart | 5 tests, ~6 s                        |
-| Real binaries on one host (relay + 3 keepers, `network_scenario`)                                                                           | DKG 291 ms, ECDH 25 ms, total 710 ms |
-| Docker: 3 keepers on 3 internal networks, reachable only through the relay                                                                  | see below                            |
+| Scenario                                                                                                                                    | Result                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart | 5 tests, ~6 s                                  |
+| Real binaries on one host (relay + 3 keepers, `network_scenario`)                                                                           | DKG 291 ms, ECDH 25 ms, total 710 ms           |
+| Docker: 3 keepers on 3 internal networks, reachable only through the relay (3 runs)                                                         | DKG 258–262 ms, ECDH 7–12 ms, total 567–579 ms |
 
 `crates/keeper/tests/network/run.sh` (`pnpm test:network`) builds the node image and starts a relay attached to three
 internal Docker networks and one keeper on each. No keeper can route to another; the driver container has no network
