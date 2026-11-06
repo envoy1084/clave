@@ -152,6 +152,49 @@ impl Commitments {
         }
     }
 
+    /// Rebuilds the commitments of a degree-`threshold - 1` polynomial from public evaluations `(i, f(i) · G)`, e.g. the
+    /// verification shares in a committee manifest. The first `threshold` evaluations fix the polynomial (Lagrange
+    /// interpolation in the exponent); every further evaluation must lie on it.
+    ///
+    /// # Errors
+    /// Index-set errors, [`Error::InsufficientShares`] for fewer than `threshold` evaluations,
+    /// [`Error::InvalidShare`] naming an evaluation off the polynomial, or [`Error::IdentityPoint`] for a degenerate
+    /// coefficient.
+    pub fn interpolate(
+        threshold: usize,
+        evaluations: &[(MemberIndex, Point)],
+    ) -> Result<Self, Error> {
+        let indices: Vec<MemberIndex> = evaluations.iter().map(|(i, _)| *i).collect();
+        validate_index_set(&indices)?;
+        if threshold == 0 {
+            return Err(Error::InvalidThreshold);
+        }
+        if evaluations.len() < threshold {
+            return Err(Error::InsufficientShares {
+                needed: threshold,
+                actual: evaluations.len(),
+            });
+        }
+        let (basis, rest) = evaluations.split_at(threshold);
+        let mut coefficients = vec![Projective::zero(); threshold];
+        for (i, y) in basis {
+            for (k, b) in lagrange_basis(*i, basis)?.iter().enumerate() {
+                coefficients[k] += y.mul_public(b);
+            }
+        }
+        let commitments = coefficients
+            .into_iter()
+            .map(Point::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .map(Self)?;
+        for (i, y) in rest {
+            if commitments.evaluate(*i)? != *y {
+                return Err(Error::InvalidShare(*i));
+            }
+        }
+        Ok(commitments)
+    }
+
     /// Point-wise sum of commitments (the committed polynomial is the sum of the polynomials).
     ///
     /// # Errors
@@ -174,6 +217,27 @@ impl Commitments {
             .collect::<Result<Vec<_>, _>>()
             .map(Self)
     }
+}
+
+/// Coefficients (constant first) of the Lagrange basis polynomial `L_i(x) = Π_{j ≠ i} (x - j) / (i - j)` over the
+/// indices of `set`.
+fn lagrange_basis(index: MemberIndex, set: &[(MemberIndex, Point)]) -> Result<Vec<Scalar>, Error> {
+    let i = Scalar::from(index);
+    let mut numerator = vec![Scalar::one()];
+    let mut denominator = Scalar::one();
+    for &(j, _) in set.iter().filter(|(j, _)| *j != index) {
+        let j = Scalar::from(j);
+        // numerator *= (x - j)
+        let mut next = vec![Scalar::zero(); numerator.len() + 1];
+        for (k, c) in numerator.iter().enumerate() {
+            next[k + 1] += c;
+            next[k] -= *c * j;
+        }
+        numerator = next;
+        denominator *= i - j;
+    }
+    let inverse = denominator.inverse().ok_or(Error::InvalidIndex)?;
+    Ok(numerator.into_iter().map(|c| c * inverse).collect())
 }
 
 /// Checks that `set` is non-empty, has no zero and no duplicate index.
@@ -237,6 +301,32 @@ mod tests {
             .iter()
             .map(|(i, s)| lagrange_coefficient(*i, &set).unwrap() * s.expose())
             .sum()
+    }
+
+    #[test]
+    fn interpolation_recovers_commitments_from_verification_shares() {
+        let mut rng = rng();
+        let poly = Polynomial::random(random_scalar(&mut rng), 3, &mut rng).unwrap();
+        let commitments = poly.commitments().unwrap();
+        let evaluations: Vec<_> = [5, 2, 4, 1]
+            .iter()
+            .map(|&i| (i, commitments.evaluate(i).unwrap()))
+            .collect();
+        assert_eq!(
+            Commitments::interpolate(3, &evaluations).unwrap(),
+            commitments
+        );
+
+        let mut off = evaluations.clone();
+        off[3].1 = commitments.evaluate(7).unwrap();
+        assert!(matches!(
+            Commitments::interpolate(3, &off),
+            Err(Error::InvalidShare(1))
+        ));
+        assert!(matches!(
+            Commitments::interpolate(3, &evaluations[..2]),
+            Err(Error::InsufficientShares { .. })
+        ));
     }
 
     #[test]

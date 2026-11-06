@@ -183,3 +183,41 @@ fn rejects_wrong_threshold_and_missing_packages() {
         Some(Error::InvalidIndex)
     );
 }
+
+#[test]
+fn stored_shares_restore_and_wrong_shares_are_refused() {
+    let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(91);
+    let shares = common::run_dkg(2, 3, &mut rng);
+    let share = &shares[1];
+    let restored = tecpan_crypto::dkg::KeyShare::restore(
+        share.index(),
+        share.threshold(),
+        share.participants().to_vec(),
+        share.share().clone(),
+        share.group_commitments().clone(),
+        *share.transcript(),
+    )
+    .unwrap();
+    assert_eq!(restored.group_public_key(), share.group_public_key());
+
+    let wrong = tecpan_crypto::dkg::KeyShare::restore(
+        share.index(),
+        share.threshold(),
+        share.participants().to_vec(),
+        shares[0].share().clone(),
+        share.group_commitments().clone(),
+        *share.transcript(),
+    );
+    assert!(matches!(wrong, Err(tecpan_crypto::Error::InvalidShare(2))));
+
+    // A manifest's verification shares rebuild the group commitments.
+    let evaluations: Vec<_> = share
+        .participants()
+        .iter()
+        .map(|&i| (i, share.verification_share(i).unwrap()))
+        .collect();
+    assert_eq!(
+        &tecpan_crypto::shamir::Commitments::interpolate(2, &evaluations).unwrap(),
+        share.group_commitments()
+    );
+}

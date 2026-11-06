@@ -118,6 +118,39 @@ impl KeyShare {
         }
     }
 
+    /// Restores a stored key share, checking that `share · G` is this member's committed verification share.
+    ///
+    /// # Errors
+    /// [`Error::InvalidIndex`] if `index` is not a participant, [`Error::InvalidThreshold`] if the commitments do not
+    /// have `threshold` terms, [`Error::InvalidShare`] if the share does not match.
+    pub fn restore(
+        index: MemberIndex,
+        threshold: usize,
+        participants: Vec<MemberIndex>,
+        share: SecretScalar,
+        group_commitments: Commitments,
+        transcript: [u8; 64],
+    ) -> Result<Self, Error> {
+        validate_index_set(&participants)?;
+        if !participants.contains(&index) {
+            return Err(Error::InvalidIndex);
+        }
+        if group_commitments.threshold() != threshold || threshold > participants.len() {
+            return Err(Error::InvalidThreshold);
+        }
+        if Point::generator_mul_secret(&share)? != group_commitments.evaluate(index)? {
+            return Err(Error::InvalidShare(index));
+        }
+        Ok(Self::new(
+            index,
+            threshold,
+            participants,
+            share,
+            group_commitments,
+            transcript,
+        ))
+    }
+
     /// This member's index.
     #[must_use]
     pub fn index(&self) -> MemberIndex {
