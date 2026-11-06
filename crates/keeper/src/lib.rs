@@ -6,11 +6,20 @@
 pub mod ceremony;
 mod clock;
 pub mod committee;
+pub mod config;
 pub mod custody;
 mod error;
+pub mod events;
+mod keeper;
+mod limits;
 mod random;
+pub mod rpc;
 pub mod store;
 pub mod transport;
 
 pub use clock::{Clock, SystemClock};
 pub use error::{Error, Result};
+pub use keeper::{
+    CeremonyInfo, DkgResult, Keeper, KeeperConfig, KeeperParts, MemberPartials, NewMember,
+    Observation, ReshareRequest, ReshareResult, VaultInfo,
+};
