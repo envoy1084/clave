@@ -13,11 +13,15 @@ build/
 *.tsbuildinfo
 coverage/
 
-# Noir / Aztec
+# Rust (Cargo) and Noir (Nargo) build output
 target/
 codegenCache.json
 contracts/**/Prover.toml
 contracts/artifacts/
+
+# Electron
+out/
+release/
 
 # Environment and secrets
 .env

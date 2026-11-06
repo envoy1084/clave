@@ -1,2 +1,0 @@
-[workspace]
-members = ["tecpan_contract", "tecpan_test", "test_signer_contract"]

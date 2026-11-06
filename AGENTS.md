@@ -1,119 +1,97 @@
 # Tecpan
 
-Tecpan is a private k-of-n multisig on Aztec. The multisig is an Aztec account contract whose
-`entrypoint` executes a payload only when the aggregated auth witness carries valid Schnorr
-signatures from at least `threshold` registered signers. The signer set, threshold and approvals
-live in private notes; the chain sees one proof, nullifiers, encrypted logs and the fee payment.
+Tecpan is a private k-of-n multisig vault on Aztec with threshold viewing.
 
-Signers approve off-chain. The coordinator relays end-to-end encrypted proposals and signatures,
-and one signer's PXE assembles the witness, proves and submits.
+- **Spending** is enforced on-chain: the vault is an Aztec account contract whose `entrypoint` runs a payload only when
+  the auth witness carries valid signatures from at least `k` registered signers.
+- **Viewing** is enforced off-chain: the account's incoming viewing secret never exists in one place. Members hold
+  threshold shares, the PXE obtains `address_secret · P` through threshold ECDH, and shares are reshared on every
+  membership change. A removed member cannot read anything that arrives after removal, and the vault keeps its address.
 
-## Repository layout
+The repository is at **v0** and is being built phase by phase. The plan and design research live in `research/`
+(gitignored); verified decisions are promoted into `architecture/` as each phase lands. Only describe components as
+existing once they are in the tree.
+
+## Target layout
 
 ```text
-contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
-  tecpan_contract/      the multisig account contract
-  tecpan_test/          TestEnvironment tests
-  test_signer_contract/ test-only helper exposing TXE signatures; never deploy
-packages/
-  protocol/           Effect Schema models, IDs, DTOs and expected errors; no I/O
-  api/                HttpApi declarations for the coordinator; no handlers
-  sdk/                Aztec client: account contract class, witness packer, signing,
-                      proposal envelope encryption, generated contract artifacts
+contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0): vault contract, tests
+crates/               Cargo workspace
+  tecpan-crypto/        Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH + DLEQ
+  tecpan-wire/          wire types and canonical encoding shared by agent, relay and app (TS types generated)
+  tecpan-agent/         member daemon: viewing-share custody, ECDH responder, DKG/reshare, p2p, proposal store
+  tecpan-relay/         optional untrusted store-and-forward relay (ciphertext only)
+  tecpan-napi/          Node bindings of tecpan-crypto for the Electron app
+packages/             TypeScript, only where Aztec requires it
+  vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
 apps/
-  coordinator/        Effect HttpApi server, Drizzle + PostgreSQL, encrypted relay
-  web/                Vite + React 19 + TanStack Router + Effect Atom signer app
+  desktop/              Electron (main + PXE utility process) with a React renderer
+patches/              minimal pnpm patch of @aztec-labs/pxe for the threshold key store
 architecture/         maintained design docs (verified decisions only)
-research/             gitignored local investigation; never a build or doc input
+research/             gitignored plans and investigation; never a build or doc input
 ```
 
-Dependency direction: `api -> protocol`; `sdk -> protocol`; `coordinator -> api, protocol`;
-`web -> api, protocol, sdk`. The coordinator never imports `sdk` and never holds keys. `web`
-imports only browser-safe exports.
+Process boundaries in the desktop app: the renderer is UI only (sandboxed, no Node). The PXE, signing keys and agent
+supervision live in the main process or an Electron `utilityProcess`. Signing keys never leave the member's device.
+Viewing shares live only in `tecpan-agent`, which may run locally or on the member's own server.
 
 ## Toolchain
 
-| Concern         | Tool                                                                     |
-| --------------- | ------------------------------------------------------------------------ |
-| Runtime         | Node.js 24, pnpm workspaces, Turborepo                                   |
-| Shared config   | `klarity` presets (tsconfig, oxlint, oxfmt, tsdown, vitest, lefthook)    |
-| TypeScript      | TypeScript 7, strict Klarity presets; one environment preset per package |
-| Format / lint   | oxfmt, oxlint                                                            |
-| Hooks / commits | lefthook, commitlint (`klarity/commitlint`)                              |
-| TS application  | Effect v4: HttpApi, Schema, Layers, Effect Atom (`@effect/atom-react`)   |
-| Database        | Drizzle ORM 1.0 RC on PostgreSQL via Effect SQL                          |
-| Contracts       | Aztec 6.0.0 toolchain (`aztec compile`, `aztec test`, `aztec codegen`)   |
-| Tests           | Vitest + `@effect/vitest`; Aztec `TestEnvironment` for Noir              |
+| Concern         | Tool                                                                                |
+| --------------- | ----------------------------------------------------------------------------------- |
+| Contracts       | Aztec 6.0.0 (`aztec compile`, `aztec test`, `aztec codegen`), Noir 1.0              |
+| Rust            | Stable toolchain, Cargo workspace, `rustfmt`, `clippy -D warnings`, `cargo-deny`    |
+| TypeScript      | Node 24, pnpm workspaces, Turborepo, TypeScript 7, Klarity presets (oxfmt, oxlint)  |
+| Desktop         | Electron, electron-vite, electron-builder                                           |
+| UI              | React 19, Vite, TanStack Router, TanStack Query                                     |
+| Hooks / commits | lefthook, commitlint (`klarity/commitlint`)                                         |
+| Tests           | `aztec test` (TXE), `cargo test` + property tests, Vitest, local-network end-to-end |
 
-Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, tsup) or Effect v3 APIs.
+Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a central coordinator server.
 
 ## Working rules
 
 - Inspect branch, working tree and recent commits before changing anything; preserve unrelated work.
-- Commit after each coherent change with a Conventional Commit, e.g.
-  `feat(contracts): verify k-of-n schnorr witness`. Scopes are kebab-case package or area names
-  (`contracts`, `sdk`, `protocol`, `api`, `coordinator`, `web`, `repo`).
-- Never commit `research/`, `.env` files, keys, or generated `target/` and artifact output.
-- Keep files focused and split by responsibility. Reuse a helper only for real repeated use or a
-  domain invariant; no generic utility layers.
-- Update the owning `architecture/` page in the same change when a contract, schema, workflow or
-  trust boundary changes.
+- Commit after each coherent change with a Conventional Commit, e.g. `feat(contracts): verify k-of-n witness`.
+  Scopes are kebab-case package or area names (`contracts`, `crypto`, `wire`, `agent`, `relay`, `napi`,
+  `vault-wallet`, `desktop`, `repo`).
+- Never commit `research/`, `.env` files, keys, shares, or generated `target/`, `out/` and artifact output.
+- Keep files focused and split by responsibility. Reuse a helper only for real repeated use or a domain invariant.
+- Update the owning `architecture/` page in the same change when a contract, wire format, key flow or trust boundary
+  changes.
+- After each phase, record what was delivered, decided and measured in `research/progress.md`.
 
-## Aztec contracts
+## Aztec rules
 
 - Pin everything to 6.0.0: `aztec` CLI, `aztec-nr` tag `v6.0.0`, `@aztec-labs/*` 6.0.0.
-- Verify Aztec.nr APIs against the fetched source in `~/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0`
-  and the reference account contracts embedded in `@aztec-labs/accounts` artifacts, not against blog
-  posts or pre-v6 examples. v6 uses `#[external("private")]`, `self.storage`, `self.context`,
-  `MessageDelivery`, and `entrypoint(app_payload, fee_payment_method: u8, cancellable)`.
-- Noir has no early `return`; use `panic("msg")` for unconditional failures. Library asserts carry
-  messages; test asserts do not. Use `#[test(should_fail_with = "...")]` for failure cases.
-- Signature loops are bounded by the compile-time `MAX_SIGNERS`; proof time scales with it. Profile
-  with `aztec profile gates target` (and `aztec profile flamegraph`) before and after any contract
-  change that affects circuits, and update the gate tables in `architecture/contract.md`.
-- Authorization must stay valid in static calls: read the config with `get_note` plus
-  `assert_local_note_was_not_nullified_by`, never `SinglePrivateMutable::get_note` (it nullifies).
-- The witness layout and approval message are a wire format shared with the SDK. Change them only
-  together with `architecture/contract.md` and the SDK encoder.
-- Config-changing functions deliver notes with constrained delivery; only the constructor may use
-  unconstrained delivery (see `architecture/contract.md`).
-- Signer and threshold changes must only run inside an approved payload
-  (`msg_sender == this address`) and must keep `1 <= threshold <= signer_count`.
+- Verify APIs against fetched source (`~/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0`, installed
+  `@aztec-labs/*` packages), not blog posts or pre-v6 examples.
+- Profile circuits with `aztec profile gates` / `aztec profile flamegraph` before and after circuit changes and keep
+  the gate tables in `architecture/` current.
+- Authorization must stay valid in static calls (`verify_private_authwit`): never read state in a way that nullifies.
+- Wire formats shared across Noir, Rust and TypeScript (witness layout, approval message, committee commitment) change
+  only together with their `architecture/` page and every encoder.
 
-## Effect v4
+## Cryptography rules
 
-Read `node_modules/effect/AGENTS.md` before writing Effect code and verify APIs against the
-installed source and lockfile. Use `Effect.gen`, named `Effect.fn` for traced operations, class-based
-`Context.Service` with Layers, Schema at every untrusted boundary, `Schema.TaggedError` for expected
-failures, and Config/Redacted for configuration. Provide Node or browser implementations at the
-runtime edge only.
-
-Browser state flows through one `AtomHttpApi` client and one router-owned atom registry.
+- All threshold code lives in `tecpan-crypto`: constant-time arithmetic, `zeroize` on secrets, no secret in logs.
+- Every threshold ECDH partial carries a DLEQ proof and is verified before use.
+- Byte-for-byte compatibility with Aztec (point encoding, address-secret derivation and its negation rule, ECDH-to-AES
+  derivation, tag derivation) is proven by golden tests against real Aztec 6.0.0 output, and those tests run on every
+  Aztec upgrade.
+- Viewing shares are never backed up, exported, or sent anywhere except as protocol sub-shares during resharing.
 
 ## Privacy invariants
 
-These are product requirements, not style preferences. Any change that weakens one needs an explicit
-decision recorded in `architecture/`.
+These are product requirements. Any change that weakens one needs an explicit decision recorded in `architecture/`.
 
-- The coordinator stores and relays ciphertext only. It never sees plaintext payloads, signing keys or
-  the account secret.
-- Signing keys never leave the signer's device. The shared account secret is stored encrypted at rest
-  in each signer's wallet, never on the coordinator.
-- Signer identities and threshold are never written to public storage or public function arguments.
-- Removing a signer is a treasury migration event, because the account viewing key cannot rotate.
+- No single party, member or server ever holds the full incoming viewing secret.
+- Signing keys never leave the signer's device.
+- Relays and nodes see ciphertext and public data only.
+- Signer identities, thresholds and the viewing committee are never written to public storage or public arguments.
+- Fees are not paid from the vault in public.
 
 ## Commands
 
-```sh
-pnpm install
-pnpm build          # turbo: contracts -> sdk -> apps
-pnpm test           # turbo: aztec test + vitest
-pnpm check          # format check, lint, typecheck, build
-pnpm dev            # coordinator + web
-```
-
-Contracts alone: `pnpm --filter @tecpan/contracts build` / `test`. Local Aztec network:
-`aztec start --local-network`.
-
-Run the narrowest relevant check first, then `pnpm check`. Report skipped lanes and pre-existing
-failures rather than hiding them.
+The phases add these as the components land. Run the narrowest relevant check first, then the full suite, and report
+skipped lanes and pre-existing failures rather than hiding them.

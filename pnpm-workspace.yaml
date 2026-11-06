@@ -1,7 +1,6 @@
 packages:
   - apps/*
   - packages/*
-  - contracts
 
 catalog:
   "@commitlint/cli": 21.2.4
