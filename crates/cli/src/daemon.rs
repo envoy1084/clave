@@ -1,5 +1,6 @@
 //! Finding, starting and stopping `tecpand` (`architecture/cli.md`, Daemon).
 
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::{
     fs,
     os::unix::process::CommandExt,
@@ -81,7 +82,10 @@ pub(crate) fn start(home: &Path, profile: &Profile) -> Result<DaemonInfo> {
     let log = fs::OpenOptions::new()
         .create(true)
         .append(true)
+        .mode(0o600)
         .open(profile.daemon_log())?;
+    // Logs created by older builds were world-readable; owner-only like every other profile file.
+    log.set_permissions(fs::Permissions::from_mode(0o600))?;
     let mut child = Command::new("node")
         .arg(&engine)
         .arg("--profile-dir")
