@@ -45,6 +45,10 @@
     "profile": {
       "dependsOn": ["build"],
       "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }
