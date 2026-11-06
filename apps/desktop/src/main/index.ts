@@ -9,6 +9,9 @@ import { selectUserData } from "./paths.ts";
 import type { ApprovalPrompt } from "./signer.ts";
 import { createWindow, hardenSession, isAppUrl, registerAppScheme } from "./window.ts";
 
+// The app name keys the OS keychain item `safeStorage` uses ("<name> Safe Storage"). Development and release builds
+// are signed differently, so they get separate items instead of fighting over one (macOS prompts on every switch).
+app.setName(app.isPackaged ? "Tecpan" : "Tecpan Dev");
 selectUserData();
 registerAppScheme();
 app.enableSandbox();
