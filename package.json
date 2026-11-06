@@ -15,6 +15,7 @@
     "prepare": "lefthook install",
     "test": "turbo run test --concurrency=2",
     "test:e2e": "turbo run test:e2e",
+    "test:network": "crates/keeper/tests/network/run.sh",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
