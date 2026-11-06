@@ -9,7 +9,7 @@ Status: Phase 7. Partials come from in-process test shares; the keeper RPC repla
 
 ## The patch (`patches/@aztec-labs__pxe@6.0.0.patch`)
 
-Applied by pnpm (`patchedDependencies` in `pnpm-workspace.yaml`) to the compiled `dest/` files. Every changed line is
+Applied by pnpm (`patchedDependencies` in `pnpm-workspace.yaml`) to the compiled `dest/` files. Each patch site is
 marked `// tecpan:`.
 
 | Site                                                           | Before                                               | After, for threshold accounts                         |
