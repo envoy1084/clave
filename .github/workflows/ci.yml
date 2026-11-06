@@ -23,10 +23,14 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
+      # @tecpan/napi compiles the Rust crates into a Node addon.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-workspaces: crates
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec oxfmt --check .
       - run: pnpm exec oxlint --deny-warnings .
-      - run: pnpm exec turbo run lint typecheck build test '--filter=./packages/*' '--filter=./apps/*' '--filter=./tools/*'
+      - run: pnpm exec turbo run lint typecheck build test '--filter=./packages/*' '--filter=./apps/*' '--filter=./tools/*' '--filter=./crates/napi'
 
   rust:
     name: Rust
