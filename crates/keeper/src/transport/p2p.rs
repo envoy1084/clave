@@ -6,7 +6,7 @@ use std::{
 
 use futures::StreamExt;
 use libp2p::{
-    Multiaddr, PeerId, Swarm, allow_block_list, dcutr, identify, identity,
+    Multiaddr, PeerId, Swarm, dcutr, identify, identity,
     multiaddr::Protocol,
     noise, ping, relay,
     request_response::{self, OutboundRequestId, ProtocolSupport},
@@ -15,18 +15,22 @@ use libp2p::{
 };
 use tecpan_wire::{
     IdentityPublic, Message, decode,
-    p2p::{CEREMONY, ECDH, FrameCodec, IDENTIFY_VERSION, MAILBOX, SYNC},
+    p2p::{CEREMONY, ECDH, FrameCodec, IDENTIFY_VERSION, LOBBY, MAILBOX, SYNC},
 };
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
 };
 
-use super::{Channel, Inbound, Peer, SendFuture, Transport};
+use super::{Channel, Inbound, Peer, SendFuture, Transport, gate::Gate};
 use crate::{Error, Result};
 
 /// Most addresses a keeper advertises (the manifest's limit).
 const MAX_ADVERTISED: usize = 8;
+/// Lobby requests a non-member may send per minute.
+const LOBBY_REQUESTS_PER_MINUTE: u32 = 10;
+/// Most non-members whose lobby request rate is tracked at once.
+const MAX_LOBBY_RATE_PEERS: usize = 4096;
 
 /// libp2p settings of a keeper.
 #[derive(Clone, Debug)]
@@ -72,9 +76,22 @@ pub fn peer_id(identity: &IdentityPublic) -> Result<PeerId> {
     Ok(identity::PublicKey::from(key).to_peer_id())
 }
 
+/// The keeper identity behind a peer id (an Ed25519 key inlined in the id), if any.
+fn identity_of(peer: &PeerId) -> Option<IdentityPublic> {
+    let hash = peer.as_ref();
+    if hash.code() != 0 {
+        return None;
+    }
+    let key = identity::PublicKey::try_decode_protobuf(hash.digest())
+        .ok()?
+        .try_into_ed25519()
+        .ok()?;
+    Some(IdentityPublic(key.to_bytes()))
+}
+
 #[derive(NetworkBehaviour)]
 struct Behaviour {
-    allow: allow_block_list::Behaviour<allow_block_list::AllowedPeers>,
+    gate: Gate,
     relay_client: relay::client::Behaviour,
     dcutr: dcutr::Behaviour,
     identify: identify::Behaviour,
@@ -82,14 +99,16 @@ struct Behaviour {
     ecdh: request_response::Behaviour<FrameCodec>,
     ceremony: request_response::Behaviour<FrameCodec>,
     sync: request_response::Behaviour<FrameCodec>,
+    lobby: request_response::Behaviour<FrameCodec>,
     mailbox: request_response::Behaviour<FrameCodec>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Lane {
     Ecdh,
     Ceremony,
     Sync,
+    Lobby,
 }
 
 fn lane(frame: &[u8]) -> Lane {
@@ -101,6 +120,12 @@ fn lane(frame: &[u8]) -> Lane {
             | Message::ExecutionReceipt(_)
             | Message::SyncRequest(_),
         ) => Lane::Sync,
+        Ok(
+            Message::LobbyJoin(_)
+            | Message::LobbyState(_)
+            | Message::LobbyPlan(_)
+            | Message::LobbyLeave(_),
+        ) => Lane::Lobby,
         _ => Lane::Ceremony,
     }
 }
@@ -116,12 +141,16 @@ enum Command {
         request: Vec<u8>,
         reply: oneshot::Sender<Result<Vec<u8>>>,
     },
-    Allow(Vec<Peer>),
+    Allow {
+        peers: Vec<Peer>,
+        lobby_open: bool,
+    },
     Stop,
 }
 
 /// The keeper's libp2p node. The peer id is the keeper identity, so a connection authenticates the member; only
-/// current committee and ceremony members and configured relays may connect.
+/// current committee, ceremony and lobby peers and configured relays may connect, plus anyone while this keeper hosts
+/// an open lobby (whose frames are then accepted on the lobby lane only).
 pub struct P2pTransport {
     commands: mpsc::UnboundedSender<Command>,
     peer_id: PeerId,
@@ -164,7 +193,7 @@ impl P2pTransport {
             .with_relay_client(noise::Config::new, yamux::Config::default)
             .map_err(transport_error)?
             .with_behaviour(|key, relay_client| Behaviour {
-                allow: allow_block_list::Behaviour::default(),
+                gate: Gate::default(),
                 relay_client,
                 dcutr: dcutr::Behaviour::new(key.public().to_peer_id()),
                 identify: identify::Behaviour::new(identify::Config::new(
@@ -175,6 +204,7 @@ impl P2pTransport {
                 ecdh: keeper_protocol(ECDH),
                 ceremony: keeper_protocol(CEREMONY),
                 sync: keeper_protocol(SYNC),
+                lobby: keeper_protocol(LOBBY),
                 mailbox: request_response::Behaviour::with_codec(
                     FrameCodec::mailbox(),
                     [(MAILBOX, ProtocolSupport::Outbound)],
@@ -192,7 +222,7 @@ impl P2pTransport {
                     "relay address {relay} must end with /p2p/<peer id>"
                 )));
             };
-            swarm.behaviour_mut().allow.allow_peer(id);
+            swarm.behaviour_mut().gate.add_relay(id);
             swarm.add_peer_address(id, relay.clone());
             relays.push((id, relay.clone()));
         }
@@ -296,7 +326,11 @@ impl Transport for Arc<P2pTransport> {
     }
 
     fn set_allowed(&self, peers: Vec<Peer>) {
-        let _ = self.commands.send(Command::Allow(peers));
+        self.set_admission(peers, false);
+    }
+
+    fn set_admission(&self, peers: Vec<Peer>, lobby_open: bool) {
+        let _ = self.commands.send(Command::Allow { peers, lobby_open });
     }
 }
 
@@ -356,6 +390,30 @@ struct Pending {
     mailbox: HashMap<OutboundRequestId, oneshot::Sender<Result<Vec<u8>>>>,
     /// Allowed members by peer id.
     members: HashMap<PeerId, IdentityPublic>,
+    /// Lobby requests of non-members in the current minute: window start and count.
+    lobby_rate: HashMap<PeerId, (Instant, u32)>,
+}
+
+impl Pending {
+    /// Counts a lobby request from a non-member; `false` once it exceeded its budget for the minute.
+    fn lobby_request_allowed(&mut self, peer: PeerId) -> bool {
+        let now = Instant::now();
+        let minute = Duration::from_mins(1);
+        if self.lobby_rate.len() >= MAX_LOBBY_RATE_PEERS {
+            self.lobby_rate
+                .retain(|_, (start, _)| now.duration_since(*start) < minute);
+            if self.lobby_rate.len() >= MAX_LOBBY_RATE_PEERS {
+                return false;
+            }
+        }
+        let (start, count) = self.lobby_rate.entry(peer).or_insert((now, 0));
+        if now.duration_since(*start) >= minute {
+            *start = now;
+            *count = 0;
+        }
+        *count += 1;
+        *count <= LOBBY_REQUESTS_PER_MINUTE
+    }
 }
 
 async fn run(
@@ -401,6 +459,7 @@ fn on_command(
                 Lane::Ecdh => behaviour.ecdh.send_request(&id, frame),
                 Lane::Ceremony => behaviour.ceremony.send_request(&id, frame),
                 Lane::Sync => behaviour.sync.send_request(&id, frame),
+                Lane::Lobby => behaviour.lobby.send_request(&id, frame),
             };
             pending.sends.insert(request, reply);
         }
@@ -413,7 +472,7 @@ fn on_command(
             pending.mailbox.insert(request, reply);
         }
         Command::Stop => {}
-        Command::Allow(peers) => {
+        Command::Allow { peers, lobby_open } => {
             let mut next = HashMap::new();
             for peer in peers {
                 if let Ok(id) = peer_id(&peer.identity) {
@@ -421,16 +480,21 @@ fn on_command(
                     next.insert(id, peer.identity);
                 }
             }
-            let behaviour = swarm.behaviour_mut();
-            for removed in pending
-                .members
-                .keys()
-                .filter(|id| !next.contains_key(id) && !relays.contains(id))
-            {
-                behaviour.allow.disallow_peer(*removed);
+            swarm
+                .behaviour_mut()
+                .gate
+                .set(next.keys().copied().collect(), lobby_open);
+            if !lobby_open {
+                pending.lobby_rate.clear();
             }
-            for added in next.keys() {
-                behaviour.allow.allow_peer(*added);
+            // Close what the gate no longer admits: removed members, and strangers once no lobby is open.
+            let closing: Vec<PeerId> = swarm
+                .connected_peers()
+                .filter(|id| !relays.contains(id) && !swarm.behaviour().gate.admits(id))
+                .copied()
+                .collect();
+            for id in closing {
+                let _ = swarm.disconnect_peer_id(id);
             }
             pending.members = next;
         }
@@ -452,6 +516,9 @@ fn on_event(
         }
         SwarmEvent::Behaviour(BehaviourEvent::Sync(event)) => {
             on_lane(swarm, pending, inbound, Lane::Sync, event);
+        }
+        SwarmEvent::Behaviour(BehaviourEvent::Lobby(event)) => {
+            on_lane(swarm, pending, inbound, Lane::Lobby, event);
         }
         SwarmEvent::Behaviour(BehaviourEvent::Mailbox(event)) => match event {
             request_response::Event::Message {
@@ -504,9 +571,24 @@ fn on_lane(
                 },
             ..
         } => {
-            // Only allowed members connect; the keeper still checks that the frame's signer is this peer.
-            let Some(identity) = pending.members.get(&peer).copied() else {
-                return;
+            // Members are delivered on every lane. A stranger (admitted while a lobby is open) only on the lobby lane,
+            // with lobby messages, within its rate. The keeper still checks that the frame's signer is this peer.
+            let identity = match pending.members.get(&peer).copied() {
+                Some(identity) => identity,
+                None if lane == Lane::Lobby
+                    && swarm.behaviour().gate.lobby_open()
+                    && self::lane(&request) == Lane::Lobby
+                    && pending.lobby_request_allowed(peer) =>
+                {
+                    let Some(identity) = identity_of(&peer) else {
+                        return;
+                    };
+                    identity
+                }
+                None => {
+                    tracing::debug!(%peer, ?lane, "dropped a request from a non-member");
+                    return;
+                }
             };
             let _ = inbound.send(Inbound {
                 channel: Channel::Peer(identity),
@@ -517,6 +599,7 @@ fn on_lane(
                 Lane::Ecdh => &mut behaviour.ecdh,
                 Lane::Ceremony => &mut behaviour.ceremony,
                 Lane::Sync => &mut behaviour.sync,
+                Lane::Lobby => &mut behaviour.lobby,
             };
             let _ = protocol.send_response(channel, Vec::new());
         }
@@ -544,4 +627,30 @@ fn on_lane(
 
 fn transport_error(error: impl std::fmt::Display) -> Error {
     Error::Transport(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use tecpan_wire::KeeperIdentity;
+
+    use super::*;
+
+    #[test]
+    fn a_peer_id_yields_its_keeper_identity() {
+        let identity = KeeperIdentity::from_seed(&[7; 32]).public();
+        let id = peer_id(&identity).unwrap_or_else(|_| PeerId::random());
+        assert_eq!(identity_of(&id), Some(identity));
+        assert_eq!(identity_of(&PeerId::random()), None);
+    }
+
+    #[test]
+    fn non_members_get_ten_lobby_requests_a_minute() {
+        let mut pending = Pending::default();
+        let stranger = PeerId::random();
+        for _ in 0..LOBBY_REQUESTS_PER_MINUTE {
+            assert!(pending.lobby_request_allowed(stranger));
+        }
+        assert!(!pending.lobby_request_allowed(stranger));
+        assert!(pending.lobby_request_allowed(PeerId::random()));
+    }
 }

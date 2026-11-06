@@ -3,6 +3,7 @@
 
 mod ceremonies;
 mod ecdh;
+mod lobby;
 mod mailbox;
 mod proposals;
 mod sync;
@@ -16,6 +17,7 @@ use std::{
 
 pub use ceremonies::{CeremonyInfo, DkgResult, NewMember, ReshareRequest, ReshareResult};
 pub use ecdh::MemberPartials;
+pub use lobby::{LobbyInfo, LobbyOpen, LobbyPlanInfo, LobbyRole, LobbyStatus};
 use tecpan_crypto::ecdh::AddressSecretShare;
 use tecpan_wire::{
     Header, IdentityPublic, Message, ReplayGuard, SignedMessage, decode, encode,
@@ -133,6 +135,8 @@ pub(crate) struct State {
     /// Participants of finished ceremonies with the time they stay reachable: a member that finishes first must still
     /// deliver its last messages (and accept retries) to members that are not in any of its committees yet.
     pub(crate) lingering: HashMap<[u8; 32], (u64, Vec<Participant>)>,
+    /// Lobbies this keeper hosts or joined.
+    pub(crate) lobbies: HashMap<[u8; 16], lobby::LobbyRecord>,
 }
 
 pub(crate) struct VaultState {
@@ -192,6 +196,7 @@ impl Keeper {
             last_mailbox_poll: 0,
             orphans: HashMap::new(),
             lingering: HashMap::new(),
+            lobbies: HashMap::new(),
         };
         let (events, _) = broadcast::channel(1024);
         let keeper = Self(Arc::new(Inner {
@@ -207,6 +212,7 @@ impl Keeper {
             pending: SyncMutex::new(HashMap::new()),
             events,
         }));
+        keeper.load_lobbies()?;
         keeper.load_vaults()?;
 
         let receiver = keeper.clone();
@@ -314,10 +320,23 @@ impl Keeper {
         }
     }
 
-    /// Refreshes the transport allowlist from every committee and ceremony.
+    fn load_lobbies(&self) -> Result<()> {
+        let records = self.stored_lobbies()?;
+        let mut state = self
+            .0
+            .state
+            .try_lock()
+            .map_err(|_| crate::Error::Storage("state busy at start".into()))?;
+        state
+            .lobbies
+            .extend(records.into_iter().map(|r| (r.lobby, r)));
+        Ok(())
+    }
+
+    /// Refreshes the transport allowlist from every committee, ceremony and open lobby.
     pub(crate) fn refresh_allowlist(&self, state: &State) {
         let me = self.identity();
-        let mut peers: Vec<Peer> = Vec::new();
+        let (mut peers, hosting) = lobby::lobby_admission(state, &me);
         for vault in state
             .vaults
             .values()
@@ -355,7 +374,7 @@ impl Keeper {
         }
         peers.sort_by_key(|p| p.transport);
         peers.dedup_by_key(|p| p.transport);
-        self.0.transport.set_allowed(peers);
+        self.0.transport.set_admission(peers, hosting);
     }
 
     /// The transport key a known participant must use, if `identity` is known.
@@ -393,6 +412,10 @@ impl Keeper {
         };
         if message.verify().is_err() {
             tracing::debug!("dropped frame with an invalid signature");
+            return;
+        }
+        if lobby::is_lobby_message(&message.body) {
+            self.on_lobby_frame(message, frame.channel).await;
             return;
         }
         let signer = message.signer;

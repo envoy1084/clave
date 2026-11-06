@@ -135,6 +135,9 @@ fn purpose(label: &str) -> Result<EcdhPurpose> {
 /// Runs one method (everything except `session.auth` and `events.subscribe`, handled by the server).
 #[expect(clippy::too_many_lines, reason = "one arm per RPC method")]
 pub(super) async fn call(keeper: &Keeper, method: &str, value: Value) -> Result<Value> {
+    if method.starts_with("lobby.") {
+        return super::lobby::call(keeper, method, value).await;
+    }
     match method {
         "keeper.info" => Ok(json!({
             "identity": hex32(&keeper.identity().0),

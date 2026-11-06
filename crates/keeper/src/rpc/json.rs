@@ -26,6 +26,17 @@ pub(crate) fn parse32(value: &str) -> Result<[u8; 32]> {
     Ok(out)
 }
 
+pub(crate) fn hex16(bytes: &[u8; 16]) -> String {
+    format!("0x{}", hex::encode(bytes))
+}
+
+pub(crate) fn parse16(value: &str) -> Result<[u8; 16]> {
+    let mut out = [0u8; 16];
+    hex::decode_to_slice(value.strip_prefix("0x").unwrap_or(value), &mut out)
+        .map_err(|_| Error::Invalid(format!("expected 16 bytes of hex, got {value:?}")))?;
+    Ok(out)
+}
+
 pub(crate) fn parse_bytes(value: &str) -> Result<Vec<u8>> {
     hex::decode(value.strip_prefix("0x").unwrap_or(value))
         .map_err(|_| Error::Invalid("expected hex".into()))

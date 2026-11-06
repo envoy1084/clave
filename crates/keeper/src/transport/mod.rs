@@ -2,6 +2,7 @@
 //! frames; frames are always `SignedMessage`s, so authenticity never depends on the transport. Implementations: libp2p
 //! (QUIC/TCP, relay circuits, hole punching; see `architecture/networking.md`) and an in-memory network for tests.
 
+mod gate;
 mod memory;
 mod p2p;
 mod relay_mailbox;
@@ -64,4 +65,11 @@ pub trait Transport: Send + Sync + 'static {
 
     /// Replaces the set of transport keys allowed to connect (current committees and ceremonies).
     fn set_allowed(&self, peers: Vec<Peer>);
+
+    /// Replaces the allowed peers and says whether this keeper hosts an open lobby: while it does, peers outside the
+    /// allow list may connect, but their frames are delivered only on the lobby lane (rate limited).
+    fn set_admission(&self, peers: Vec<Peer>, lobby_open: bool) {
+        let _ = lobby_open;
+        self.set_allowed(peers);
+    }
 }

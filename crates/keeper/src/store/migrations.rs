@@ -59,4 +59,14 @@ pub(super) const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (vault, version)
     );
     ",
+    // 2: vault-founding lobbies (public roster and plan; the invite secret lives in custody).
+    "
+    CREATE TABLE lobbies (
+        lobby BLOB PRIMARY KEY,
+        role TEXT NOT NULL CHECK (role IN ('host', 'guest')),
+        status TEXT NOT NULL CHECK (status IN ('open', 'started', 'closed')),
+        record TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    ",
 ];

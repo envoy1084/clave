@@ -69,6 +69,7 @@ impl Keeper {
                 .flat_map(|v| v.committee.peers_except(&me))
                 .map(|p| p.transport)
                 .collect();
+            keys.extend(super::lobby::lobby_mailbox_senders(&state, &me));
             keys.sort_unstable();
             keys.dedup();
             keys

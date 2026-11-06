@@ -2,6 +2,7 @@
 //! Windows), owner-only, with a per-launch token presented through `session.auth` before anything else.
 
 mod json;
+mod lobby;
 mod methods;
 mod server;
 

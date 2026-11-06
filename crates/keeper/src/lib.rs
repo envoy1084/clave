@@ -21,6 +21,7 @@ pub mod transport;
 pub use clock::{Clock, SystemClock};
 pub use error::{Error, Result};
 pub use keeper::{
-    CeremonyInfo, DkgResult, Keeper, KeeperConfig, KeeperParts, MemberPartials, NewMember,
-    Observation, ReshareRequest, ReshareResult, VaultInfo,
+    CeremonyInfo, DkgResult, Keeper, KeeperConfig, KeeperParts, LobbyInfo, LobbyOpen,
+    LobbyPlanInfo, LobbyRole, LobbyStatus, MemberPartials, NewMember, Observation, ReshareRequest,
+    ReshareResult, VaultInfo,
 };

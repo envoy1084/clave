@@ -66,4 +66,13 @@ pub enum Event {
         /// Signer slot.
         slot: u32,
     },
+    /// A lobby changed: opened or joined, roster changed, started or closed.
+    Lobby {
+        /// Lobby id (hex).
+        lobby: String,
+        /// `open`, `started` or `closed`.
+        status: String,
+        /// Members on the roster.
+        members: u32,
+    },
 }

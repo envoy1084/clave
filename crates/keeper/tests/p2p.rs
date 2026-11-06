@@ -1,5 +1,5 @@
 //! Keepers over libp2p on localhost: DKG, threshold ECDH and replication; a reshare with a joining member; outsiders
-//! refused; a keeper reachable only through a relay circuit; a member that was offline catching up from its relay
+//! refused; strangers founding a vault through a lobby; a keeper reachable only through a relay circuit; a member that was offline catching up from its relay
 //! mailbox.
 #![allow(
     clippy::unwrap_used,
@@ -14,7 +14,8 @@ use std::{path::Path, sync::Arc, time::Duration};
 use common::{ecdh, eventually, manifest_of, point, run_dkg_among};
 use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
 use tecpan_keeper::{
-    Keeper, KeeperConfig, KeeperParts, NewMember, ReshareRequest, SystemClock,
+    Clock, Keeper, KeeperConfig, KeeperParts, LobbyOpen, LobbyStatus, NewMember, ReshareRequest,
+    SystemClock,
     custody::{KeeperKeys, MasterKey, SecretStore},
     mailbox::MailboxService,
     store::Store,
@@ -22,7 +23,7 @@ use tecpan_keeper::{
 };
 use tecpan_relay::{Limits, Relay, RelayConfig, store::MailboxStore};
 use tecpan_wire::{
-    Message, encode_body,
+    Header, Message, SignedMessage, encode, encode_body,
     messages::{Manifest, Proposal},
 };
 use tempfile::TempDir;
@@ -306,4 +307,118 @@ async fn a_member_that_was_offline_reads_its_relay_mailbox() {
     assert!(delivered >= 1);
     assert_eq!(back.proposals(vault).unwrap(), vec![body]);
     assert_eq!(relay.store.usage().unwrap().envelopes, 0);
+}
+
+/// Whether `target` refuses `frame` from `outsider` (connection denied, or not acknowledged).
+async fn refused_frame(outsider: &Node, target: &Node, frame: Vec<u8>) -> bool {
+    let peer = Peer {
+        identity: target.keeper.identity(),
+        transport: target.keeper.transport_key(),
+        addresses: target.keeper.addresses().to_vec(),
+    };
+    outsider.transport.set_allowed(vec![peer.clone()]);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    Transport::send(&outsider.transport, peer, frame)
+        .await
+        .is_err()
+}
+
+async fn refused(outsider: &Node, target: &Node) -> bool {
+    refused_frame(outsider, target, proposal("intrusion")).await
+}
+
+/// A lobby frame (it travels on the lobby lane) signed by `node`.
+fn lobby_frame(node: &Node, lobby: [u8; 16]) -> Vec<u8> {
+    let secrets = SecretStore::open(
+        node.dir.path().join("secrets"),
+        &MasterKey::from_bytes(node.master),
+    )
+    .unwrap();
+    let keys = KeeperKeys::load_or_create(&secrets).unwrap();
+    let header = Header {
+        scope: tecpan_wire::lobby::scope(&lobby),
+        epoch: 0,
+        id: [9; 16],
+        created_at: SystemClock.now(),
+    };
+    let body = Message::LobbyLeave(tecpan_wire::lobby::LobbyLeave { lobby });
+    encode(&SignedMessage::sign(&keys.identity, header, body).unwrap()).unwrap()
+}
+
+// Keepers in no committee meet in a lobby: the host admits strangers only while it is open and only on the lobby
+// lane; the plan reaches every guest, the lobby closes to outsiders, and the members run the DKG with the plan.
+#[tokio::test(flavor = "multi_thread")]
+async fn strangers_found_a_vault_through_a_lobby_over_libp2p() {
+    let host = node(1, &[], true).await;
+    let guests = [node(2, &[], true).await, node(3, &[], true).await];
+    let outsider = node(9, &[], true).await;
+    assert!(refused(&outsider, &host).await, "no lobby open yet");
+
+    let (lobby, invite) = host
+        .keeper
+        .open_lobby(LobbyOpen {
+            name: "Treasury".into(),
+            threshold: 2,
+            viewing_threshold: 2,
+            network: "local-network".into(),
+            member_name: "Ada".into(),
+            signer_key: point(100),
+        })
+        .await
+        .unwrap();
+    for (guest, (name, seed)) in guests.iter().zip([("Grace", 101), ("Alan", 102)]) {
+        guest
+            .keeper
+            .join_lobby(&invite, name.into(), point(seed))
+            .await
+            .unwrap();
+    }
+    for keeper in [&host.keeper, &guests[0].keeper, &guests[1].keeper] {
+        eventually(async || {
+            (keeper.lobby(lobby, false).await.unwrap().members.len() == 3).then_some(())
+        })
+        .await;
+    }
+    // While the lobby is open a stranger connects and is heard on the lobby lane, but on no other lane.
+    assert!(!refused_frame(&outsider, &host, lobby_frame(&outsider, lobby)).await);
+    assert!(
+        refused(&outsider, &host).await,
+        "a non-lobby frame from a stranger"
+    );
+
+    let secrets = b"protocol secrets".to_vec();
+    let started = host
+        .keeper
+        .start_lobby(lobby, 2, 2, [5; 32], &secrets)
+        .await
+        .unwrap();
+    let session = started.plan.unwrap().session;
+    for guest in &guests {
+        let plan = eventually(async || {
+            let info = guest.keeper.lobby(lobby, true).await.unwrap();
+            (info.status == LobbyStatus::Started).then(|| info.plan.unwrap())
+        })
+        .await;
+        assert_eq!(plan.session, session);
+        assert_eq!(plan.secrets.as_deref(), Some(&secrets));
+    }
+    assert!(
+        refused_frame(&outsider, &host, lobby_frame(&outsider, lobby)).await,
+        "the lobby is started"
+    );
+
+    // Each engine starts the DKG itself, in the plan's member order.
+    let order: Vec<&Keeper> = started
+        .members
+        .iter()
+        .map(|m| {
+            [&host, &guests[0], &guests[1]]
+                .into_iter()
+                .find(|n| n.keeper.identity() == m.participant.identity)
+                .map(|n| &n.keeper)
+                .unwrap()
+        })
+        .collect();
+    let result = run_dkg_among(&order, 2, session).await;
+    assert_eq!(result.verification_shares.len(), 3);
 }

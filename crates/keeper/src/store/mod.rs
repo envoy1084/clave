@@ -1,5 +1,5 @@
 //! Local `SQLite` database for public and non-secret state: committee manifests, ceremony status, proposals, approvals,
-//! receipts, the ECDH audit log and observed vault configs. Secrets never go here (see [`crate::custody`]).
+//! receipts, the ECDH audit log, observed vault configs and lobbies. Secrets never go here (see [`crate::custody`]).
 
 mod migrations;
 
@@ -467,6 +467,43 @@ impl Store {
             )
             .optional()
             .map(|r| r.is_some())
+        })
+    }
+
+    // --- Lobbies -----------------------------------------------------------------------------------------------------
+
+    /// Inserts or replaces a lobby with its role, status and record (JSON).
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn put_lobby(
+        &self,
+        lobby: &[u8; 16],
+        role: &str,
+        status: &str,
+        record: &impl Serialize,
+        now: u64,
+    ) -> Result<()> {
+        let record = json(record)?;
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO lobbies (lobby, role, status, record, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (lobby) DO UPDATE SET role = excluded.role, status = excluded.status,
+                 record = excluded.record, updated_at = excluded.updated_at",
+                params![lobby, role, status, record, ts(now)],
+            )
+            .map(drop)
+        })
+    }
+
+    /// Every lobby record (JSON), oldest first.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn lobbies(&self) -> Result<Vec<String>> {
+        self.with(|c| {
+            let mut statement = c.prepare("SELECT record FROM lobbies ORDER BY rowid")?;
+            statement.query_map([], |row| row.get(0))?.collect()
         })
     }
 

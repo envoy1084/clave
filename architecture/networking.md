@@ -36,12 +36,13 @@ libp2p 0.57: QUIC v1 and TCP (Noise XX + yamux), DNS, identify (`/tecpan/0`), pi
 request-response, and an allow list. The keeper's libp2p key is its Ed25519 identity, so its peer id is derived from
 the identity in the manifest (`transport::peer_id`) and Noise authenticates it. Idle connections close after 2 minutes.
 
-| Protocol             | Carries                                                                          | Limits                               |
-| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------ |
-| `/tecpan/ecdh/0`     | `EcdhRequest`, `EcdhResponse`                                                    | request ≤ 1 MiB, empty ack           |
-| `/tecpan/ceremony/0` | DKG and reshare messages, complaints, justifications, aborts, `Echo`             | request ≤ 1 MiB, empty ack           |
-| `/tecpan/sync/0`     | `Proposal`, `Approval`, `ExecutionReceipt`, `SyncRequest`                        | request ≤ 1 MiB, empty ack           |
-| `/tecpan/mailbox/0`  | `MailboxRequest` / `MailboxResponse` (keeper → relay only; keepers never accept) | 4 MiB per message, 256 KiB envelopes |
+| Protocol             | Carries                                                                          | Limits                                            |
+| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `/tecpan/ecdh/0`     | `EcdhRequest`, `EcdhResponse`                                                    | request ≤ 1 MiB, empty ack                        |
+| `/tecpan/ceremony/0` | DKG and reshare messages, complaints, justifications, aborts, `Echo`             | request ≤ 1 MiB, empty ack                        |
+| `/tecpan/sync/0`     | `Proposal`, `Approval`, `ExecutionReceipt`, `SyncRequest`                        | request ≤ 1 MiB, empty ack                        |
+| `/tecpan/lobby/0`    | `LobbyJoin`, `LobbyState`, `LobbyPlan`, `LobbyLeave`                             | request ≤ 1 MiB, empty ack; 10/min per non-member |
+| `/tecpan/mailbox/0`  | `MailboxRequest` / `MailboxResponse` (keeper → relay only; keepers never accept) | 4 MiB per message, 256 KiB envelopes              |
 
 Every keeper frame is a `SignedMessage`; the lane is chosen by its body. Requests are one-way: the receiver
 acknowledges with an empty response and answers, if at all, with its own request (an `EcdhResponse` is a request back
@@ -50,9 +51,17 @@ mailbox calls.
 
 ### Membership enforcement
 
-- **Connections.** The allow list holds exactly the peer ids of current committees and running ceremonies (updated
-  whenever the keeper's committees change) plus the configured relays. Any other peer's connection is closed before a
-  protocol runs, so outsiders cannot even probe which protocols a keeper speaks.
+- **Connections.** A connection gate (`transport::gate`) admits exactly the peer ids of current committees, running and
+  just-finished ceremonies and open lobbies (the host for a guest, the guests for the host), updated whenever they
+  change, plus the configured relays. Any other peer's connection is closed before a protocol runs, so outsiders
+  cannot even probe which protocols a keeper speaks.
+- **Open lobbies.** While a keeper hosts at least one open lobby, the gate admits connections from anyone so that
+  co-founders it does not know yet can join. A non-member's request is delivered only on `/tecpan/lobby/0`, only if
+  its body is a lobby message, and at most 10 per minute per peer (4096 peers tracked); requests on every other lane are
+  dropped unanswered. The sender is delivered as `Channel::Peer(identity)` with the identity derived from its peer id
+  (the inlined Ed25519 key), and the keeper checks the join proof. When the last open lobby starts or closes, the gate
+  closes again and connections from non-members are dropped. A lobby's peers stay admitted for one round timeout after
+  it starts or closes, for late retries and the DKG start.
 - **Messages.** Inbound requests are accepted only from members, delivered as `Channel::Peer(identity)`, and the
   frame's signer must be that identity. The keeper then applies the same checks as before (signature, epoch, replay
   window, committee membership, budget). Authenticity never depends on the transport.
@@ -124,16 +133,18 @@ metadata run their own relay or keep direct connectivity.
 - Keepers of one vault learn each other's IP addresses (they are members; this is inherent to a peer mesh without a
   mixnet).
 - Peer ids are derived from keeper identities, which appear only in the manifest shared among members, never on chain.
-- Identify announces the protocol version and listen addresses to allowed peers only (the allow list closes other
-  connections first).
+- Identify announces the protocol version and listen addresses to allowed peers only (the gate closes other
+  connections first), and to anyone who connects while the keeper hosts an open lobby.
+- An invite reveals the host keeper's identity and addresses to whoever holds it; hosting a lobby exposes the keeper
+  to connections from anyone who learns its address until the lobby starts or closes.
 
 ## Measured
 
-| Scenario                                                                                                                                    | Result                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart | 5 tests, ~6 s                                  |
-| Real binaries on one host (relay + 3 keepers, `network_scenario`)                                                                           | DKG 291 ms, ECDH 25 ms, total 710 ms           |
-| Docker: 3 keepers on 3 internal networks, reachable only through the relay (3 runs)                                                         | DKG 258–262 ms, ECDH 7–12 ms, total 567–579 ms |
+| Scenario                                                                                                                                                                   | Result                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart, lobby with strangers then DKG | 6 tests, ~6 s                                  |
+| Real binaries on one host (relay + 3 keepers, `network_scenario`)                                                                                                          | DKG 291 ms, ECDH 25 ms, total 710 ms           |
+| Docker: 3 keepers on 3 internal networks, reachable only through the relay (3 runs)                                                                                        | DKG 258–262 ms, ECDH 7–12 ms, total 567–579 ms |
 
 `crates/keeper/tests/network/run.sh` (`pnpm test:network`) builds the node image and starts a relay attached to three
 internal Docker networks and one keeper on each. No keeper can route to another; the driver container has no network
@@ -148,5 +159,7 @@ all three to hold it.
 - **Finished ceremonies linger.** A ceremony's participants stay on the allow list for one round timeout after it
   ends, so a member that finishes first still delivers its last messages to a joining member that is in none of its
   committees yet.
+- **Lobby exposure.** An open lobby lets strangers open connections and spend up to 10 lobby requests a minute each;
+  hosts should start or close lobbies promptly. The join secret, not the transport, keeps strangers off the roster.
 - **Echo is one hop.** It detects a dealer equivocating between honest members; it is not a full reliable broadcast
   under a malicious majority (ceremonies abort and blame instead of completing).

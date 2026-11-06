@@ -17,6 +17,7 @@ NAT traversal and offline mailboxes (see `networking.md`).
 | joins ceremonies its owner starts, with the parameters its owner gave | joins a ceremony because a peer asked                   |
 | activates a reshared committee when its engine observes it on chain   | activates on a peer's word                              |
 | verifies every peer partial (DLEQ) before returning it                | trusts a partial it has not verified                    |
+| hears strangers only on the lobby lane while it hosts an open lobby   | starts a DKG from a lobby plan without its owner        |
 
 The engine (PXE host) is the keeper's owner: it holds the RPC token and is trusted to report on-chain configs
 honestly. Other members' keepers are not trusted beyond their signatures and proofs.
@@ -32,7 +33,9 @@ honestly. Other members' keepers are not trusted beyond their signatures and pro
     share-<vault>-<epoch>.sealed   active viewing share
     dkg-<session>.sealed           finished DKG, waiting for vault registration
     pending-<session>.sealed       finished reshare, waiting for on-chain activation
-  keeper.db         SQLite (WAL, secure_delete): manifests, ceremonies, proposals, approvals, receipts, audit, observations
+    lobby-<id>.sealed              invite secret of an open lobby (destroyed when it starts or closes)
+  keeper.db         SQLite (WAL, secure_delete): manifests, ceremonies, proposals, approvals, receipts, audit, observations,
+                    lobbies
   keeper.toml       optional configuration
   keeper.json       public identity, peer id, addresses, RPC socket (written at start)
   keeper.sock       RPC socket (owner-only); rpc.token when no token is supplied
@@ -130,6 +133,45 @@ because others cannot tell what was sent. Either way the revealed share is publi
 transcripts abort as equivocation. A round past its deadline (120 s by default) aborts, blaming the participants whose
 messages are missing.
 
+## Lobbies
+
+Founding a vault needs every member's keeper identity, transport key, addresses and signing key before the DKG. A
+lobby collects them without a coordinator: the founder's keeper hosts it, co-founders' keepers join it with an invite,
+and the founder's engine fixes the plan. Wire types are in `wire.md` (`tecpan_wire::lobby`).
+
+```text
+founder engine ── lobby.open ──▶ host keeper            invite (out of band: chat, QR) ──▶ co-founder engine
+                                     ▲  │                                                   │ lobby.inspect, lobby.join
+                                     │  └──── LobbyState (every roster change) ────▶ guest keeper
+                                     └─────── LobbyJoin { proof } ◀──────────────────┘
+founder engine ── lobby.start ─▶ host keeper ── LobbyPlan (secrets sealed per member) ──▶ guest keepers
+every engine:  lobby.status → plan → ceremony.dkg { session = plan.session, threshold = t_v, members = plan order }
+```
+
+- **Open.** The host is member 1. The invite carries the lobby id, a random 32-byte join secret, the host's keeper
+  contact and display name, the vault name, proposed `k` / `t_v` and the engine's opaque network label. The secret is
+  sealed in custody (`lobby-<id>`); the record (roster, plan) is in `lobbies`.
+- **Join** (host side). A `LobbyJoin` is accepted only if the lobby is open, the frame is signed by the joiner's keeper
+  identity on a channel bound to it (libp2p peer id, or the claimed transport key), the HMAC proof verifies in constant
+  time (`tecpan_crypto::lobby`), the signing key is a valid point, and the roster stays at ≤ 8 members with distinct
+  identities, signing keys and transport keys. A re-join from the same identity replaces its entry. Each change bumps
+  the revision and is sent as a signed `LobbyState` to every guest (retried for 30 s, then the relay mailbox).
+- **Guest.** Accepts `LobbyState` / `LobbyPlan` / closing `LobbyLeave` only when signed by the host identity from the
+  invite, on a channel bound to it, and applies only newer roster revisions. A plan is accepted only if its first member
+  is the host, thresholds fit (`1 ≤ k ≤ n`, `2 ≤ t_v ≤ n`), members are distinct, this keeper's entry matches the
+  signing and transport keys it joined with, and its sealed secrets open.
+- **Start** (host only, open lobby): a fresh random DKG session, members in roster order, `k`, `t_v`, the salt (a
+  canonical field element) and one opaque secrets blob (≤ 1 KiB, identical for every member, never interpreted)
+  sealed to each member including the host (envelope kind 4, `viewing-keys.md`). Admission closes; the invite secret
+  is destroyed.
+- **Secrets at rest.** Members keep only the plan with their sealed entry; `lobby.status` opens it with the keeper's
+  transport key on demand, so the secrets survive restarts without a second copy.
+- **Leave / close.** A guest's `LobbyLeave` removes it from an open roster (the others get the new state); the host's
+  `LobbyLeave` closes the lobby for every guest. Started and closed lobbies refuse joins.
+- **No ceremony on a peer's word.** The keeper never starts the DKG from a plan: each member's engine reads the plan
+  and calls `ceremony.dkg` with it, after its user confirmed.
+- Lobby frames use scope = lobby id zero-padded to 32 bytes, epoch 0, and the usual freshness and replay rules.
+
 ## Proposals
 
 `proposals.put`, `approvals.put` and `receipts.put` store records and push them to the other members, who store them
@@ -146,22 +188,37 @@ JSON-RPC 2.0, one JSON object per line, on an owner-only Unix socket (a named pi
 Windows). The first call must be `session.auth { token }` (compared in constant time); everything else is refused
 until then. Requests on a session run concurrently.
 
-| Method                                                         | Params → result                                                                                                                                         |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `keeper.info`                                                  | → `{ identity, transport, addresses, version }`                                                                                                         |
-| `vault.sync`                                                   | `{ vault }`: sync proposals, approvals and receipts with the other members now                                                                          |
-| `mailbox.poll`                                                 | → `{ delivered }`: fetch and process relay mailboxes now                                                                                                |
-| `vault.list`, `vault.status`                                   | `{ vault }` → `{ manifest, status, index, serving }`                                                                                                    |
-| `vault.register`                                               | `{ session, manifest }` → vault                                                                                                                         |
-| `vault.observeConfig`                                          | `{ vault, version, committeeCommitment }` → `{ observation }`                                                                                           |
-| `vault.observeTx`                                              | `{ vault, txHash }` → `{ known }`                                                                                                                       |
-| `ecdh.batch`                                                   | `{ vault, epoch, purpose, points }` → `{ epoch, responses: MemberPartials[] }` (napi shape)                                                             |
-| `ceremony.dkg`                                                 | `{ session, threshold, members }`                                                                                                                       |
-| `ceremony.reshare`                                             | `{ session, vault, current?, dealers, newThreshold, newSpendingThreshold, newMembers }`                                                                 |
-| `ceremony.status`                                              | `{ session }` → `{ kind, status, failure, result }`                                                                                                     |
-| `proposals.put/list/get`, `approvals.put/list`, `receipts.put` | canonical wire bodies as hex                                                                                                                            |
-| `audit.list`                                                   | `{ vault, limit }` → audit entries                                                                                                                      |
-| `events.subscribe`                                             | then `event` notifications: `ceremony`, `invalidPartials`, `committeeActivated`, `removed`, `configMismatch`, `unexpectedSpend`, `proposal`, `approval` |
+| Method                                                         | Params → result                                                                                                                                                  |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keeper.info`                                                  | → `{ identity, transport, addresses, version }`                                                                                                                  |
+| `vault.sync`                                                   | `{ vault }`: sync proposals, approvals and receipts with the other members now                                                                                   |
+| `mailbox.poll`                                                 | → `{ delivered }`: fetch and process relay mailboxes now                                                                                                         |
+| `vault.list`, `vault.status`                                   | `{ vault }` → `{ manifest, status, index, serving }`                                                                                                             |
+| `vault.register`                                               | `{ session, manifest }` → vault                                                                                                                                  |
+| `vault.observeConfig`                                          | `{ vault, version, committeeCommitment }` → `{ observation }`                                                                                                    |
+| `vault.observeTx`                                              | `{ vault, txHash }` → `{ known }`                                                                                                                                |
+| `ecdh.batch`                                                   | `{ vault, epoch, purpose, points }` → `{ epoch, responses: MemberPartials[] }` (napi shape)                                                                      |
+| `ceremony.dkg`                                                 | `{ session, threshold, members }`                                                                                                                                |
+| `ceremony.reshare`                                             | `{ session, vault, current?, dealers, newThreshold, newSpendingThreshold, newMembers }`                                                                          |
+| `ceremony.status`                                              | `{ session }` → `{ kind, status, failure, result }`                                                                                                              |
+| `proposals.put/list/get`, `approvals.put/list`, `receipts.put` | canonical wire bodies as hex                                                                                                                                     |
+| `audit.list`                                                   | `{ vault, limit }` → audit entries                                                                                                                               |
+| `lobby.open`                                                   | `{ name, threshold, viewingThreshold, network, member: { name, signerKey } }` → `{ lobby, invite }`                                                              |
+| `lobby.inspect`                                                | `{ invite }` → `{ lobby, name, hostName, threshold, viewingThreshold, network, host: { identity, transport, addresses } }` (decode only)                         |
+| `lobby.join`                                                   | `{ invite, member: { name, signerKey } }` → `{ lobby }` once the host acknowledged (up to ~30 s)                                                                 |
+| `lobby.status`                                                 | `{ lobby }` → lobby (below), with `plan.secrets`                                                                                                                 |
+| `lobby.list`                                                   | → lobbies, without `plan.secrets`                                                                                                                                |
+| `lobby.start`                                                  | `{ lobby, threshold, viewingThreshold, salt, secrets }` (host; `secrets` one hex blob for every member) → lobby                                                  |
+| `lobby.close`, `lobby.leave`                                   | `{ lobby }` (host closes / guest leaves an open lobby) → lobby                                                                                                   |
+| `events.subscribe`                                             | then `event` notifications: `ceremony`, `invalidPartials`, `committeeActivated`, `removed`, `configMismatch`, `unexpectedSpend`, `proposal`, `approval`, `lobby` |
+
+A lobby: `{ lobby, role: "host" | "guest", status: "open" | "started" | "closed", name, hostName, threshold,
+viewingThreshold, network, host: { identity, transport, addresses }, members: [{ index, name, signerKey, identity,
+transport, addresses, you }], plan?: { session, threshold, viewingThreshold, salt, secrets? }, invite? }`. Lobby ids
+are 16 bytes of `0x` hex, `signerKey` is the `{ x, y }` point shape, `invite` is present while this keeper hosts the
+open lobby. A guest's roster is empty until the host's first `LobbyState` arrives. The `lobby` event is
+`{ "type": "lobby", "lobby": <hex, no 0x>, "status": "open" | "started" | "closed", "members": n }`, emitted on open or
+join, every roster change, start and close.
 
 Errors: `-32001` unauthenticated, `-32601` unknown method, `-32700` parse error, `-32000` keeper error with its message.
 
@@ -171,9 +228,11 @@ Errors: `-32001` unauthenticated, `-32601` unknown method, `-32700` parse error,
 ## Peer transport
 
 libp2p (QUIC and TCP with Noise, relay circuits, DCUtR); the peer id is derived from the keeper's Ed25519 identity. The
-allow list holds the members of the keeper's active committees and running ceremonies (recomputed whenever they change)
-plus its relays; every other connection is closed. Inbound frames are delivered only from members, and the inner
-`SignedMessage` signer must be that member, so authenticity never depends on the transport. Protocols, relay and
+allow list holds the members of the keeper's active committees and running ceremonies and the peers of its open
+lobbies (recomputed whenever they change) plus its relays; every other connection is closed, except while the keeper
+hosts an open lobby, when strangers may connect but are heard only on the lobby lane, rate limited. Inbound frames are
+otherwise delivered only from members, and the inner `SignedMessage` signer must be that member, so authenticity never
+depends on the transport. Protocols, relay and
 mailbox details are in `networking.md`.
 
 ## Known limits
@@ -193,7 +252,8 @@ mailbox details are in `networking.md`.
 | `tests/ceremony.rs`     | DKG agreement and ECDH, blame for a dealer standing by a bad share, no blame for a valid justification, equivocation, timeout, reshare correctness and old/new share separation, bad dealer                                                                              |
 | `tests/keeper.rs`       | In-memory multi-keeper: ECDH agreement and audit, lying member detected and routed around, budget, reshare activation and removal, forged request from a removed member, timeouts, restart recovery, proposal and approval replication, unexpected spend, unknown config |
 | `tests/catch_up.rs`     | Equivocating dealer caught by echo, offline member catches up through sync, offline member reads its mailbox hours later (relay sees ciphertext and unlinkable ids only)                                                                                                 |
-| `tests/p2p.rs`          | Real libp2p: DKG, ECDH and replication; outsiders refused; a keeper reachable only through the relay; mailbox delivery after a restart                                                                                                                                   |
+| `tests/p2p.rs`          | Real libp2p: DKG, ECDH and replication; outsiders refused; a keeper reachable only through the relay; mailbox delivery after a restart; strangers join a lobby, receive the plan and run the DKG, outsiders refused again after the start                                |
 | `tests/network/run.sh`  | Docker: three keepers on separate internal networks, relay only (`networking.md`)                                                                                                                                                                                        |
-| `tests/rpc.rs`          | Socket permissions, authentication, methods, errors, event subscription                                                                                                                                                                                                  |
+| `tests/lobby.rs`        | In-memory lobbies: roster agreement, identical plan and secrets for every guest, wrong proof / lobby / damaged invite / reused signing key refused, no join after start or close, leave and close, guest restart keeps its plan                                          |
+| `tests/rpc.rs`          | Socket permissions, authentication, methods, errors, event subscription, the `lobby.*` flow and `lobby` events                                                                                                                                                           |
 | vault-wallet end to end | The Phase 7 suite against four keeper processes: DKG, ECDH for both engines, reshare, activation, removal                                                                                                                                                                |
