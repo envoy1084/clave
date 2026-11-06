@@ -1,10 +1,13 @@
-//! Tecpan keeper: custody of one viewing share, threshold ECDH responder, DKG and resharing participant,
-//! proposal store and peer-to-peer mesh.
-//!
-//! Implemented in Phases 8 and 9; this crate is an empty placeholder until then.
+//! Tecpan keeper: the member daemon that holds one viewing share per vault and never lets it out. It answers threshold
+//! ECDH requests with DLEQ-proven partials (for its owner's engine and for other members), runs the DKG and reshare
+//! ceremonies, keeps the proposal store, and activates or destroys shares as the vault's on-chain committee changes.
+//! See `architecture/keeper.md`.
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_builds() {}
-}
+mod clock;
+pub mod custody;
+mod error;
+mod random;
+pub mod store;
+
+pub use clock::{Clock, SystemClock};
+pub use error::{Error, Result};
