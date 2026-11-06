@@ -72,17 +72,31 @@ async fn an_equivocating_dealer_is_caught_by_the_echo() {
                 .unwrap();
         evil.send(peer(target), frame).await.unwrap();
     }
+    // Every honest member aborts. Attribution is local: the member that compares the two signed packages blames the
+    // dealer; a member that processes that member's abort before the echoed evidence aborts without blame (sends to a
+    // peer are not ordered). At least one member always holds the proof.
     let blamed = hex::encode(keys.identity.public().0);
+    let mut attributed = 0;
     for k in &keepers[..2] {
         let failure =
             eventually(async || k.keeper.ceremony([5; 32]).ok().and_then(|c| c.failure)).await;
-        assert_eq!(failure.blamed, vec![blamed.clone()]);
-        assert!(
-            failure.reason.contains("two different round 1"),
-            "{}",
-            failure.reason
-        );
+        if failure.blamed == vec![blamed.clone()] {
+            assert!(
+                failure.reason.contains("two different round 1"),
+                "{}",
+                failure.reason
+            );
+            attributed += 1;
+        } else {
+            assert!(failure.blamed.is_empty(), "{failure:?}");
+            assert!(
+                failure.reason.contains("aborted by member"),
+                "{}",
+                failure.reason
+            );
+        }
     }
+    assert!(attributed >= 1, "no member attributed the equivocation");
 }
 
 struct Records {

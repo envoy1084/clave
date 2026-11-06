@@ -253,6 +253,11 @@ mailbox details are in `networking.md`.
 
 ## Known limits
 
+- **Equivocation attribution is local.** Sends to a peer are not ordered. A member that processes another member's
+  `Abort` before the echoed conflicting package aborts with "aborted by member N" and no blame; the member that compared
+  the two signed packages blames the dealer. Every honest member aborts. Ordered per-peer delivery would let every
+  member attribute it.
+
 - An ECDH oracle is inherent: any current member can obtain `address_secret · P` for any point. That is what membership
   means (members can read the vault). The budget, the audit log and purpose tags bound and record its use.
 - The ECDH purpose is self-reported; keepers cannot tell a note's ephemeral key from any other point.
