@@ -15,6 +15,7 @@ pub mod envelope;
 mod error;
 pub mod poseidon2;
 pub mod reshare;
+pub mod schnorr;
 mod secret;
 pub mod shamir;
 pub mod vault;

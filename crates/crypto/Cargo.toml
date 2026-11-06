@@ -9,6 +9,10 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Test-only helpers (Schnorr signing). Never enabled in production builds.
+test-utils = []
+
 [dependencies]
 ark-ec = { version = "0.6", default-features = false }
 ark-ff = { version = "0.6", default-features = false }

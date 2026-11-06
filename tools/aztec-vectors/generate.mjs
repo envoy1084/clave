@@ -9,6 +9,7 @@ import {
   poseidon2HashWithSeparator,
   poseidon2Permutation,
 } from "@aztec-labs/foundation/crypto/poseidon";
+import { Schnorr } from "@aztec-labs/foundation/crypto/schnorr";
 import { Fq, Fr } from "@aztec-labs/foundation/curves/bn254";
 import { AztecAddress } from "@aztec-labs/stdlib/aztec-address";
 import {
@@ -98,6 +99,33 @@ async function account(seed) {
   };
 }
 
+// Schnorr signatures as Aztec accounts and the vault contract use them (`[s.lo, s.hi, e.lo, e.hi]` limbs).
+const schnorr = new Schnorr();
+const schnorrCases = await Promise.all(
+  [
+    [0x11n, 0x2an],
+    [0xfeedn, 0x1234567890n],
+    [Fq.MODULUS - 5n, Fr.MODULUS - 1n],
+    [0x5eedn * 0x9e3779b97f4a7c15n, 0x7ec9a2n],
+  ].map(async ([key, message]) => {
+    const privateKey = new Fq(key);
+    const msg = new Fr(message);
+    const publicKey = await schnorr.computePublicKey(privateKey);
+    const signature = await schnorr.constructSignature(msg, privateKey);
+    const tampered = new Fr((message + 1n) % Fr.MODULUS);
+    return {
+      privateKey: hex(privateKey),
+      publicKey: point(publicKey),
+      message: hex(msg),
+      signature: `0x${signature.toBuffer().toString("hex")}`,
+      limbs: signature.toLimbFields().map(hex),
+      verifies: await schnorr.verifySignature(msg, publicKey, signature),
+      tamperedMessage: hex(tampered),
+      tamperedVerifies: await schnorr.verifySignature(tampered, publicKey, signature),
+    };
+  }),
+);
+
 // Accounts covering both branches of the address-secret negation rule: the first three of each, in seed order.
 const candidates = await Promise.all(Array.from({ length: 40 }, (_, i) => account(BigInt(i + 1))));
 const negated = candidates.filter((a) => a.addressSecretNegated).slice(0, 3);
@@ -117,6 +145,7 @@ const vectors = {
   generator: point(Grumpkin.generator),
   poseidon2,
   scalarMuls,
+  schnorr: schnorrCases,
   accounts,
 };
 if (process.argv.includes("--check")) {
