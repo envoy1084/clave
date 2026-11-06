@@ -1,6 +1,7 @@
 pub mod authorization;
 pub mod committee;
 pub mod constants;
+pub mod governance;
 pub mod notes;
 pub mod point;
 pub mod signer_set;
@@ -23,10 +24,10 @@ pub contract TecpanVault {
         context::PrivateContext,
         hash::compute_siloed_nullifier,
         macros::{
-            functions::{allow_phase_change, external, initializer, noinitcheck, view},
+            functions::{allow_phase_change, external, initializer, noinitcheck, only_self, view},
             storage::storage,
         },
-        messages::delivery::MessageDelivery,
+        messages::delivery::{MessageDelivery, OnchainConstrainedDelivery},
         note::note_viewer_options::NoteViewerOptions,
         oracle::{
             auth_witness::get_auth_witness,
@@ -40,6 +41,7 @@ pub contract TecpanVault {
         authorization,
         committee::Committee,
         constants::{MAX_SIGNERS, WITNESS_LEN},
+        governance,
         notes::{config_note::ConfigNote, signer_note::SignerNote},
         point::Point,
         signer_set::SignerSet,
@@ -64,7 +66,7 @@ pub contract TecpanVault {
         committee_shares: [Point; MAX_SIGNERS],
     ) {
         let signers = SignerSet::new(signer_keys, signer_count);
-        assert((threshold >= 1) & (threshold <= signer_count), "threshold out of range");
+        governance::assert_threshold(threshold, signer_count);
         let committee = Committee::new(viewing_threshold, committee_shares, signer_count);
 
         // Unconstrained delivery: the deployer is a member and every member verifies the delivered config against the
@@ -113,6 +115,27 @@ pub contract TecpanVault {
     fn verify_private_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::init(self.context, is_valid_impl);
         actions.verify_private_authwit(inner_hash)
+    }
+
+    /// Sets the spending threshold `k`. Only callable through an approved vault transaction.
+    #[external("private")]
+    #[only_self]
+    fn set_threshold(threshold: u32) {
+        self
+            .storage
+            .config
+            .replace(|config| governance::with_threshold(config, threshold), self.address)
+            .deliver(config_delivery(self.address));
+    }
+
+    /// Bumps the config version without changing the policy, invalidating every approval collected so far. Only
+    /// callable through an approved vault transaction.
+    #[external("private")]
+    #[only_self]
+    fn invalidate_pending() {
+        self.storage.config.replace(governance::bump_version, self.address).deliver(config_delivery(
+            self.address,
+        ));
     }
 
     /// Current policy: thresholds, signer count, config version and commitments.
@@ -167,6 +190,13 @@ pub contract TecpanVault {
         let is_spent = low_leaf_preimage.nullifier == siloed_nullifier;
 
         approved & !is_spent
+    }
+
+    /// Constrained delivery for config notes: the executor acts for every member, and an undelivered config note would
+    /// leave the others unable to prove.
+    #[contract_library_method]
+    fn config_delivery(vault: AztecAddress) -> OnchainConstrainedDelivery {
+        MessageDelivery::onchain_constrained().with_sender(vault)
     }
 
     #[contract_library_method]

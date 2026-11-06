@@ -7,14 +7,20 @@ use aztec::{
         txe_oracles,
     },
 };
+use std::test::OracleMock;
 use test_signer_contract::TestSigner;
 use vault_contract::{
-    authorization::approval_message,
+    authorization::{approval_message, is_authorized},
     constants::{MAX_SIGNERS, POINT_LEN, SIGNATURE_LEN, WITNESS_LEN},
     point::Point,
     signer_set::test_utils::points,
     TecpanVault,
 };
+
+/// Outer hash approved in authorization tests (any field works: the vault only signs over it).
+pub global OUTER_HASH: Field = 0x7ec9a2;
+
+pub global ONE_DAY: u64 = 86400;
 
 /// Seed for deterministic viewing verification shares (any distinct on-curve points will do in contract tests).
 pub global COMMITTEE_SEED: Field = 1000;
@@ -132,6 +138,37 @@ impl Fixture {
         T: Deserialize,
     {
         self.env.execute_utility_opts(ExecuteUtilityOptions::new().with_from(self.vault), call)
+    }
+
+    /// Calls a vault function as the vault itself (as its `entrypoint` would after approval), then syncs its notes.
+    pub unconstrained fn self_call<let M: u32, let N: u32>(self, call: PrivateCall<M, N, ()>) {
+        self.env.call_private(self.vault, call);
+        let _ = self.view(TecpanVault::at(self.vault).get_config());
+    }
+
+    /// Runs the vault's authorization check for `outer_hash` in a private context at the vault, serving `witness` as
+    /// the auth witness.
+    pub unconstrained fn authorize(self, outer_hash: Field, witness: [Field; WITNESS_LEN]) -> bool {
+        // One answer per check: an earlier mock would otherwise keep answering later checks in the same test.
+        let _ = OracleMock::mock("aztec_utl_getAuthWitness").returns(witness).times(1);
+        self.env.private_context_at(self.vault, |context| {
+            let config_slot = TecpanVault::storage_layout().config.slot;
+            is_authorized(context, config_slot, outer_hash)
+        })
+    }
+
+    /// Witness approving `OUTER_HASH` under `config_version` by the given slots, valid for a day.
+    pub unconstrained fn approved(
+        self,
+        config_version: u32,
+        approving: [bool; MAX_SIGNERS],
+    ) -> [Field; WITNESS_LEN] {
+        let expires_at = self.now() + ONE_DAY;
+        self.witness(
+            self.approval_message(OUTER_HASH, config_version, expires_at),
+            approving,
+            expires_at,
+        )
     }
 
     /// Timestamp of the latest block, which inline private contexts use as their anchor.
