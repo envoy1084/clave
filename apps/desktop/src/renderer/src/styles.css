@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/newsreader";
+
+/* Base UI state variants (as shadcn's base styles define them). */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+/* Hover only where a real pointer hovers (no sticky hover after a tap). */
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Newsreader Variable", ui-serif, Georgia, serif;
+  --font-serif: "Newsreader Variable", ui-serif, Georgia, serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Brand */
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-soft: var(--ink-soft);
+  --color-signal: var(--signal);
+  --color-olive: var(--olive);
+  --color-olive-soft: var(--olive-soft);
+  --color-olive-ink: var(--olive-ink);
+  --color-peri: var(--peri);
+  --color-peri-soft: var(--peri-soft);
+  --color-peri-ink: var(--peri-ink);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-sidebar: var(--ink);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:root {
+  --paper: #fbf8f2;
+  --paper-2: #f2eee5;
+  --ink: #15180f;
+  --ink-2: #23271b;
+  --ink-soft: #55574b;
+  --signal: #c8f500;
+  --olive: #4f6300;
+  --olive-soft: #eef4d2;
+  --olive-ink: #3d4d00;
+  --peri: #a7a9ff;
+  --peri-soft: #ededff;
+  --peri-ink: #3b2f7a;
+  --coral: #c4432a;
+  --coral-soft: #fbe9e3;
+  --sidebar-foreground: #e9e7de;
+  --sidebar-muted: rgb(233 231 222 / 0.58);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: #5e6053;
+  --accent: #ece7dc;
+  --accent-foreground: var(--ink);
+  --destructive: var(--coral);
+  --border: rgb(21 24 15 / 0.1);
+  --input: rgb(21 24 15 / 0.16);
+  --ring: rgb(79 99 0 / 0.55);
+  --radius: 0.625rem;
+
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* Text people read or copy stays selectable; chrome does not. */
+  input,
+  textarea,
+  [data-selectable],
+  .font-mono {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--signal) 70%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: default;
+  }
+}
+
+/* macOS: the top strip of the window drags it, controls inside stay clickable. */
+@utility app-drag {
+  -webkit-app-region: drag;
+}
+@utility app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility serif-display {
+  font-family: var(--font-serif);
+  font-weight: 340;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+/* Scrollbars that stay out of the way on paper. */
+@utility quiet-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(21 24 15 / 0.18) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Mosaic pixels slowly resolve and dissolve: decorative, off for reduced motion. */
+@keyframes pixel {
+  0%,
+  100% {
+    opacity: var(--tw-pixel-from, 0.85);
+  }
+  45% {
+    opacity: 0.08;
+  }
+  60% {
+    opacity: 0.08;
+  }
+}
