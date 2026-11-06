@@ -5,11 +5,16 @@
 
 FROM rust:1.96-slim-bookworm AS build
 WORKDIR /src
+# Crate downloads stall on some networks over HTTP/2; use HTTP/1.1 with generous retries and timeouts.
+ENV CARGO_HTTP_MULTIPLEXING=false CARGO_NET_RETRY=10 CARGO_HTTP_TIMEOUT=120
 COPY . .
+# Fetch separately so an interrupted download resumes from the cache instead of restarting the build.
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo fetch --locked
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release --locked -p tecpan-keeper -p tecpan-relay --bins \
- && cargo build --release --locked -p tecpan-keeper --example network_scenario \
+    cargo build --release --locked --offline -p tecpan-keeper -p tecpan-relay --bins \
+ && cargo build --release --locked --offline -p tecpan-keeper --example network_scenario \
  && mkdir -p /out \
  && cp target/release/tecpan-keeper target/release/tecpan-relay target/release/examples/network_scenario /out/
 

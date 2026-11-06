@@ -6,14 +6,14 @@ name: tecpan-network-test
 x-keeper: &keeper
   image: tecpan-node:test
   environment:
-    RUST_LOG: info
+    RUST_LOG: "${RUST_LOG:-info}"
   command:
     - sh
     - -c
     - >-
       exec tecpan-keeper run --data-dir /data
       --listen /ip4/0.0.0.0/udp/4001/quic-v1 --listen /ip4/0.0.0.0/tcp/4001
-      --relay /dns4/relay/udp/4001/quic-v1/p2p/${RELAY_PEER:?}
+      --relay /dns4/relay/udp/4001/quic-v1/p2p/${RELAY_PEER:-}
       --log-format json
   depends_on: [relay]
 
@@ -39,19 +39,19 @@ services:
 
   keeper1:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-one, RUST_LOG: info }
+    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-one, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k1:/data]
     networks: [net1]
 
   keeper2:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-two, RUST_LOG: info }
+    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-two, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k2:/data]
     networks: [net2]
 
   keeper3:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-three, RUST_LOG: info }
+    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-three, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k3:/data]
     networks: [net3]
 
