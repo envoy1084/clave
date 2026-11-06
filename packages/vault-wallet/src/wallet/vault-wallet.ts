@@ -193,7 +193,7 @@ export class VaultWallet extends BaseWallet {
     return this.pxe.stop();
   }
 
-  /** The PXE (for tests and the desktop engine's sync loop). */
+  /** The PXE (for tests and a host's sync loop). */
   get pxeService(): PXE {
     return this.pxe;
   }

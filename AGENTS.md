@@ -28,15 +28,15 @@ crates/               Cargo workspace
 packages/             TypeScript, only where Aztec requires it
   vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
 apps/
-  desktop/              Electron (main + PXE utility process) with a React renderer
+  web/                  the Tecpan site (Vite, React, TanStack Router): pages and isometric figures
 patches/              minimal pnpm patch of @aztec-labs/pxe for the threshold key store
 architecture/         maintained design docs (verified decisions only)
 research/             gitignored plans and investigation; never a build or doc input
 ```
 
-Process boundaries in the desktop app: the renderer is UI only (sandboxed, no Node). The PXE, signing keys and keeper
-supervision live in the main process or an Electron `utilityProcess`. Signing keys never leave the member's device.
-Viewing shares live only in `tecpan-keeper`, which may run locally or on the member's own server.
+The member-facing interface is the `tecpan` CLI and its local daemon (in development, see `research/cli-design.md`);
+the Electron desktop app was removed after Phase 12 and can be restored from git (`3eb2d7e`). Signing keys never leave
+the member's device. Viewing shares live only in `tecpan-keeper`, which may run locally or on the member's own server.
 
 Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package names keep it
 (`crates/keeper` builds `tecpan-keeper`).
@@ -48,8 +48,7 @@ Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package
 | Contracts       | Aztec 6.0.0 (`aztec compile`, `aztec test`, `aztec codegen`), Noir 1.0              |
 | Rust            | Stable toolchain, Cargo workspace, `rustfmt`, `clippy -D warnings`, `cargo-deny`    |
 | TypeScript      | Node 24, pnpm workspaces, Turborepo, TypeScript 7, Klarity presets (oxfmt, oxlint)  |
-| Desktop         | Electron, electron-vite, electron-builder                                           |
-| UI              | React 19, Vite, TanStack Router, TanStack Query                                     |
+| Site            | React 19, Vite, TanStack Router, Tailwind 4, Motion                                 |
 | Hooks / commits | lefthook, commitlint (`klarity/commitlint`)                                         |
 | Tests           | `aztec test` (TXE), `cargo test` + property tests, Vitest, local-network end-to-end |
 
@@ -60,7 +59,7 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
 - Inspect branch, working tree and recent commits before changing anything; preserve unrelated work.
 - Commit after each coherent change with a Conventional Commit, e.g. `feat(contracts): verify k-of-n witness`.
   Scopes are kebab-case package or area names (`contracts`, `crypto`, `wire`, `keeper`, `relay`, `napi`,
-  `vault-wallet`, `desktop`, `repo`).
+  `vault-wallet`, `web`, `repo`).
 - Never commit `research/`, `.env` files, keys, shares, or generated `target/`, `out/` and artifact output.
 - Keep files focused and split by responsibility. Reuse a helper only for real repeated use or a domain invariant.
 - Update the owning `architecture/` page in the same change when a contract, wire format, key flow or trust boundary
@@ -124,10 +123,7 @@ cargo test --manifest-path crates/Cargo.toml -p tecpan-keeper   # keeper: custod
 cargo test --manifest-path crates/Cargo.toml -p tecpan-relay    # relay: mailbox store
 pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
-pnpm --filter @tecpan/desktop dev|build|typecheck|test   # Electron app (needs a release or debug tecpan-keeper build)
-pnpm --filter @tecpan/desktop test:e2e                   # founding + propose/approve/execute across three instances (local network)
-pnpm --filter @tecpan/desktop demo                       # Ana, Bea and Cai as separate profiles on this machine (-- --fresh)
-pnpm --filter @tecpan/desktop package                    # unpacked, ad-hoc signed app in apps/desktop/dist/release
+pnpm --filter @tecpan/web dev|build|preview|typecheck|lint   # the site on http://localhost:3000
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 pnpm test:network   # Docker: relay + 3 keepers on separate networks (not part of pnpm test)
 ```

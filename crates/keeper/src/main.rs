@@ -1,6 +1,6 @@
 //! `tecpan-keeper`: run a member's keeper.
 //!
-//! The supervising app (the desktop) launches `tecpan-keeper run --secrets-stdin` and writes one JSON line with the
+//! The supervising app launches `tecpan-keeper run --secrets-stdin` and writes one JSON line with the
 //! master key (kept in the OS keychain) and a fresh RPC token. A keeper on a member's own server uses a passphrase
 //! (`TECPAN_KEEPER_PASSPHRASE`) instead. When ready, `run` prints one JSON line on stdout with its identity, transport
 //! key, addresses and RPC socket; logs go to stderr.

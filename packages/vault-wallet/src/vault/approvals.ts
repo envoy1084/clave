@@ -28,7 +28,7 @@ export function approvalMessage(
   );
 }
 
-/** Signs an approval message with a Grumpkin signing key, as the desktop signer does. */
+/** Signs an approval message with a Grumpkin signing key, as a member's signer does. */
 export async function signApproval(
   signingKey: GrumpkinScalar,
   message: Fr,

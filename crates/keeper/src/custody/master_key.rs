@@ -11,7 +11,7 @@ const ARGON2_PASSES: u32 = 3;
 pub struct MasterKey(pub(crate) Zeroizing<[u8; 32]>);
 
 impl MasterKey {
-    /// A key supplied by the supervising app (the desktop keeps it in the OS keychain through Electron `safeStorage`).
+    /// A key supplied by the supervising app, which keeps it in the OS keychain.
     #[must_use]
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(Zeroizing::new(bytes))

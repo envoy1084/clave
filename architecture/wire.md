@@ -2,7 +2,7 @@
 
 `crates/wire` (`tecpan-wire`) is the single definition of every message exchanged between engines, keepers and relays.
 `crates/napi` (`@tecpan/napi`) exposes it and the public parts of `tecpan-crypto` to TypeScript, so the vault wallet
-and the desktop app never reimplement cryptography or encoding.
+and its hosts never reimplement cryptography or encoding.
 
 Status: Phase 6 (library and bindings). Keepers send these messages from Phase 8 (over libp2p from Phase 9); the vault wallet uses the bindings
 from Phase 7.
@@ -172,12 +172,12 @@ throws an `InvalidArg` error on failure.
 | Wire    | `wireVersion`, `proposalId`, `proposalApprovalMessage`, `encodeProposal` / `decodeProposal`, `encodeApproval` / `decodeApproval`, `verifyProposalApproval` |
 
 - **No secrets in the production addon.** Envelope sealing and opening stay in the keeper (which holds the transport
-  key); signing keys stay in the desktop signer service. Helpers that deal or use viewing shares and a test Schnorr
+  key); signing keys stay in the member's signer. Helpers that deal or use viewing shares and a test Schnorr
   signer exist only in the separate `@tecpan/napi/testing` binary, built with the `testing` feature.
 - `pnpm --filter @tecpan/napi build` writes `index.js`, `index.d.ts` and `tecpan.<platform>.node` to `dist/` (the
   testing build to `dist/testing/`). `dist/` is build output and is not committed.
-- Node-API is ABI-stable: the same binary loads in Node 24 and in Electron 45 (verified with Electron 45.2.3,
-  Node 24.22.2). Per-platform prebuilds are produced by the release pipeline.
+- Node-API is ABI-stable: the same binary loads in Node 24 and in Electron 45 (verified with Node 24.22.2 and
+  Electron 45.2.3, when the desktop app existed). Per-platform prebuilds are produced by the release pipeline.
 
 ## Tests
 

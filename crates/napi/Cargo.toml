@@ -1,6 +1,6 @@
 [package]
 name = "tecpan-napi"
-description = "Node-API bindings of Tecpan crypto and wire for the vault wallet and desktop app"
+description = "Node-API bindings of Tecpan crypto and wire for the vault wallet"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

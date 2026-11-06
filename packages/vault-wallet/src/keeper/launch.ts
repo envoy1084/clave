@@ -10,7 +10,7 @@ export interface KeeperLaunchOptions {
   readonly binary: string;
   /** Keeper data directory. */
   readonly dataDir: string;
-  /** 32-byte master key (hex) sealing the keeper's secrets; the desktop keeps it in the OS keychain. */
+  /** 32-byte master key (hex) sealing the keeper's secrets; the supervising app keeps it in the OS keychain. */
   readonly masterKey: string;
   /** RPC socket path (default `<dataDir>/keeper.sock`). */
   readonly rpcSocket?: string;

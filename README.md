@@ -22,7 +22,7 @@ every component. See [`architecture/`](architecture/) for what is built.
 | `contracts/`             | Vault account contract (Noir, Aztec.nr 6.0.0)                     |
 | `crates/`                | Rust: threshold crypto, wire format, keeper, relay, Node bindings |
 | `packages/vault-wallet/` | TypeScript host for the Aztec PXE with a threshold key store      |
-| `apps/desktop/`          | Electron + React desktop app                                      |
+| `apps/web/`              | The Tecpan site (Vite, React): mechanisms explained with figures  |
 
 ## Prerequisites
 

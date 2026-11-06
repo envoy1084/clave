@@ -19,7 +19,7 @@ codegenCache.json
 contracts/**/Prover.toml
 contracts/artifacts/
 
-# Electron
+# Build output
 out/
 release/
 

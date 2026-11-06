@@ -119,7 +119,7 @@ pub fn verify(public_key: &Point, message: Base, signature: &Signature) -> bool 
     }
 }
 
-/// Test-only signer. Production signing keys live in the desktop app and sign with Aztec's TypeScript `Schnorr`.
+/// Test-only signer. Production signing keys live on the member's device and sign with Aztec's TypeScript `Schnorr`.
 ///
 /// # Errors
 /// [`Error::IdentityPoint`] for a zero key or nonce (negligible).

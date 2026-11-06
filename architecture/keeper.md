@@ -1,7 +1,7 @@
 # Keeper
 
-`crates/keeper` (`tecpan-keeper`) is the daemon each member runs, on their own machine (supervised by the desktop app)
-or on their own server. It is the only place a viewing share exists. It serves threshold ECDH to its owner's engine and
+`crates/keeper` (`tecpan-keeper`) is the daemon each member runs, on their own machine (supervised by the member's
+app) or on their own server. It is the only place a viewing share exists. It serves threshold ECDH to its owner's engine and
 to the other members' keepers, runs the DKG and reshare ceremonies, keeps the proposal store, and activates or destroys
 shares as the vault's on-chain committee changes.
 
@@ -55,8 +55,7 @@ and `mailbox_ttl_days` (7); command-line flags take precedence.
 ## Custody
 
 - **Master key.** Seals every secret. Either supplied by the supervising app on stdin
-  (`--secrets-stdin`, one JSON line `{"masterKey", "rpcToken"}`; the desktop keeps the key in the OS keychain through
-  Electron `safeStorage`), or derived from `TECPAN_KEEPER_PASSPHRASE` with Argon2id (64 MiB, 3 passes) over a per-keeper
+  (`--secrets-stdin`, one JSON line `{"masterKey", "rpcToken"}`; the app keeps the key in the OS keychain), or derived from `TECPAN_KEEPER_PASSPHRASE` with Argon2id (64 MiB, 3 passes) over a per-keeper
   salt. A sealed check value detects a wrong key before any secret is touched. The keeper itself has no keychain
   dependency.
 - **Sealed files.** XChaCha20-Poly1305 with a random 24-byte nonce; the secret's name is authenticated as associated
