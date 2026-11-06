@@ -8,8 +8,7 @@ least `k` signers before an approval deadline.
 Viewing is enforced off-chain by member agents (threshold ECDH over shares of the vault's incoming viewing secret);
 the contract only stores the committee commitment those agents check against.
 
-Status: Phase 3 (core authorization). Config changes (`rotate_membership`, `set_threshold`, `invalidate_pending`)
-arrive in Phase 4.
+Status: Phases 3–4 (authorization and governance).
 
 ## Storage
 
@@ -103,9 +102,53 @@ Served by the PXE for `outer_hash` (`get_auth_witness`), `WITNESS_LEN` = 49 fiel
 
 Duplicate approvals are impossible: one signature per slot, distinct keys.
 
-**Freshness:** a superseded config can authorize only transactions anchored before the change and included within
-`CONFIG_MAX_AGE`, and only with approvals signed for the old version. Re-delivering the config note on every
-`entrypoint` would close that window but costs about 25k gates per transaction (Phase 2, S4).
+**Freshness:** a transaction can be authorized against a superseded config only if its prover deliberately serves the
+old config note with an anchor block from before the change: an honest PXE serves the current note, and the kernel
+rejects a note that did not exist at the anchor. Even then the transaction needs `threshold` approvals signed for the
+old version and must be included within `CONFIG_MAX_AGE` of its anchor. Re-delivering the config note on every
+`entrypoint` would close the window but costs about 25k gates per transaction (constrained delivery, Phase 2 S4), so
+the bounded window is accepted.
+
+## Governance
+
+Config changes are `#[only_self]` private functions: they run only as calls the vault makes to itself, i.e. inside an
+`entrypoint` payload that already passed k-of-n authorization (`"Function <name> can only be called by the same
+contract"` otherwise). Every change replaces the config note with `version + 1`, which invalidates every approval
+collected so far.
+
+| Function                                                                                                                    | Effect                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `set_threshold(threshold)`                                                                                                  | New `k` (`1 <= k <= n`); signer set and committee unchanged                              |
+| `invalidate_pending()`                                                                                                      | Version bump only; emergency cancellation of all collected approvals                     |
+| `rotate_membership(current_signer_keys, new_signer_keys, new_signer_count, threshold, viewing_threshold, committee_shares)` | New signer set, `k`, `t_v` and committee in one atomic change; rewrites the signer notes |
+
+`rotate_membership` asserts, in order:
+
+1. `current_signer_keys` hash to the stored `signer_set_commitment` (`"current signer set mismatch"`): the rotation was
+   built against the current config.
+2. The new signer set is valid, `1 <= k <= n'` and the new committee is valid (`2 <= t_v' <= n'`).
+3. Fewer than the current `t_v` members are absent from the new set (`"too many members removed"`), so the viewing
+   reshare that accompanies the rotation keeps the incoming viewing secret safe. Larger exits run as several rotations
+   or move funds to a new vault.
+4. Exactly the current number of signer notes is popped (`"stale signer notes"`), then the new set is inserted.
+
+Member `i` of the new set is signer slot `i` and committee index `i`; adding, removing, replacing a device key and
+reordering are all expressed as a new ordered set.
+
+### Rotation protocol
+
+The committee commitment covers the **new** members' verification shares, which exist only after the agents reshare,
+so the reshare is prepared before the rotation executes:
+
+1. A member proposes the new membership.
+2. The staying agents run the reshare and hold the resulting shares as pending; this yields the new verification
+   shares and their commitment.
+3. The `rotate_membership` proposal carries those shares; members approve it.
+4. When the transaction is included, every agent sees the new version with a matching `committee_commitment`,
+   activates its pending share and erases the old one. If the transaction expires, pending shares are discarded.
+
+`set_threshold` and `invalidate_pending` bump the version without changing `committee_commitment`; agents reshare only
+when the committee commitment changes.
 
 ## Functions
 
@@ -114,17 +157,21 @@ Duplicate approvals are impossible: one signature per slot, distinct keys.
 | `constructor(signer_keys, signer_count, threshold, viewing_threshold, committee_shares)` | private, initializer                         | Validates both sets, `1 <= k <= n`, `2 <= t_v <= n`; stores config (version 0) and signer notes |
 | `entrypoint(app_payload, fee_payment_method, cancellable)`                               | private, `noinitcheck`, `allow_phase_change` | `AccountActions` with `is_authorized`; cancellable txs emit the nonce nullifier                 |
 | `verify_private_authwit(inner_hash)`                                                     | private, `noinitcheck`, `view`               | `AccountActions` with `is_authorized`                                                           |
+| `set_threshold`, `invalidate_pending`, `rotate_membership`                               | private, `only_self`                         | See Governance                                                                                  |
 | `get_config()`                                                                           | utility                                      | Current `ConfigNote`                                                                            |
 | `get_signer_set()`                                                                       | utility                                      | Ordered `SignerSet` from signer notes                                                           |
 | `lookup_validity(consumer, inner_hash)`                                                  | utility                                      | Approved, unexpired and unconsumed; reverts on a malformed witness                              |
 
 ## Note delivery
 
-The constructor delivers notes **unconstrained**, tagged with the vault as sender, so members discover them by
-registering the vault. This is safe because the deployer is a member and every member verifies the on-chain config
-against the agreed manifest before funding; constrained delivery of `MAX_SIGNERS + 1` notes would also exceed per-call
-limits. Config changes (Phase 4) use constrained delivery: there one executor acts for everyone, and an undelivered
-config note would lock the others out.
+| Note                          | Constructor   | Config changes | Why                                                                                                                                |
+| ----------------------------- | ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Config note                   | unconstrained | constrained    | Members need its plaintext to prove; after deployment one executor acts for everyone, so a withheld note would lock the others out |
+| Signer notes (discovery only) | unconstrained | unconstrained  | Authorization checks the commitment; members also hold the set in their committee manifest                                         |
+
+All notes are tagged with the vault as sender. The constructor may deliver its config note unconstrained because the
+deployer is a member and every member verifies the on-chain config against the agreed manifest before funding;
+constrained delivery of `MAX_SIGNERS + 1` notes would also exceed per-call limits.
 
 ## Gate profile
 
@@ -135,36 +182,49 @@ config note would lock the others out.
 | `constructor`            | 25,351      | 7,905                               |
 | `entrypoint`             | 27,176      | 15,002                              |
 | `verify_private_authwit` | 18,665      | 6,489                               |
+| `set_threshold`          | 37,443      | —                                   |
+| `invalidate_pending`     | 37,385      | —                                   |
+| `rotate_membership`      | 85,734      | —                                   |
 
-| MAX_SIGNERS | constructor | entrypoint | verify_private_authwit |
-| ----------- | ----------- | ---------- | ---------------------- |
-| 4           | 17,674      | 21,829     | 13,318                 |
-| 8           | 25,351      | 27,176     | 18,665                 |
-| 16          | 41,757      | 37,845     | 29,334                 |
+| MAX_SIGNERS | constructor | entrypoint | verify_private_authwit | rotate_membership |
+| ----------- | ----------- | ---------- | ---------------------- | ----------------- |
+| 4           | 17,674      | 21,829     | 13,318                 | 77,395            |
+| 8           | 25,351      | 27,176     | 18,665                 | 85,734            |
+| 16          | 41,757      | 37,845     | 29,334                 | 104,280           |
 
-`verify_private_authwit` flamegraph: Schnorr verification ≈10.3k (55%, one two-point Grumpkin MSM per slot, ≈1.2k
-each), config freshness proof ≈2.6k (14%), the rest is macro and kernel-interface overhead. The deadline check and
-committee commitment add well under 1k. Each extra slot costs about 1,340 gates.
+- `verify_private_authwit`: Schnorr verification ≈10.3k (55%, one two-point Grumpkin MSM per slot, ≈1.2k each),
+  config freshness proof ≈2.6k (14%), the rest macro and kernel-interface overhead. The deadline check and committee
+  commitment add well under 1k. Each extra slot costs about 1,340 gates.
+- `rotate_membership`: constrained config delivery ≈30.6k (36%), popping the signer notes ≈28.5k (34%), unconstrained
+  re-insertion ≈13.4k (16%). A full 8-out / 8-in rewrite fits the per-call limits.
+- `set_threshold` / `invalidate_pending`: dominated by the constrained config delivery.
 
 ## Tests
 
-`contracts/vault_contract` (21 unit tests): point, signer set and committee validation and commitments, witness
-decoding and deadline range check, approval message binding.
+`contracts/vault_contract` (34 unit tests): point, signer set and committee validation and commitments, witness
+decoding and deadline range check, approval message binding, governance transitions (threshold change, rotation
+invariants, removal counting).
 
-`contracts/vault_test` (28 TXE tests):
+`contracts/vault_test` (50 TXE tests):
 
-- Deployment: 2-of-3 and 8-of-8 vaults; `get_config` / `get_signer_set`; rejections for `k = 0`, `k > n`, `n = 0`,
-  `n > MAX`, duplicate / off-curve / out-of-range signer keys, `t_v = 1`, `t_v > n`, a single-member vault, off-curve
-  and out-of-range committee shares.
-- Authorization: threshold met, any subset, all 8 signers, deadline equal to the anchor timestamp; rejections below
-  threshold, with no approvals, expired, deadline different from the signed one, signature over another hash, in
+- Deployment (14): 2-of-3 and 8-of-8 vaults; `get_config` / `get_signer_set`; rejections for `k = 0`, `k > n`,
+  `n = 0`, `n > MAX`, duplicate / off-curve / out-of-range signer keys, `t_v = 1`, `t_v > n`, a single-member vault,
+  off-curve and out-of-range committee shares.
+- Authorization (14): threshold met, any subset, all 8 signers, deadline equal to the anchor timestamp; rejections
+  below threshold, with no approvals, expired, deadline different from the signed one, signature over another hash, in
   another signer's slot, in an empty slot, substituted signer, approval for another vault, approval for another config
   version. Every rejection asserts its message.
+- Governance (8): `set_threshold` and `invalidate_pending` succeed from the vault, invalidate collected approvals,
+  reject out-of-range thresholds and outside callers.
+- Rotation (14): add, remove, replace a key, reorder, full 8-member rewrite, successive rotations; removed members
+  cannot approve and earlier approvals are rejected; rejections for too many removals, a stale current set, invalid
+  thresholds, a duplicate new signer and outside callers.
 
 Harness: `contracts/test_signer_contract` is a **test-only** helper (never deploy) that returns TXE-produced Schnorr
-signatures to tests. Tests assemble the witness, mock `aztec_utl_getAuthWitness`, and run `is_authorized` in a private
-context at the vault; vaults are deployed with the vault in the deployer's scope, and notes are synced with a utility
-call first.
+signatures to tests. Tests assemble the witness, mock `aztec_utl_getAuthWitness` (one answer per check), and run
+`is_authorized` in a private context at the vault; vaults are deployed with the vault in the deployer's scope, notes are
+synced with a utility call first, and config changes are called with the vault as caller.
 
 Not covered by TXE (Phase 7 end-to-end on a local network): full `entrypoint` and `verify_private_authwit` with a real
-witness, the expiration cap inside a static call, `lookup_validity`, cancellation.
+witness, the expiration cap inside a static call, `lookup_validity`, cancellation, and the freshness window (inline
+TXE contexts do not run the kernel, so they cannot reproduce a prover serving a superseded note at an old anchor).
