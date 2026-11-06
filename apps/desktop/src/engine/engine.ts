@@ -10,9 +10,16 @@ import type { AztecAddress } from "@aztec-labs/stdlib/aztec-address";
 import { getContractInstanceFromInstantiationParams } from "@aztec-labs/stdlib/contract";
 import type { AztecNode } from "@aztec-labs/stdlib/interfaces/client";
 import type { Params, Results } from "@shared/contract.ts";
-import type { EngineInit, VaultRecord } from "@shared/engine-protocol.ts";
+import type { EngineInit, HostMethod, VaultRecord } from "@shared/engine-protocol.ts";
 import { peerIdOf } from "@shared/peer-id.ts";
-import type { AppEvent, AuditEntry, LobbyView, NodeStatus, VaultDetails } from "@shared/types.ts";
+import type {
+  AppEvent,
+  AuditEntry,
+  LobbyView,
+  MemberReachability,
+  NodeStatus,
+  VaultDetails,
+} from "@shared/types.ts";
 import {
   KeeperClient,
   type KeeperEvent,
@@ -27,7 +34,8 @@ import {
 } from "@tecpan/vault-wallet";
 
 import { Founding } from "./founding.ts";
-import { KeeperApi, type KeeperLobby, lobbyView } from "./keeper-api.ts";
+import { KeeperApi, type KeeperLobby, hex0x, lobbyView } from "./keeper-api.ts";
+import { Operations } from "./operations.ts";
 import { decodeSecrets, encodeSecrets } from "./secrets.ts";
 
 const NODE_POLL_MS = 4000;
@@ -36,6 +44,8 @@ export interface EngineHost {
   emit(event: AppEvent): void;
   saveVault(record: VaultRecord): Promise<void>;
   adoptAccount(address: string): void;
+  /** A call into the main process (e.g. the signer). */
+  call(method: HostMethod, params: unknown): Promise<unknown>;
 }
 
 /** Rebuilds a vault's deployment from its sealed record (everything needed is in it). */
@@ -71,6 +81,7 @@ export class Engine {
   readonly #vaults = new Map<string, VaultRecord>();
   readonly #deployments = new Map<string, Promise<VaultDeployment>>();
   readonly #foundings = new Map<string, Founding>();
+  readonly #ops: Operations;
 
   constructor(init: EngineInit, host: EngineHost) {
     this.#init = init;
@@ -78,6 +89,7 @@ export class Engine {
     this.#node = createAztecNodeClient(init.nodeUrl);
     this.#status = { url: init.nodeUrl, reachable: false, checkedAt: 0 };
     for (const record of init.vaults) this.#vaults.set(record.address.toLowerCase(), record);
+    this.#ops = new Operations(this, init.dataDir);
   }
 
   async start(): Promise<void> {
@@ -214,6 +226,48 @@ export class Engine {
         return [...this.#vaults.values()];
       case "vault.details":
         return this.#details((params as Params<"vault.details">).vault);
+      case "vault.peers":
+        return this.#peers((params as Params<"vault.peers">).vault);
+      case "vault.activity":
+        return this.#ops.activity(this.#record((params as Params<"vault.activity">).vault));
+      case "tokens.list":
+        return this.#ops.tokens(this.#record((params as Params<"tokens.list">).vault));
+      case "tokens.add": {
+        const p = params as Params<"tokens.add">;
+        return this.#ops.addToken(this.#record(p.vault), p.token);
+      }
+      case "tokens.deployTest":
+        return this.#ops.deployTestToken(
+          this.#record((params as Params<"tokens.deployTest">).vault),
+        );
+      case "proposals.list":
+        return this.#ops.proposals(this.#record((params as Params<"proposals.list">).vault));
+      case "proposals.get": {
+        const p = params as Params<"proposals.get">;
+        return this.#ops.proposal(this.#record(p.vault), p.id);
+      }
+      case "proposals.preview": {
+        const p = params as Params<"proposals.preview">;
+        return this.#ops.preview(this.#record(p.vault), p.intent, p.expiresInHours);
+      }
+      case "proposals.create": {
+        const p = params as Params<"proposals.create">;
+        return this.#ops.create(this.#record(p.vault), p.intent, p.expiresInHours);
+      }
+      case "proposals.approve": {
+        const p = params as Params<"proposals.approve">;
+        return this.#ops.approve(this.#record(p.vault), p.id);
+      }
+      case "proposals.execute": {
+        const p = params as Params<"proposals.execute">;
+        return this.#ops.execute(this.#record(p.vault), p.id);
+      }
+      case "proposals.cancel": {
+        const p = params as Params<"proposals.cancel">;
+        return this.#ops.cancel(this.#record(p.vault), p.id);
+      }
+      case "contracts.functions":
+        return this.#ops.functions((params as Params<"contracts.functions">).contract);
       case "vault.audit":
         return this.#audit(params as Params<"vault.audit">);
       default:
@@ -304,6 +358,13 @@ export class Engine {
   }
 
   async #onKeeperEvent(event: KeeperEvent): Promise<void> {
+    if (event.type === "proposal" || event.type === "approval" || event.type === "receipt") {
+      // Records replicated from other members: tell the renderer which vault changed (all, if the event has none).
+      const vaults =
+        typeof event.vault === "string" ? [hex0x(event.vault)] : [...this.#vaults.keys()];
+      for (const vault of vaults) this.#host.emit({ type: "vault-activity", vault });
+      return;
+    }
     if (event.type !== "lobby" || typeof event.lobby !== "string") return;
     try {
       const status: KeeperLobby = await this.keeper.status(event.lobby);
@@ -345,6 +406,23 @@ export class Engine {
     if (status.reachable && status.l1ChainId !== undefined)
       this.#network = `${status.l1ChainId}:${status.rollupVersion}`;
     if (changed) this.#host.emit({ type: "node", node: status });
+  }
+
+  get node(): AztecNode {
+    return this.#node;
+  }
+
+  async #peers(vault: string): Promise<MemberReachability[]> {
+    const record = this.#record(vault);
+    const peers = await this.keeper.client.call<Omit<MemberReachability, "name">[]>(
+      "peers.status",
+      {
+        vault: record.address,
+      },
+    );
+    return peers.map((p) =>
+      Object.assign(p, { name: record.members[p.index - 1]?.name ?? `Member ${p.index}` }),
+    );
   }
 
   #record(vault: string): VaultRecord {

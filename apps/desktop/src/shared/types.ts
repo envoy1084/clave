@@ -209,4 +209,144 @@ export type AppEvent =
   | { readonly type: "state"; readonly state: AppState }
   | { readonly type: "lobby"; readonly lobby: LobbyView }
   | { readonly type: "founding"; readonly founding: FoundingState }
-  | { readonly type: "node"; readonly node: NodeStatus };
+  | { readonly type: "node"; readonly node: NodeStatus }
+  | { readonly type: "vault-activity"; readonly vault: string }
+  | { readonly type: "execution"; readonly execution: ExecutionProgress };
+
+// Phase 11: assets, proposals, execution.
+
+export interface TokenInfo {
+  readonly address: string;
+  readonly name: string;
+  readonly symbol: string;
+  readonly decimals: number;
+}
+
+export interface TokenBalance {
+  readonly token: TokenInfo;
+  /** Private balance of the vault, base units, decimal string. */
+  readonly balance?: string;
+  readonly error?: string;
+}
+
+/** What a proposal is for, carried as JSON in the proposal's `summary` (at most 4 KiB). */
+export type ProposalIntent =
+  | {
+      readonly kind: "transfer";
+      readonly token: string;
+      readonly to: string;
+      /** Base units, decimal string. */
+      readonly amount: string;
+      readonly memo?: string;
+    }
+  | {
+      readonly kind: "calls";
+      readonly calls: readonly {
+        readonly to: string;
+        readonly fn: string;
+        readonly args: readonly string[];
+      }[];
+      readonly memo?: string;
+    }
+  | { readonly kind: "cancel"; readonly cancels: string; readonly memo?: string };
+
+export type ProposalStatus =
+  | "collecting"
+  | "ready"
+  | "executed"
+  | "cancelled"
+  | "expired"
+  | "stale";
+
+export interface ProposalApproval {
+  readonly slot: number;
+  readonly index: number;
+  readonly name: string;
+  readonly valid: boolean;
+}
+
+export interface DecodedCall {
+  readonly to: string;
+  readonly toLabel?: string;
+  readonly fn: string;
+  readonly args: readonly string[];
+  readonly isStatic: boolean;
+}
+
+export interface ProposalView {
+  readonly id: string;
+  readonly vault: string;
+  readonly intent: ProposalIntent;
+  readonly proposer: { readonly index: number; readonly name: string };
+  readonly status: ProposalStatus;
+  readonly threshold: number;
+  readonly approvals: readonly ProposalApproval[];
+  /** Slot (0-based) of this member, and whether it has approved. */
+  readonly mySlot: number;
+  readonly approvedByMe: boolean;
+  readonly configVersion: number;
+  readonly currentConfigVersion: number;
+  readonly expiresAt: number;
+  readonly txNonce: string;
+  readonly outerHash: string;
+  readonly approvalMessage: string;
+  readonly feeMethod: string;
+  readonly calls: readonly DecodedCall[];
+  /** For transfers: the token as this member knows it. */
+  readonly token?: TokenInfo;
+  readonly execution?: { readonly txHash: string; readonly at: number };
+  /** Set on a proposal a cancel proposal targets, and on the cancel proposal itself. */
+  readonly cancelledBy?: string;
+}
+
+export interface ProposalPreview {
+  readonly ok: boolean;
+  readonly calls: readonly DecodedCall[];
+  readonly gas?: { readonly da: number; readonly l2: number };
+  readonly error?: string;
+}
+
+export interface ContractFunction {
+  readonly name: string;
+  readonly kind: "private" | "public" | "utility";
+  readonly isStatic: boolean;
+  readonly params: readonly { readonly name: string; readonly type: string }[];
+}
+
+export interface MemberReachability {
+  readonly index: number;
+  readonly name: string;
+  readonly identity: string;
+  readonly peerId: string;
+  readonly you: boolean;
+  readonly connected: boolean;
+  readonly relayed: boolean;
+  readonly lastSeen: number | null;
+  readonly rttMs: number | null;
+}
+
+export type ActivityEntry =
+  | { readonly kind: "proposal"; readonly at: number; readonly proposal: ProposalView }
+  | {
+      readonly kind: "received";
+      readonly at: number;
+      readonly token: TokenInfo;
+      readonly from: string;
+      readonly amount: string;
+      readonly txHash: string;
+      readonly block: number;
+    };
+
+export interface Contact {
+  readonly address: string;
+  readonly label: string;
+}
+
+/** Progress of an execution on this device. */
+export interface ExecutionProgress {
+  readonly vault: string;
+  readonly proposal: string;
+  readonly phase: "rebuilding" | "proving" | "sending" | "mined" | "failed";
+  readonly error?: string;
+  readonly txHash?: string;
+}

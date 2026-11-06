@@ -89,10 +89,16 @@ export function isAppUrl(url: string): boolean {
   return url.startsWith(`${APP_ORIGIN}/`);
 }
 
+/** `--cascade=<n>` offsets the window so several demo instances on one screen don't stack exactly. */
+const cascade =
+  Number(process.argv.find((a) => a.startsWith("--cascade="))?.slice("--cascade=".length) ?? 0) ||
+  0;
+
 export function createWindow(preload: string): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
+    ...(cascade > 0 ? { x: 40 + cascade * 56, y: 40 + cascade * 40 } : {}),
     minWidth: 960,
     minHeight: 640,
     show: false,

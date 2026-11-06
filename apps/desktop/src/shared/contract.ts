@@ -4,8 +4,16 @@
 import { z } from "zod";
 
 import type {
+  ActivityEntry,
   AppState,
   AuditEntry,
+  Contact,
+  ContractFunction,
+  MemberReachability,
+  ProposalPreview,
+  ProposalView,
+  TokenBalance,
+  TokenInfo,
   FoundingState,
   InvitePreview,
   LobbyView,
@@ -23,6 +31,28 @@ const hex = (bytes?: number) =>
       "Expected hex",
     );
 const address = hex(32);
+/** A token amount in base units, as a decimal string (u128 range). */
+const amount = z.string().regex(/^[1-9]\d{0,38}$/u, "Enter a positive whole number of base units");
+const memo = z.string().trim().max(280).optional();
+const arg = z.string().trim().max(200);
+const intent = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("transfer"), token: address, to: address, amount, memo }),
+  z.object({
+    kind: z.literal("calls"),
+    calls: z
+      .array(
+        z.object({
+          to: address,
+          fn: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/u),
+          args: z.array(arg).max(32),
+        }),
+      )
+      .min(1)
+      .max(8),
+    memo,
+  }),
+]);
+const proposalRef = z.object({ vault: address, id: hex(32) });
 const name = z.string().trim().min(1, "Enter a name").max(48, "Keep it under 48 characters");
 const threshold = z.number().int().min(1).max(8);
 const nodeUrl = z
@@ -91,6 +121,34 @@ export const methods = {
     side: "engine",
     params: z.object({ vault: address, limit: z.number().int().min(1).max(500) }),
   },
+  "vault.peers": { side: "engine", params: z.object({ vault: address }) },
+  "vault.activity": { side: "engine", params: z.object({ vault: address }) },
+
+  // Assets.
+  "tokens.list": { side: "engine", params: z.object({ vault: address }) },
+  "tokens.add": { side: "engine", params: z.object({ vault: address, token: address }) },
+  "tokens.deployTest": { side: "engine", params: z.object({ vault: address }) },
+
+  // Proposals: create, inspect, approve, execute, cancel.
+  "proposals.list": { side: "engine", params: z.object({ vault: address }) },
+  "proposals.get": { side: "engine", params: proposalRef },
+  "proposals.preview": {
+    side: "engine",
+    params: z.object({ vault: address, intent, expiresInHours: z.number().int().min(1).max(720) }),
+  },
+  "proposals.create": {
+    side: "engine",
+    params: z.object({ vault: address, intent, expiresInHours: z.number().int().min(1).max(720) }),
+  },
+  "proposals.approve": { side: "engine", params: proposalRef },
+  "proposals.execute": { side: "engine", params: proposalRef },
+  "proposals.cancel": { side: "engine", params: proposalRef },
+  "contracts.functions": { side: "engine", params: z.object({ contract: address }) },
+
+  // Address book (local only).
+  "contacts.list": { side: "main", params: none },
+  "contacts.put": { side: "main", params: z.object({ address, label: name }) },
+  "contacts.remove": { side: "main", params: z.object({ address }) },
 } as const;
 
 export type Method = keyof typeof methods;
@@ -120,6 +178,22 @@ export interface Results {
   "vault.list": VaultSummary[];
   "vault.details": VaultDetails;
   "vault.audit": AuditEntry[];
+  "vault.peers": MemberReachability[];
+  "vault.activity": ActivityEntry[];
+  "tokens.list": TokenBalance[];
+  "tokens.add": TokenInfo;
+  "tokens.deployTest": TokenInfo;
+  "proposals.list": ProposalView[];
+  "proposals.get": ProposalView;
+  "proposals.preview": ProposalPreview;
+  "proposals.create": ProposalView;
+  "proposals.approve": ProposalView;
+  "proposals.execute": ProposalView;
+  "proposals.cancel": ProposalView;
+  "contracts.functions": ContractFunction[];
+  "contacts.list": Contact[];
+  "contacts.put": Contact[];
+  "contacts.remove": Contact[];
 }
 
 export type EngineMethod = {

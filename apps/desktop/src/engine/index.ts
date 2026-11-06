@@ -30,6 +30,7 @@ async function initialize(message: Extract<MainToEngine, { kind: "init" }>): Pro
       await host("vault.save", record);
     },
     adoptAccount: (account) => post({ kind: "ready", account }),
+    call: host,
   });
   await engine.start();
   post({ kind: "ready" });

@@ -75,4 +75,12 @@ export type EngineToMain =
     };
 
 /** Calls the engine makes back into the main process. */
-export type HostMethod = "vault.save";
+export type HostMethod = "vault.save" | "signer.approve";
+
+/** `signer.approve` params: what the member confirms before the main process signs. */
+export interface ApproveRequest {
+  readonly vaultName: string;
+  readonly summary: string;
+  readonly message: string;
+  readonly slot: number;
+}

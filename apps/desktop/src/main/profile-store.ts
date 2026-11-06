@@ -1,12 +1,14 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { Profile, Settings } from "@shared/types.ts";
+import type { Contact, Profile, Settings } from "@shared/types.ts";
 
 /** Non-secret profile data and settings, as plain JSON in the data directory. */
 export interface StoredProfile {
   readonly profile: Profile | null;
   readonly settings: Settings;
+  /** Address book: labelled counterparties, kept on this device only. */
+  readonly contacts: readonly Contact[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,7 +20,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export class ProfileStore {
   readonly #path: string;
-  #value: StoredProfile = { profile: null, settings: DEFAULT_SETTINGS };
+  #value: StoredProfile = { profile: null, settings: DEFAULT_SETTINGS, contacts: [] };
 
   constructor(dir: string) {
     this.#path = join(dir, "profile.json");
@@ -34,9 +36,10 @@ export class ProfileStore {
       this.#value = {
         profile: stored.profile ?? null,
         settings: { ...DEFAULT_SETTINGS, ...stored.settings },
+        contacts: stored.contacts ?? [],
       };
     } catch {
-      this.#value = { profile: null, settings: DEFAULT_SETTINGS };
+      this.#value = { profile: null, settings: DEFAULT_SETTINGS, contacts: [] };
     }
     return this.#value;
   }

@@ -27,6 +27,8 @@ const emit = (event: AppEvent) => {
 
 /** Native confirmation before every signature; Touch ID too where the Mac has it. */
 async function confirm(prompt: ApprovalPrompt): Promise<boolean> {
+  // End-to-end tests drive three instances and cannot click native dialogs. Development builds only.
+  if (!app.isPackaged && process.env.TECPAN_TEST_AUTO_APPROVE === "1") return true;
   const owner = window && !window.isDestroyed() ? window : undefined;
   const options = {
     type: "question" as const,

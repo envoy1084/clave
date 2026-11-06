@@ -3,7 +3,12 @@ import { readdir } from "node:fs/promises";
 import { Fr } from "@aztec-labs/foundation/curves/bn254";
 import { GrumpkinScalar } from "@aztec-labs/foundation/curves/grumpkin";
 import type { Method, Params, Results } from "@shared/contract.ts";
-import type { EngineInit, HostMethod, VaultRecord } from "@shared/engine-protocol.ts";
+import type {
+  ApproveRequest,
+  EngineInit,
+  HostMethod,
+  VaultRecord,
+} from "@shared/engine-protocol.ts";
 import type { AppEvent, AppState, Settings, VaultSummary } from "@shared/types.ts";
 import { clipboard, shell } from "electron";
 
@@ -111,6 +116,27 @@ export class Controller {
       }
       case "node.probe":
         return probeNode((params as Params<"node.probe">).nodeUrl);
+      case "contacts.list":
+        return this.#profiles.value.contacts;
+      case "contacts.put": {
+        const { address, label } = params as Params<"contacts.put">;
+        await this.#profiles.update((v) => ({
+          ...v,
+          contacts: [
+            ...v.contacts.filter((c) => c.address.toLowerCase() !== address.toLowerCase()),
+            { address, label },
+          ],
+        }));
+        return this.#profiles.value.contacts;
+      }
+      case "contacts.remove": {
+        const { address } = params as Params<"contacts.remove">;
+        await this.#profiles.update((v) => ({
+          ...v,
+          contacts: v.contacts.filter((c) => c.address.toLowerCase() !== address.toLowerCase()),
+        }));
+        return this.#profiles.value.contacts;
+      }
       case "keeper.restart":
         await this.#keeper.restart();
         return null;
@@ -145,6 +171,7 @@ export class Controller {
       } satisfies AccountSecrets);
     }
     await this.#profiles.update((v) => ({
+      ...v,
       settings: { ...v.settings, nodeUrl },
       profile: { name, signerKey: signer.publicKey, account: "", createdAt: Date.now() },
     }));
@@ -217,6 +244,11 @@ export class Controller {
         this.#vaults.set(record.address.toLowerCase(), record);
         this.#broadcast();
         return null;
+      }
+      case "signer.approve": {
+        // The engine asks; the member confirms in a native dialog; only the signature goes back.
+        const signer = await this.#openSigner();
+        return signer.signApproval(params as ApproveRequest);
       }
     }
   }
