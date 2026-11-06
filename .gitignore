@@ -1,0 +1,44 @@
+# Local investigation notes; promote verified decisions into architecture/
+/research/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output and caches
+dist/
+build/
+.turbo/
+.vite/
+*.tsbuildinfo
+coverage/
+
+# Noir / Aztec
+target/
+codegenCache.json
+contracts/**/Prover.toml
+packages/sdk/src/artifacts/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local tooling state
+.claude/settings.local.json
+lefthook-local.yml
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
