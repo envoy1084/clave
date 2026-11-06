@@ -61,10 +61,21 @@ pub enum Event {
     },
     /// An approval arrived or was stored.
     Approval {
+        /// Vault (hex).
+        vault: String,
         /// Proposal id (hex).
         proposal: String,
         /// Signer slot.
         slot: u32,
+    },
+    /// An execution receipt was stored (put locally or replicated from a member).
+    Receipt {
+        /// Vault (hex).
+        vault: String,
+        /// Proposal id (hex).
+        proposal: String,
+        /// Transaction hash (hex).
+        tx_hash: String,
     },
     /// A lobby changed: opened or joined, roster changed, started or closed.
     Lobby {

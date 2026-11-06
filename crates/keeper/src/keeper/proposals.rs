@@ -48,9 +48,7 @@ impl Keeper {
         proposal: [u8; 32],
         tx_hash: [u8; 32],
     ) -> Result<()> {
-        self.0
-            .store
-            .put_receipt(&proposal, &vault, &tx_hash, self.now())?;
+        self.store_receipt(vault, proposal, tx_hash)?;
         self.broadcast(
             vault,
             Message::ExecutionReceipt(ExecutionReceipt { proposal, tx_hash }),
@@ -88,6 +86,14 @@ impl Keeper {
     /// Storage errors.
     pub fn proposal(&self, id: [u8; 32]) -> Result<Option<Vec<u8>>> {
         Ok(self.0.store.proposal(&id)?.map(|(_, body)| body))
+    }
+
+    /// Receipts of `vault`, newest first.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn receipts(&self, vault: [u8; 32]) -> Result<Vec<crate::store::ReceiptEntry>> {
+        self.0.store.receipt_entries(&vault)
     }
 
     /// Approval bodies of a proposal.
@@ -150,9 +156,7 @@ impl Keeper {
                 self.store_approval(vault, &approval).await
             }
             Message::ExecutionReceipt(receipt) => {
-                self.0
-                    .store
-                    .put_receipt(&receipt.proposal, &vault, &receipt.tx_hash, self.now())
+                self.store_receipt(vault, receipt.proposal, receipt.tx_hash)
             }
             _ => Ok(()),
         };
@@ -190,6 +194,21 @@ impl Keeper {
             });
         }
         Ok(id)
+    }
+
+    fn store_receipt(&self, vault: [u8; 32], proposal: [u8; 32], tx_hash: [u8; 32]) -> Result<()> {
+        if self
+            .0
+            .store
+            .put_receipt(&proposal, &vault, &tx_hash, self.now())?
+        {
+            self.emit(Event::Receipt {
+                vault: hex::encode(vault),
+                proposal: hex::encode(proposal),
+                tx_hash: hex::encode(tx_hash),
+            });
+        }
+        Ok(())
     }
 
     async fn store_approval(&self, vault: [u8; 32], approval: &Approval) -> Result<()> {
@@ -231,6 +250,7 @@ impl Keeper {
             .put_approval(&approval.proposal, approval.slot, &body, self.now())?
         {
             self.emit(Event::Approval {
+                vault: hex::encode(vault),
                 proposal: hex::encode(approval.proposal),
                 slot: approval.slot,
             });

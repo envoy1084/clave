@@ -47,6 +47,17 @@ pub struct CeremonyRow {
     pub result: Option<String>,
 }
 
+/// A stored execution receipt.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReceiptEntry {
+    /// Proposal id.
+    pub proposal: [u8; 32],
+    /// Transaction that executed it.
+    pub tx_hash: [u8; 32],
+    /// Unix seconds it was stored.
+    pub at: u64,
+}
+
 /// One ECDH audit entry.
 #[derive(Clone, Debug, Serialize)]
 pub struct AuditEntry {
@@ -434,7 +445,8 @@ impl Store {
         })
     }
 
-    /// Records that `proposal` executed in `tx_hash`.
+    /// Records that `proposal` executed in `tx_hash`. Returns whether anything changed (a new receipt, or one that
+    /// replaces a different transaction); storing the same receipt again keeps its original time.
     ///
     /// # Errors
     /// Storage errors.
@@ -444,13 +456,38 @@ impl Store {
         vault: &[u8; 32],
         tx_hash: &[u8; 32],
         now: u64,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.with(|c| {
             c.execute(
-                "INSERT OR REPLACE INTO receipts (proposal, vault, tx_hash, created_at) VALUES (?1, ?2, ?3, ?4)",
+                "INSERT INTO receipts (proposal, vault, tx_hash, created_at) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (proposal) DO UPDATE SET
+                    vault = excluded.vault, tx_hash = excluded.tx_hash, created_at = excluded.created_at
+                 WHERE receipts.vault IS NOT excluded.vault OR receipts.tx_hash IS NOT excluded.tx_hash",
                 params![proposal, vault, tx_hash, ts(now)],
             )
-            .map(drop)
+            .map(|n| n > 0)
+        })
+    }
+
+    /// Every receipt of `vault` with the time it was stored, newest first.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn receipt_entries(&self, vault: &[u8; 32]) -> Result<Vec<ReceiptEntry>> {
+        self.with(|c| {
+            let mut statement = c.prepare(
+                "SELECT proposal, tx_hash, created_at FROM receipts WHERE vault = ?1
+                 ORDER BY created_at DESC, rowid DESC",
+            )?;
+            statement
+                .query_map(params![vault], |row| {
+                    Ok(ReceiptEntry {
+                        proposal: row.get(0)?,
+                        tx_hash: row.get(1)?,
+                        at: u64::try_from(row.get::<_, i64>(2)?).unwrap_or(0),
+                    })
+                })?
+                .collect()
         })
     }
 

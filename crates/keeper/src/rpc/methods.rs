@@ -10,6 +10,7 @@ use crate::{
     Error, Keeper, Result,
     ceremony::dkg::DkgParams,
     keeper::{DkgResult, ReshareRequest, ReshareResult, VaultInfo},
+    store::ReceiptEntry,
 };
 
 #[derive(Deserialize)]
@@ -119,6 +120,14 @@ fn vault_json(info: &VaultInfo) -> Value {
         "status": info.status,
         "index": info.index,
         "serving": info.serving,
+    })
+}
+
+fn receipt_json(receipt: &ReceiptEntry) -> Value {
+    json!({
+        "proposal": hex32(&receipt.proposal),
+        "txHash": hex32(&receipt.tx_hash),
+        "at": receipt.at,
     })
 }
 
@@ -310,6 +319,16 @@ pub(super) async fn call(keeper: &Keeper, method: &str, value: Value) -> Result<
                 )
                 .await?;
             Ok(Value::Bool(true))
+        }
+        "receipts.list" => {
+            let p: VaultParam = params(value)?;
+            Ok(Value::Array(
+                keeper
+                    .receipts(parse32(&p.vault)?)?
+                    .iter()
+                    .map(receipt_json)
+                    .collect(),
+            ))
         }
         "audit.list" => {
             let p: Audit = params(value)?;

@@ -1,5 +1,5 @@
 //! Keepers on an in-memory network: DKG, threshold ECDH, reshare with activation and removal, malicious members,
-//! rate limits, timeouts, restarts and proposal replication.
+//! rate limits, timeouts, restarts, and proposal replication with its events.
 #![allow(
     clippy::unwrap_used,
     clippy::missing_panics_doc,
@@ -411,6 +411,8 @@ async fn keepers_resume_vaults_and_abort_interrupted_ceremonies_after_a_restart(
 #[tokio::test(flavor = "multi_thread")]
 async fn proposals_and_verified_approvals_replicate() {
     let v = vault(config()).await;
+    // Keeper 3 only ever sees these records through replication.
+    let mut records = v.keepers[2].keeper.subscribe();
     let proposal = Proposal {
         config_version: 0,
         outer_hash: [3; 32],
@@ -471,6 +473,43 @@ async fn proposals_and_verified_approvals_replicate() {
             .then_some(())
     })
     .await;
+    // Replicated records raise the same events as local ones, each naming its vault.
+    let vault = hex::encode(v.address);
+    let expected = [
+        Event::Proposal {
+            vault: vault.clone(),
+            id: hex::encode(id),
+        },
+        Event::Approval {
+            vault: vault.clone(),
+            proposal: hex::encode(id),
+            slot: 1,
+        },
+        Event::Receipt {
+            vault: vault.clone(),
+            proposal: hex::encode(id),
+            tx_hash: hex::encode([5; 32]),
+        },
+    ];
+    let mut seen = Vec::new();
+    while let Ok(event) = records.try_recv() {
+        seen.push(event);
+    }
+    for event in &expected {
+        assert!(seen.contains(event), "missing {event:?} in {seen:?}");
+    }
+    // The same receipt again is not news (the event is emitted before `put_receipt` returns).
+    let mut again = v.keepers[2].keeper.subscribe();
+    v.keepers[2]
+        .keeper
+        .put_receipt(v.address, id, [5; 32])
+        .await
+        .unwrap();
+    assert!(!matches!(again.try_recv(), Ok(Event::Receipt { .. })));
+    let receipts = v.keepers[2].keeper.receipts(v.address).unwrap();
+    assert_eq!(receipts.len(), 1);
+    assert_eq!((receipts[0].proposal, receipts[0].tx_hash), (id, [5; 32]));
+
     let mut events = v.keepers[2].keeper.subscribe();
     assert!(!v.keepers[2].keeper.observe_tx(v.address, [6; 32]).unwrap());
     let alert = eventually(async || match events.try_recv() {
@@ -501,5 +540,31 @@ async fn an_unknown_committee_on_chain_raises_an_alert() {
             .await
             .unwrap(),
         Observation::Current
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_receipt_put_by_one_member_reaches_the_others_as_an_event() {
+    let v = vault(config()).await;
+    let a = &v.keepers[0].keeper;
+    // B stores a receipt; A's subscriber hears about it.
+    let mut events = a.subscribe();
+    v.keepers[1]
+        .keeper
+        .put_receipt(v.address, [8; 32], [9; 32])
+        .await
+        .unwrap();
+    let receipt = eventually(async || match events.try_recv() {
+        Ok(event @ Event::Receipt { .. }) => Some(event),
+        _ => None,
+    })
+    .await;
+    assert_eq!(
+        receipt,
+        Event::Receipt {
+            vault: hex::encode(v.address),
+            proposal: hex::encode([8; 32]),
+            tx_hash: hex::encode([9; 32]),
+        }
     );
 }

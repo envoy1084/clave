@@ -294,3 +294,69 @@ async fn lobby_methods_found_a_vault_plan() {
         "a started lobby cannot be closed"
     );
 }
+
+/// Reads the event stream until an event of `kind` arrives.
+async fn next_event(events: &mut Client, kind: &str) -> Value {
+    loop {
+        let mut line = String::new();
+        tokio::time::timeout(Duration::from_secs(5), events.reader.read_line(&mut line))
+            .await
+            .unwrap()
+            .unwrap();
+        let value: Value = serde_json::from_str(&line).unwrap();
+        if value["method"] == "event" && value["params"]["type"] == kind {
+            eprintln!("<-- event {value}");
+            return value["params"].clone();
+        }
+    }
+}
+
+fn hex0x(bytes: &[u8]) -> String {
+    format!("0x{}", hex::encode(bytes))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn receipts_and_receipt_events() {
+    let harness = Harness::new(KeeperConfig::default());
+    let keepers: Vec<common::TestKeeper> = (1..=3).map(|i| harness.keeper(i)).collect();
+    let refs: Vec<&common::TestKeeper> = keepers.iter().collect();
+    let result = common::run_dkg(&refs, 2, [1; 32]).await;
+    let (manifest, _) = common::manifest(&refs, &result, 7);
+    for k in &keepers {
+        k.keeper
+            .register_vault([1; 32], manifest.clone())
+            .await
+            .unwrap();
+    }
+    let vault = hex0x(&manifest.vault);
+    let mut a = authenticated(&keepers[0]).await;
+    let mut b = authenticated(&keepers[1]).await;
+    let mut events = Client::connect(&keepers[0].dir.path().join("k.sock")).await;
+    events
+        .call("session.auth", json!({ "token": "token" }))
+        .await;
+    events.call("events.subscribe", Value::Null).await;
+
+    // B records an execution; A's stream carries it and A lists it.
+    exchange(
+        &mut b,
+        "receipts.put",
+        json!({ "vault": vault, "proposal": hex0x(&[8; 32]), "txHash": hex0x(&[9; 32]) }),
+    )
+    .await;
+    let event = next_event(&mut events, "receipt").await;
+    assert_eq!(
+        event,
+        json!({
+            "type": "receipt",
+            "vault": hex::encode(manifest.vault),
+            "proposal": hex::encode([8; 32]),
+            "txHash": hex::encode([9; 32]),
+        })
+    );
+    let receipts = exchange(&mut a, "receipts.list", json!({ "vault": vault })).await;
+    assert_eq!(
+        receipts,
+        json!([{ "proposal": hex0x(&[8; 32]), "txHash": hex0x(&[9; 32]), "at": 1_700_000_000 }])
+    );
+}
