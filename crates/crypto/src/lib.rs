@@ -13,6 +13,7 @@ pub mod dkg;
 pub mod ecdh;
 pub mod envelope;
 mod error;
+pub mod mailbox;
 pub mod poseidon2;
 pub mod reshare;
 pub mod schnorr;

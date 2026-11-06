@@ -28,6 +28,7 @@ sha2 = "0.11"
 subtle = "2.6"
 taceo-poseidon2 = { version = "0.3", default-features = false, features = ["bn254", "t4"] }
 thiserror = "2"
+x25519-dalek = { version = "3", default-features = false, features = ["static_secrets", "zeroize"] }
 zeroize = { version = "1.9", features = ["derive"] }
 
 [dev-dependencies]

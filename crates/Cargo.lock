@@ -2047,6 +2047,7 @@ dependencies = [
  "subtle",
  "taceo-poseidon2",
  "thiserror",
+ "x25519-dalek",
  "zeroize",
 ]
 
