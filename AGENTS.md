@@ -14,6 +14,7 @@ and one signer's PXE assembles the witness, proves and submits.
 contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
   tecpan_contract/      the multisig account contract
   tecpan_test/          TestEnvironment tests
+  test_signer_contract/ test-only helper exposing TXE signatures; never deploy
 packages/
   protocol/           Effect Schema models, IDs, DTOs and expected errors; no I/O
   api/                HttpApi declarations for the coordinator; no handlers
@@ -68,7 +69,14 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, tsup) or Eff
 - Noir has no early `return`; use `panic("msg")` for unconditional failures. Library asserts carry
   messages; test asserts do not. Use `#[test(should_fail_with = "...")]` for failure cases.
 - Signature loops are bounded by the compile-time `MAX_SIGNERS`; proof time scales with it. Profile
-  gates before raising it.
+  with `aztec profile gates target` (and `aztec profile flamegraph`) before and after any contract
+  change that affects circuits, and update the gate tables in `architecture/contract.md`.
+- Authorization must stay valid in static calls: read the config with `get_note` plus
+  `assert_local_note_was_not_nullified_by`, never `SinglePrivateMutable::get_note` (it nullifies).
+- The witness layout and approval message are a wire format shared with the SDK. Change them only
+  together with `architecture/contract.md` and the SDK encoder.
+- Config-changing functions deliver notes with constrained delivery; only the constructor may use
+  unconstrained delivery (see `architecture/contract.md`).
 - Signer and threshold changes must only run inside an approved payload
   (`msg_sender == this address`) and must keep `1 <= threshold <= signer_count`.
 
