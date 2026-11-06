@@ -8,6 +8,7 @@
 mod codec;
 mod error;
 mod identity;
+pub mod mailbox;
 pub mod messages;
 mod replay;
 mod signed;

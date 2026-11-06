@@ -3,9 +3,15 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_wire::{Message, decode, decode_body, encode, encode_body};
+use tecpan_wire::{Message, decode, decode_body, encode, encode_body, mailbox};
 
 fuzz_target!(|data: &[u8]| {
+    if let Ok(request) = mailbox::decode_request(data) {
+        assert_eq!(mailbox::encode(&request).ok().as_deref(), Some(data));
+    }
+    if let Ok(response) = mailbox::decode_response(data) {
+        assert_eq!(mailbox::encode(&response).ok().as_deref(), Some(data));
+    }
     if let Ok(body) = decode_body(data) {
         assert_eq!(encode_body(&body).ok().as_deref(), Some(data));
         exercise(&body);

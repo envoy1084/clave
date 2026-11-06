@@ -39,6 +39,10 @@ pub const MAX_ADDRESS_BYTES: usize = 256;
 pub const MAX_SEALED_SHARE_BYTES: usize = 256;
 /// Largest relay payload.
 pub const MAX_RELAY_BYTES: usize = 512 * 1024;
+/// Largest forwarded frame in an [`Echo`].
+pub const MAX_ECHO_BYTES: usize = 64 * 1024;
+/// Most records of each kind in one [`SyncRequest`].
+pub const MAX_SYNC_ITEMS: usize = 4096;
 /// Domain tag of proposal ids.
 pub const PROPOSAL_DOMAIN: &[u8] = b"tecpan.proposal.v0";
 
@@ -77,6 +81,10 @@ pub enum Message {
     ExecutionReceipt(ExecutionReceipt),
     /// Ciphertext for an offline recipient, via a relay.
     RelayEnvelope(RelayEnvelope),
+    /// A participant forwards a dealer's signed broadcast so every participant sees every version of it.
+    Echo(Echo),
+    /// A member lists what it holds so peers send what it is missing.
+    SyncRequest(SyncRequest),
 }
 
 impl Message {
@@ -99,6 +107,12 @@ impl Message {
                 bounded("summary", m.summary.len(), 0, MAX_SUMMARY_BYTES)
             }
             Self::RelayEnvelope(m) => bounded("sealed", m.sealed.len(), 1, MAX_RELAY_BYTES),
+            Self::Echo(m) => bounded("frame", m.frame.len(), 1, MAX_ECHO_BYTES),
+            Self::SyncRequest(m) => {
+                bounded("proposals", m.proposals.len(), 0, MAX_SYNC_ITEMS)?;
+                bounded("approvals", m.approvals.len(), 0, MAX_SYNC_ITEMS)?;
+                bounded("receipts", m.receipts.len(), 0, MAX_SYNC_ITEMS)
+            }
             Self::DkgConfirm(_)
             | Self::ReshareConfirm(_)
             | Self::Complaint(_)
@@ -671,4 +685,35 @@ pub struct RelayEnvelope {
     pub expires_at: u64,
     /// Sealed bytes (an encoded, sealed `SignedMessage`).
     pub sealed: Vec<u8>,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------
+// Echo broadcast and sync
+
+/// A dealer's signed ceremony broadcast (DKG round 1 or reshare deal), forwarded verbatim by another participant.
+/// Two different packages signed by the same dealer prove equivocation.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Echo {
+    /// The dealer's encoded `SignedMessage`.
+    pub frame: Vec<u8>,
+}
+
+/// An approval a member holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ApprovalRef {
+    /// Proposal id.
+    pub proposal: [u8; 32],
+    /// Signer slot.
+    pub slot: u32,
+}
+
+/// What a member already holds for a vault; peers answer with the records it lacks.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncRequest {
+    /// Proposal ids.
+    pub proposals: Vec<[u8; 32]>,
+    /// Approvals by proposal and slot.
+    pub approvals: Vec<ApprovalRef>,
+    /// Executed proposal ids.
+    pub receipts: Vec<[u8; 32]>,
 }

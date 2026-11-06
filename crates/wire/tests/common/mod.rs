@@ -11,9 +11,9 @@ use tecpan_crypto::{Point, Scalar, SecretScalar};
 use tecpan_wire::{
     Header, KeeperIdentity, Message, SignedMessage,
     messages::{
-        Abort, AbortReason, Approval, Ceremony, Complaint, Confirm, DkgRound1, EcdhPurpose,
-        EcdhRequest, EcdhResponse, ExecutionReceipt, Justification, Manifest, Member, Proposal,
-        RelayEnvelope, ReshareDeal, SealedShare, WirePartial,
+        Abort, AbortReason, Approval, ApprovalRef, Ceremony, Complaint, Confirm, DkgRound1,
+        EcdhPurpose, EcdhRequest, EcdhResponse, Echo, ExecutionReceipt, Justification, Manifest,
+        Member, Proposal, RelayEnvelope, ReshareDeal, SealedShare, SyncRequest, WirePartial,
     },
     types::{Bytes64, WirePoint},
 };
@@ -168,6 +168,23 @@ pub fn samples() -> Vec<(&'static str, Message)> {
                 recipient: [0x10; 32],
                 expires_at: NOW + 86_400,
                 sealed: vec![1; 64],
+            }),
+        ),
+        (
+            "echo",
+            Message::Echo(Echo {
+                frame: vec![0xab; 40],
+            }),
+        ),
+        (
+            "sync_request",
+            Message::SyncRequest(SyncRequest {
+                proposals: vec![[0x0d; 32]],
+                approvals: vec![ApprovalRef {
+                    proposal: [0x0d; 32],
+                    slot: 1,
+                }],
+                receipts: vec![],
             }),
         ),
     ]
