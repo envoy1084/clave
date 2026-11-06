@@ -1,0 +1,16 @@
+{
+  "name": "@tecpan/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tecpan vault contract (Aztec.nr v6, Noir 1.0)",
+  "type": "module",
+  "scripts": {
+    "build": "aztec compile",
+    "codegen": "aztec codegen target -o artifacts",
+    "format": "aztec-nargo fmt --workspace",
+    "format:check": "aztec-nargo fmt --workspace --check",
+    "lint": "aztec-nargo fmt --workspace --check",
+    "profile": "aztec profile gates target",
+    "test": "aztec test"
+  }
+}
