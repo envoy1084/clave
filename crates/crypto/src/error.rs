@@ -38,6 +38,9 @@ pub enum Error {
     /// A member's DLEQ proof (or other proof) does not verify.
     #[error("invalid proof from member {0}")]
     InvalidProof(u32),
+    /// A dealer's share does not match its Feldman commitments (raise a complaint against the dealer).
+    #[error("invalid share from dealer {0}")]
+    InvalidShare(u32),
     /// Input has the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {

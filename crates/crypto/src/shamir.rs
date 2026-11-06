@@ -49,6 +49,12 @@ impl Polynomial {
         Ok(Self { coefficients })
     }
 
+    /// `f(0)`.
+    #[must_use]
+    pub fn evaluate_constant(&self) -> SecretScalar {
+        self.coefficients[0].clone()
+    }
+
     /// Number of evaluations needed to reconstruct `f(0)`.
     #[must_use]
     pub fn threshold(&self) -> usize {

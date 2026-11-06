@@ -9,6 +9,7 @@
 pub mod aztec;
 mod ct;
 pub mod curve;
+pub mod dkg;
 pub mod ecdh;
 mod error;
 pub mod poseidon2;
