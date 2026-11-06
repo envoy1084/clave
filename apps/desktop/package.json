@@ -9,7 +9,7 @@
     "build": "electron-vite build",
     "dev": "electron-vite dev",
     "lint": "oxlint --deny-warnings .",
-    "package": "electron-vite build && electron-builder --dir",
+    "package": "electron-vite build && electron-builder --dir -c.mac.identity=-",
     "start": "electron-vite preview",
     "test": "vitest run",
     "test:e2e": "pnpm build && playwright test",
