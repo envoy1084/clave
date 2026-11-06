@@ -1,0 +1,62 @@
+[package]
+name = "tecpan-cli"
+description = "tecpan: the Tecpan command line, a client of the per-profile tecpand daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tecpan"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive", "env"] }
+clap_complete = "4.6"
+qrcode = { version = "0.14", default-features = false }
+rpassword = "7.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zeroize = { version = "1.9", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSError",
+  "NSString",
+] }
+objc2-local-authentication = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "LAContext",
+  "LAError",
+] }
+security-framework = "3.7"
+
+[dev-dependencies]
+tempfile = "3.27"
+tokio = { version = "1.54", features = [
+  "rt-multi-thread",
+  "macros",
+  "net",
+  "io-util",
+  "sync",
+  "time",
+] }
+
+# Same as the workspace lints, except `unsafe_code` is `deny` instead of `forbid`: the macOS Touch ID module
+# (`secret/touch_id.rs`) calls LocalAuthentication through objc2, and is the only place allowed to opt out.
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+print_stdout = "warn"
+todo = "warn"
+unwrap_used = "warn"

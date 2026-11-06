@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["keeper", "crypto", "napi", "relay", "wire"]
+members = ["keeper", "cli", "crypto", "napi", "relay", "wire"]
 # Fuzz targets build with nightly via cargo-fuzz and are their own workspace.
 exclude = ["crypto/fuzz"]
 
