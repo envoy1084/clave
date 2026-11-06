@@ -35,6 +35,9 @@ pub enum Error {
         /// Provided.
         actual: usize,
     },
+    /// A member's DLEQ proof (or other proof) does not verify.
+    #[error("invalid proof from member {0}")]
+    InvalidProof(u32),
     /// Input has the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {
