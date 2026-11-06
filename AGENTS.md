@@ -93,5 +93,26 @@ These are product requirements. Any change that weakens one needs an explicit de
 
 ## Commands
 
-The phases add these as the components land. Run the narrowest relevant check first, then the full suite, and report
-skipped lanes and pre-existing failures rather than hiding them.
+Prerequisites: Node 24 (`.node-version`), pnpm 12 (`packageManager`), Rust 1.96.0 (`rust-toolchain.toml`), Aztec
+6.0.0 (`.aztecrc`, install with `aztec-up install 6.0.0`), `cargo-deny`.
+
+```sh
+pnpm install        # also installs git hooks
+pnpm check          # format check, lint (oxlint, clippy, nargo fmt), typecheck, build, cargo-deny
+pnpm test           # aztec test, cargo test, vitest
+pnpm format         # oxfmt, rustfmt, nargo fmt
+```
+
+Narrow lanes:
+
+```sh
+pnpm --filter @tecpan/contracts build|test|profile   # aztec compile / aztec test / gate counts
+pnpm --filter @tecpan/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
+pnpm --filter @tecpan/vault-wallet typecheck|test|build
+```
+
+Hooks: pre-commit runs oxfmt, oxlint, rustfmt and nargo fmt on staged files; commit-msg runs commitlint; pre-push runs
+`turbo run format:check lint typecheck test`. CI (`.github/workflows/ci.yml`) runs TypeScript, Rust and Noir jobs.
+
+Run the narrowest relevant check first, then the full suite, and report skipped lanes and pre-existing failures rather
+than hiding them.
