@@ -1,0 +1,15 @@
+{
+  "name": "@tecpan/aztec-vectors",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generates golden vectors from @aztec-labs/* for byte-compatibility tests in tecpan-crypto",
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs",
+    "test": "node generate.mjs --check"
+  },
+  "dependencies": {
+    "@aztec-labs/foundation": "catalog:",
+    "@aztec-labs/stdlib": "catalog:"
+  }
+}

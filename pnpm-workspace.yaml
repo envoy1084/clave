@@ -3,8 +3,11 @@ packages:
   - contracts
   - crates
   - packages/*
+  - tools/*
 
 catalog:
+  "@aztec-labs/foundation": 6.0.0
+  "@aztec-labs/stdlib": 6.0.0
   "@commitlint/cli": 21.2.4
   "@commitlint/config-conventional": 21.2.4
   "@types/node": 26.6.6
@@ -21,6 +24,9 @@ catalog:
 
 allowBuilds:
   lefthook: true
+  # Optional native accelerators pulled in by @aztec-labs/*; not needed by tools/aztec-vectors.
+  leveldown: false
+  msgpackr-extract: false
 
 minimumReleaseAgeExclude:
   - "@rolldown/binding-android-arm-eabi@1.3.0"

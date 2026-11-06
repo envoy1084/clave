@@ -1,10 +1,17 @@
-//! Threshold viewing-key cryptography for Tecpan vaults: Grumpkin arithmetic compatible with Aztec, distributed
-//! key generation, resharing and threshold ECDH with DLEQ proofs.
+//! Threshold viewing-key cryptography for Tecpan vaults.
 //!
-//! Implemented in Phase 5; this crate is an empty placeholder until then.
+//! Grumpkin arithmetic and encodings byte-compatible with Aztec 6.0.0, Aztec's Poseidon2, the vault contract's wire
+//! formats, Shamir sharing with Feldman commitments, distributed key generation, threshold ECDH with DLEQ proofs,
+//! committee resharing and authenticated envelopes. See `architecture/viewing-keys.md`.
+//!
+//! Secret scalars are [`SecretScalar`]: zeroized on drop, never printed, and multiplied with a constant-time ladder.
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_builds() {}
-}
+mod ct;
+pub mod curve;
+mod error;
+pub mod poseidon2;
+mod secret;
+
+pub use curve::{Base, Point, Scalar};
+pub use error::Error;
+pub use secret::SecretScalar;
