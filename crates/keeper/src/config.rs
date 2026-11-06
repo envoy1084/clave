@@ -1,6 +1,6 @@
 //! Keeper configuration: `<data>/keeper.toml` (optional), overridden by command-line flags.
 
-use std::{net::SocketAddr, path::Path, time::Duration};
+use std::{path::Path, time::Duration};
 
 use serde::Deserialize;
 
@@ -10,10 +10,10 @@ use crate::{Error, KeeperConfig, Result};
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub struct FileConfig {
-    /// Peer listen address.
-    pub listen: Option<SocketAddr>,
-    /// Address advertised to other members (default `tcp://<bound address>`).
-    pub advertise: Option<String>,
+    /// libp2p listen addresses (multiaddrs).
+    pub listen: Option<Vec<String>>,
+    /// Extra addresses to advertise (e.g. a forwarded public address).
+    pub external: Option<Vec<String>>,
     /// RPC socket path (named pipe on Windows).
     pub rpc_socket: Option<String>,
     /// Ceremony round timeout, seconds.

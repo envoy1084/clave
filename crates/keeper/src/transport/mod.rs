@@ -1,15 +1,16 @@
 //! How keepers reach each other. The keeper core only needs "send these bytes to that member" and a stream of inbound
-//! frames; frames are always `SignedMessage`s, so authenticity never depends on the transport. Implementations: an
-//! in-memory network for tests and a Noise-encrypted TCP transport; libp2p replaces the latter in Phase 9.
+//! frames; frames are always `SignedMessage`s, so authenticity never depends on the transport. Implementations: libp2p
+//! (QUIC/TCP, relay circuits, hole punching; see `architecture/networking.md`) and an in-memory network for tests.
 
 mod memory;
-mod noise;
-mod tcp;
+mod p2p;
+mod relay_mailbox;
 
 use std::{future::Future, pin::Pin};
 
 pub use memory::{MemoryNetwork, MemoryTransport};
-pub use tcp::TcpTransport;
+pub use p2p::{P2pConfig, P2pTransport, peer_id};
+pub use relay_mailbox::RelayMailbox;
 use tecpan_wire::{IdentityPublic, messages::Member};
 
 use crate::Result;

@@ -27,10 +27,25 @@ rand_core = "0.10"
 rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-snow = "0.10"
 subtle = "2.6"
 tecpan-crypto = { workspace = true }
-tecpan-wire = { workspace = true }
+tecpan-wire = { workspace = true, features = ["p2p"] }
+libp2p = { version = "0.57", features = [
+  "tokio",
+  "quic",
+  "tcp",
+  "dns",
+  "noise",
+  "yamux",
+  "identify",
+  "ping",
+  "request-response",
+  "relay",
+  "dcutr",
+  "macros",
+  "ed25519",
+] }
+futures = "0.3"
 thiserror = "2"
 tokio = { version = "1.54", features = [
   "rt-multi-thread",
@@ -49,6 +64,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 zeroize = { version = "1.9", features = ["derive"] }
 
 [dev-dependencies]
+tecpan-relay = { path = "../relay" }
 rand_chacha = "0.10"
 tempfile = "3.27"
 tecpan-crypto = { workspace = true, features = ["test-utils"] }

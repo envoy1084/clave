@@ -287,6 +287,29 @@ impl Keeper {
         }
     }
 
+    /// Sends with exponential backoff and jitter (from 200 ms, at most 10 s apart) until delivered or `give_up` passed.
+    pub(crate) async fn send_with_retry(
+        &self,
+        peer: Peer,
+        frame: Vec<u8>,
+        give_up: Duration,
+    ) -> bool {
+        let deadline = tokio::time::Instant::now() + give_up;
+        let mut backoff = Duration::from_millis(200);
+        loop {
+            if self.send(peer.clone(), frame.clone()).await {
+                return true;
+            }
+            let jitter = Duration::from_millis(u64::from(random_bytes::<1>()[0]));
+            let wait = backoff + jitter;
+            if tokio::time::Instant::now() + wait >= deadline {
+                return false;
+            }
+            tokio::time::sleep(wait).await;
+            backoff = (backoff * 2).min(Duration::from_secs(10));
+        }
+    }
+
     /// Refreshes the transport allowlist from every committee and ceremony.
     pub(crate) fn refresh_allowlist(&self, state: &State) {
         let me = self.identity();

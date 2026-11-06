@@ -7,7 +7,6 @@
 
 use std::{
     io::{BufRead, Write},
-    net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -19,9 +18,10 @@ use tecpan_keeper::{
     Error, Keeper, KeeperParts, Result, SystemClock,
     config::FileConfig,
     custody::{KeeperKeys, MasterKey, SecretStore, create_private_dir, write_private},
+    mailbox::MailboxService,
     rpc::{self, RpcToken},
     store::Store,
-    transport::TcpTransport,
+    transport::{P2pConfig, P2pTransport, RelayMailbox},
 };
 use zeroize::Zeroizing;
 
@@ -44,6 +44,24 @@ enum Command {
     Identity(Common),
     /// Runs the keeper.
     Run(Run),
+    /// Calls a method on a running keeper and prints the JSON result (operators and scripted tests).
+    #[cfg(unix)]
+    Rpc(RpcCall),
+}
+
+#[cfg(unix)]
+#[derive(clap::Args)]
+struct RpcCall {
+    /// The keeper's RPC socket.
+    #[arg(long)]
+    socket: PathBuf,
+    /// File holding the RPC token (`<data>/rpc.token` in passphrase mode).
+    #[arg(long)]
+    token_file: PathBuf,
+    /// Method, e.g. `keeper.info`.
+    method: String,
+    /// Params as JSON.
+    params: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -63,12 +81,15 @@ struct Run {
     /// RPC socket path (default `<data>/keeper.sock`).
     #[arg(long)]
     rpc_socket: Option<PathBuf>,
-    /// Peer listen address.
+    /// libp2p listen address (repeatable; default loopback QUIC and TCP on random ports).
     #[arg(long)]
-    listen: Option<SocketAddr>,
-    /// Address advertised to other members.
+    listen: Vec<String>,
+    /// Relay multiaddr ending in `/p2p/<peer id>` (repeatable): circuits for unreachable members and mailboxes.
     #[arg(long)]
-    advertise: Option<String>,
+    relay: Vec<String>,
+    /// Extra address to advertise (repeatable), e.g. a forwarded public address.
+    #[arg(long)]
+    external: Vec<String>,
     /// Log format.
     #[arg(long, value_enum, default_value_t = LogFormat::Text)]
     log_format: LogFormat,
@@ -153,15 +174,27 @@ async fn run(args: Run) -> Result<()> {
     let unlocked = unlock(&args.common)?;
     let keys = KeeperKeys::load_or_create(&unlocked.secrets)?;
     let store = Store::open(&data.join("keeper.db"))?;
-    let listen = args
-        .listen
-        .or(file.listen)
-        .unwrap_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)));
-    let (transport, inbound) = TcpTransport::bind(listen, &keys.transport).await?;
-    let advertise = args
-        .advertise
-        .or_else(|| file.advertise.clone())
-        .unwrap_or_else(|| format!("tcp://{}", transport.local_addr()));
+    let pick = |cli: Vec<String>, file: Option<Vec<String>>| {
+        if cli.is_empty() {
+            file.unwrap_or_default()
+        } else {
+            cli
+        }
+    };
+    let mut p2p = P2pConfig::default();
+    let listen = pick(args.listen, file.listen.clone());
+    if !listen.is_empty() {
+        p2p.listen = multiaddrs(&listen)?;
+    }
+    p2p.relays = multiaddrs(&pick(args.relay, file.relays.clone()))?;
+    p2p.external = multiaddrs(&pick(args.external, file.external.clone()))?;
+    let (transport, inbound) = P2pTransport::start(&keys.identity.seed(), p2p).await?;
+    let addresses = transport.addresses().to_vec();
+    let mailbox: Option<Arc<dyn MailboxService>> = if transport.relays().is_empty() {
+        None
+    } else {
+        Some(Arc::new(RelayMailbox::new(Arc::clone(&transport))))
+    };
     let socket = args
         .rpc_socket
         .or_else(|| file.rpc_socket.as_ref().map(PathBuf::from))
@@ -184,11 +217,12 @@ async fn run(args: Run) -> Result<()> {
         inbound,
         clock: Arc::new(SystemClock),
         config: file.keeper_config(),
-        addresses: vec![advertise.clone()],
-        mailbox: None,
+        addresses: addresses.clone(),
+        mailbox,
     })?;
     let mut ready = public;
-    ready["addresses"] = json!([advertise]);
+    ready["peerId"] = json!(transport.peer_id().to_string());
+    ready["addresses"] = json!(addresses);
     ready["rpcSocket"] = json!(socket.display().to_string());
     write_private(&data.join("keeper.json"), ready.to_string().as_bytes())?;
 
@@ -207,8 +241,52 @@ async fn run(args: Run) -> Result<()> {
         result = server => result.map_err(|e| Error::Invalid(e.to_string()))??,
         () = shutdown() => tracing::info!("shutting down"),
     }
+    transport.stop();
     let _ = std::fs::remove_file(&socket);
     Ok(())
+}
+
+fn multiaddrs(values: &[String]) -> Result<Vec<libp2p::Multiaddr>> {
+    values
+        .iter()
+        .map(|v| v.parse().map_err(|e| Error::Invalid(format!("{v}: {e}"))))
+        .collect()
+}
+
+/// `tecpan-keeper rpc`: one authenticated call over the socket.
+#[cfg(unix)]
+fn rpc_call(call: &RpcCall) -> Result<()> {
+    use std::{io::BufReader, os::unix::net::UnixStream};
+
+    let token = Zeroizing::new(std::fs::read_to_string(&call.token_file)?);
+    let params: serde_json::Value = match &call.params {
+        Some(p) => serde_json::from_str(p).map_err(|e| Error::Invalid(format!("params: {e}")))?,
+        None => serde_json::Value::Null,
+    };
+    let stream = UnixStream::connect(&call.socket)?;
+    let mut writer = stream.try_clone()?;
+    let mut reader = BufReader::new(stream);
+    let requests = [
+        json!({ "jsonrpc": "2.0", "id": 1, "method": "session.auth", "params": { "token": token.trim() } }),
+        json!({ "jsonrpc": "2.0", "id": 2, "method": call.method, "params": params }),
+    ];
+    for request in &requests {
+        writeln!(writer, "{request}")?;
+    }
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line)? == 0 {
+            return Err(Error::Transport("keeper closed the connection".into()));
+        }
+        let reply: serde_json::Value =
+            serde_json::from_str(&line).map_err(|e| Error::Invalid(e.to_string()))?;
+        if let Some(error) = reply.get("error") {
+            return Err(Error::Invalid(error.to_string()));
+        }
+        if reply.get("id") == Some(&json!(2)) {
+            return print(&reply["result"]);
+        }
+    }
 }
 
 #[cfg(unix)]
@@ -257,6 +335,8 @@ fn main() -> std::process::ExitCode {
                 .and_then(|unlocked| KeeperKeys::load_or_create(&unlocked.secrets))
                 .and_then(|keys| print(&identity_json(&keys)))
         }
+        #[cfg(unix)]
+        Command::Rpc(call) => rpc_call(&call),
         Command::Run(args) => {
             init_logging(args.log_format);
             tokio::runtime::Builder::new_multi_thread()

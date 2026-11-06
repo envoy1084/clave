@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 use tecpan_crypto::shamir::MemberIndex;
 use tecpan_wire::{
@@ -464,11 +466,14 @@ impl Keeper {
         sends
     }
 
+    /// Sends ceremony messages, retrying each until delivered or the round would have timed out (a member may not
+    /// have started the session yet, or be briefly unreachable).
     fn dispatch(&self, sends: Vec<(Peer, Vec<u8>)>) {
+        let give_up = Duration::from_secs(self.0.config.round_timeout_secs);
         for (peer, frame) in sends {
             let keeper = self.clone();
             tokio::spawn(async move {
-                keeper.send(peer, frame).await;
+                keeper.send_with_retry(peer, frame, give_up).await;
             });
         }
     }

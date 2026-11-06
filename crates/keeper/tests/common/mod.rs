@@ -159,23 +159,48 @@ pub fn status(keeper: &Keeper, session: [u8; 32]) -> String {
 
 /// Runs a DKG among `keepers` and returns its result.
 pub async fn run_dkg(keepers: &[&TestKeeper], threshold: u32, session: [u8; 32]) -> DkgResult {
+    let refs: Vec<&Keeper> = keepers.iter().map(|k| &k.keeper).collect();
+    run_dkg_among(&refs, threshold, session).await
+}
+
+/// A keeper as a ceremony participant, with the addresses it advertises.
+pub fn participant(keeper: &Keeper) -> Participant {
+    Participant {
+        identity: keeper.identity(),
+        transport: keeper.transport_key(),
+        addresses: keeper.addresses().to_vec(),
+    }
+}
+
+/// Runs a DKG among keepers on any transport and returns its result.
+pub async fn run_dkg_among(keepers: &[&Keeper], threshold: u32, session: [u8; 32]) -> DkgResult {
     let params = DkgParams {
         session,
         threshold,
-        members: keepers.iter().map(|k| k.participant()).collect(),
+        members: keepers.iter().map(|k| participant(k)).collect(),
     };
     for k in keepers {
-        k.keeper.start_dkg(params.clone()).await.unwrap();
+        k.start_dkg(params.clone()).await.unwrap();
     }
     for k in keepers {
-        eventually(async || (status(&k.keeper, session) == "completed").then_some(())).await;
+        eventually(async || (status(k, session) == "completed").then_some(())).await;
     }
-    serde_json::from_value(keepers[0].keeper.ceremony(session).unwrap().result.unwrap()).unwrap()
+    serde_json::from_value(keepers[0].ceremony(session).unwrap().result.unwrap()).unwrap()
 }
 
 /// A vault manifest for a DKG result, with signer keys whose secrets are returned.
 pub fn manifest(
     keepers: &[&TestKeeper],
+    result: &DkgResult,
+    seed: u64,
+) -> (Manifest, Vec<SecretScalar>) {
+    let refs: Vec<&Keeper> = keepers.iter().map(|k| &k.keeper).collect();
+    manifest_of(&refs, result, seed)
+}
+
+/// [`manifest`] for keepers on any transport; members carry their advertised addresses.
+pub fn manifest_of(
+    keepers: &[&Keeper],
     result: &DkgResult,
     seed: u64,
 ) -> (Manifest, Vec<SecretScalar>) {
@@ -193,9 +218,9 @@ pub fn manifest(
             index,
             signer_key: WirePoint::from(&Point::generator_mul_secret(signer).unwrap()),
             verification_share: *share,
-            identity: k.keeper.identity(),
-            transport: k.keeper.transport_key(),
-            addresses: Vec::new(),
+            identity: k.identity(),
+            transport: k.transport_key(),
+            addresses: k.addresses().to_vec(),
         })
         .collect();
     let manifest = Manifest {
