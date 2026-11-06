@@ -7,9 +7,25 @@ rust-version.workspace = true
 publish.workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
-# Same as the workspace lints, except `unsafe_code`: napi-rs bindings (Phase 6) expand to unsafe FFI code.
+[features]
+# Helpers that create or use secret shares, for tests only. Never enabled in release builds of the app.
+testing = ["dep:rand_chacha", "dep:rand_core", "tecpan-crypto/test-utils"]
+
+[dependencies]
+hex = "0.4"
+napi = { version = "3.16", default-features = false, features = ["napi8"] }
+napi-derive = "3.7"
+rand_chacha = { version = "0.10", optional = true }
+rand_core = { version = "0.10", optional = true }
+tecpan-crypto = { workspace = true }
+tecpan-wire = { workspace = true }
+
+[build-dependencies]
+napi-build = "2.6"
+
+# Same as the workspace lints, except `unsafe_code`: napi-rs bindings expand to unsafe FFI code.
 [lints.rust]
 unsafe_code = "allow"
 missing_docs = "warn"
@@ -22,3 +38,7 @@ dbg_macro = "warn"
 print_stdout = "warn"
 todo = "warn"
 unwrap_used = "warn"
+# `#[napi]` functions take owned JS values.
+needless_pass_by_value = "allow"
+# Every binding throws an `InvalidArg` JS error on bad input; documented once in `lib.rs`.
+missing_errors_doc = "allow"

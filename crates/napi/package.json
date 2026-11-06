@@ -1,0 +1,38 @@
+{
+  "name": "@tecpan/napi",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Node-API bindings of Tecpan crypto and wire",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./testing": {
+      "types": "./testing/index.d.ts",
+      "default": "./testing/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "napi build --platform --release --esm && napi build --platform --release --esm --features testing --output-dir testing",
+    "lint": "oxlint --deny-warnings test",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@aztec-labs/foundation": "catalog:",
+    "@aztec-labs/stdlib": "catalog:",
+    "@napi-rs/cli": "catalog:",
+    "@types/node": "catalog:",
+    "klarity": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "napi": {
+    "binaryName": "tecpan"
+  }
+}

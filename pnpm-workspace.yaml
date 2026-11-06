@@ -2,10 +2,12 @@ packages:
   - apps/*
   - contracts
   - crates
+  - crates/napi
   - packages/*
   - tools/*
 
 catalog:
+  "@napi-rs/cli": 3.10.9
   "@aztec-labs/foundation": 6.0.0
   "@aztec-labs/stdlib": 6.0.0
   "@commitlint/cli": 21.2.4

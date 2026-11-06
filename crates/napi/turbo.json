@@ -1,0 +1,22 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "build.rs",
+        "Cargo.toml",
+        "package.json",
+        "src/**",
+        "../Cargo.lock",
+        "../crypto/Cargo.toml",
+        "../crypto/src/**",
+        "../wire/Cargo.toml",
+        "../wire/src/**"
+      ],
+      "outputs": ["index.js", "index.d.ts", "*.node", "testing/**"]
+    },
+    "typecheck": { "dependsOn": ["build"] },
+    "test": { "dependsOn": ["build"], "outputs": [] }
+  }
+}
