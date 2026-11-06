@@ -1,6 +1,7 @@
 // Golden vectors from @aztec-labs/* for tecpan-crypto's byte-compatibility tests. Deterministic: same Aztec version,
 // same output. `--check` compares against the committed file instead of writing it.
 import { readFile, writeFile } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 
 import { Grumpkin } from "@aztec-labs/foundation/crypto/grumpkin";
 import {
@@ -118,11 +119,10 @@ const vectors = {
   scalarMuls,
   accounts,
 };
-const output = `${JSON.stringify(vectors, null, 2)}\n`;
-
 if (process.argv.includes("--check")) {
-  const committed = await readFile(OUTPUT, "utf8");
-  if (committed !== output) {
+  // Compare data, not bytes: the repository formatter may reflow the committed JSON.
+  const committed = JSON.parse(await readFile(OUTPUT, "utf8"));
+  if (!isDeepStrictEqual(committed, vectors)) {
     process.stderr.write(
       "crates/crypto/tests/vectors/aztec.json is stale: run `pnpm --filter @tecpan/aztec-vectors generate`\n",
     );
@@ -130,7 +130,7 @@ if (process.argv.includes("--check")) {
   }
   process.stdout.write("aztec vectors up to date\n");
 } else {
-  await writeFile(OUTPUT, output);
+  await writeFile(OUTPUT, `${JSON.stringify(vectors, null, 2)}\n`);
   process.stdout.write(
     `wrote ${scalarMuls.length} scalar muls, ${accounts.length} accounts (3 plain, 3 negated)\n`,
   );
