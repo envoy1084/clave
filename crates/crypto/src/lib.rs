@@ -13,6 +13,7 @@ pub mod dkg;
 pub mod ecdh;
 mod error;
 pub mod poseidon2;
+pub mod reshare;
 mod secret;
 pub mod shamir;
 pub mod vault;

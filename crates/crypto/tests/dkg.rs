@@ -1,6 +1,8 @@
 //! Distributed key generation: agreement, correctness end to end through threshold ECDH, and culprit detection.
 #![allow(clippy::unwrap_used, clippy::similar_names)]
 
+mod common;
+
 use ark_ff::One;
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
@@ -41,15 +43,6 @@ fn rounds(
     (secrets, round1, round2)
 }
 
-fn run(t: usize, n: u32, rng: &mut ChaCha20Rng) -> Vec<KeyShare> {
-    let params = parameters(t, n);
-    let (secrets, round1, round2) = rounds(&params, rng);
-    secrets
-        .into_iter()
-        .map(|s| dkg::finalize(&params, s, &round1, &round2).unwrap())
-        .collect()
-}
-
 fn interpolate(shares: &[&KeyShare]) -> Scalar {
     let set: Vec<MemberIndex> = shares.iter().map(|s| s.index()).collect();
     shares
@@ -62,7 +55,7 @@ fn interpolate(shares: &[&KeyShare]) -> Scalar {
 fn members_agree_and_shares_reconstruct_the_group_key() {
     let mut rng = ChaCha20Rng::seed_from_u64(11);
     for (t, n) in [(2, 3), (3, 5), (8, 8)] {
-        let shares = run(t, n, &mut rng);
+        let shares = common::run_dkg(t, n, &mut rng);
         let ivpk = *shares[0].group_public_key();
         for share in &shares {
             assert_eq!(*share.group_public_key(), ivpk);
@@ -85,7 +78,7 @@ fn members_agree_and_shares_reconstruct_the_group_key() {
 #[test]
 fn dkg_shares_drive_threshold_ecdh_end_to_end() {
     let mut rng = ChaCha20Rng::seed_from_u64(12);
-    let shares = run(2, 3, &mut rng);
+    let shares = common::run_dkg(2, 3, &mut rng);
     let preaddress = Base::from(0xabcdu64);
     let context = AddressContext::new(preaddress, shares[0].group_public_key()).unwrap();
     let ecdh = EcdhContext {

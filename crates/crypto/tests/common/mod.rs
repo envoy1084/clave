@@ -41,3 +41,30 @@ pub fn assert_point(actual: &Point, expected: &Value) {
         bytes(expected["compressed"].as_str().unwrap())
     );
 }
+
+/// Runs a full DKG for members `1..=n` with threshold `t`.
+pub fn run_dkg(
+    t: usize,
+    n: u32,
+    rng: &mut rand_chacha::ChaCha20Rng,
+) -> Vec<tecpan_crypto::dkg::KeyShare> {
+    use tecpan_crypto::dkg;
+    let params = dkg::Parameters {
+        session: [7u8; 32],
+        threshold: t,
+        participants: (1..=n).collect(),
+    };
+    let (secrets, round1): (Vec<_>, Vec<_>) = params
+        .participants
+        .iter()
+        .map(|&i| dkg::round1(&params, i, rng).unwrap())
+        .unzip();
+    let round2: Vec<_> = secrets
+        .iter()
+        .flat_map(|s| dkg::round2(&params, s, &round1).unwrap())
+        .collect();
+    secrets
+        .into_iter()
+        .map(|s| dkg::finalize(&params, s, &round1, &round2).unwrap())
+        .collect()
+}

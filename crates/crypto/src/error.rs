@@ -41,6 +41,9 @@ pub enum Error {
     /// A dealer's share does not match its Feldman commitments (raise a complaint against the dealer).
     #[error("invalid share from dealer {0}")]
     InvalidShare(u32),
+    /// A reshare's new commitments do not reconstruct the unchanged group key.
+    #[error("reshare does not preserve the group key")]
+    GroupKeyMismatch,
     /// Input has the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {
