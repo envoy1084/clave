@@ -149,6 +149,23 @@ async fn keepers_run_dkg_ecdh_and_replication_over_libp2p() {
     let first = ecdh(&nodes[0].keeper, vault, 0, &points).await;
     assert_eq!(ecdh(&nodes[2].keeper, vault, 0, &points).await, first);
 
+    // After the DKG and ECDH every member is directly connected, seen, and pinged.
+    let members = eventually(async || {
+        let members = nodes[0].keeper.peer_status(vault).await.unwrap();
+        members[1..]
+            .iter()
+            .all(|m| m.status.connected && m.status.rtt_ms.is_some())
+            .then_some(members)
+    })
+    .await;
+    assert!(members[0].you);
+    for (member, n) in members[1..].iter().zip(&nodes[1..]) {
+        assert!(!member.you);
+        assert_eq!(member.identity, n.keeper.identity());
+        assert!(!member.status.relayed);
+        assert!(member.status.last_seen.is_some());
+    }
+
     let body = proposal("over libp2p");
     nodes[1].keeper.put_proposal(vault, &body).await.unwrap();
     for n in [&nodes[0], &nodes[2]] {

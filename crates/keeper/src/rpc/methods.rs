@@ -9,8 +9,9 @@ use super::json::{
 use crate::{
     Error, Keeper, Result,
     ceremony::dkg::DkgParams,
-    keeper::{DkgResult, ReshareRequest, ReshareResult, VaultInfo},
+    keeper::{DkgResult, MemberReachability, ReshareRequest, ReshareResult, VaultInfo},
     store::ReceiptEntry,
+    transport::peer_id,
 };
 
 #[derive(Deserialize)]
@@ -123,6 +124,19 @@ fn vault_json(info: &VaultInfo) -> Value {
     })
 }
 
+fn reachability_json(member: &MemberReachability) -> Value {
+    json!({
+        "index": member.index,
+        "identity": hex32(&member.identity.0),
+        "peerId": peer_id(&member.identity).ok().map(|id| id.to_string()),
+        "you": member.you,
+        "connected": member.status.connected,
+        "relayed": member.status.relayed,
+        "lastSeen": member.status.last_seen,
+        "rttMs": member.status.rtt_ms,
+    })
+}
+
 fn receipt_json(receipt: &ReceiptEntry) -> Value {
     json!({
         "proposal": hex32(&receipt.proposal),
@@ -184,6 +198,17 @@ pub(super) async fn call(keeper: &Keeper, method: &str, value: Value) -> Result<
             let p: VaultParam = params(value)?;
             keeper.sync(parse32(&p.vault)?).await?;
             Ok(Value::Bool(true))
+        }
+        "peers.status" => {
+            let p: VaultParam = params(value)?;
+            Ok(Value::Array(
+                keeper
+                    .peer_status(parse32(&p.vault)?)
+                    .await?
+                    .iter()
+                    .map(reachability_json)
+                    .collect(),
+            ))
         }
         "mailbox.poll" => Ok(json!({ "delivered": keeper.poll_mailbox().await? })),
         "vault.observeTx" => {

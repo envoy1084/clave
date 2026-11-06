@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
 
@@ -10,7 +10,7 @@ use libp2p::{
     multiaddr::Protocol,
     noise, ping, relay,
     request_response::{self, OutboundRequestId, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
+    swarm::{ConnectionId, NetworkBehaviour, SwarmEvent},
     tcp, yamux,
 };
 use tecpan_wire::{
@@ -22,8 +22,8 @@ use tokio::{
     time::Instant,
 };
 
-use super::{Channel, Inbound, Peer, SendFuture, Transport, gate::Gate};
-use crate::{Error, Result};
+use super::{Channel, Inbound, Peer, PeerStatus, SendFuture, Transport, gate::Gate};
+use crate::{Clock, Error, Result, SystemClock};
 
 /// Most addresses a keeper advertises (the manifest's limit).
 const MAX_ADVERTISED: usize = 8;
@@ -105,6 +105,20 @@ struct Behaviour {
     mailbox: request_response::Behaviour<FrameCodec>,
 }
 
+/// What the node observed of one peer's connections.
+#[derive(Default)]
+struct Link {
+    /// Open connections and whether each is a relay circuit.
+    connections: HashMap<ConnectionId, bool>,
+    /// Unix seconds of the last established connection or received frame.
+    last_seen: Option<u64>,
+    /// Last ping round trip in milliseconds.
+    rtt_ms: Option<u64>,
+}
+
+/// Links by peer, shared between the swarm task (writer) and [`Transport::peer_status`] (reader).
+type Links = Arc<Mutex<HashMap<PeerId, Link>>>;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Lane {
     Ecdh,
@@ -155,6 +169,7 @@ enum Command {
 /// an open lobby (whose frames are then accepted on the lobby lane only).
 pub struct P2pTransport {
     commands: mpsc::UnboundedSender<Command>,
+    links: Links,
     peer_id: PeerId,
     relays: Vec<PeerId>,
     addresses: Vec<String>,
@@ -238,35 +253,24 @@ impl P2pTransport {
         }
 
         let (listening, reserved) = wait_ready(&mut swarm, &config, &relays).await;
-        // Direct addresses first (peers try them before relaying), relay circuits always included as the fallback.
-        let circuits: Vec<String> = relays
-            .iter()
-            .filter(|(id, _)| reserved.contains(id))
-            .map(|(_, relay)| relay.clone().with(Protocol::P2pCircuit).to_string())
-            .take(MAX_ADVERTISED)
-            .collect();
-        // A wildcard listener reports loopback too. Advertised to another host, a loopback address dials the dialer
-        // itself, and libp2p settles a dial on its first transport success, so that self-connection (wrong peer id)
-        // would fail the whole dial, relay circuit included. Loopback is advertised only by a loopback-only keeper.
-        let routable = listening.iter().any(|a| !is_loopback(a));
-        let mut addresses: Vec<String> = config
-            .external
-            .iter()
-            .chain(listening.iter().filter(|a| !(routable && is_loopback(a))))
-            .map(ToString::to_string)
-            .collect();
-        addresses.dedup();
-        addresses.truncate(MAX_ADVERTISED - circuits.len());
-        addresses.extend(circuits);
+        let addresses = advertised(&config, &relays, &listening, &reserved);
         tracing::info!(peer = %local, ?addresses, "p2p node ready");
 
         let (commands, rx) = mpsc::unbounded_channel();
         let (inbound, inbound_rx) = mpsc::unbounded_channel();
         let relay_ids: Vec<PeerId> = relays.iter().map(|(id, _)| *id).collect();
-        tokio::spawn(run(swarm, rx, inbound, relay_ids.iter().copied().collect()));
+        let links = Links::default();
+        tokio::spawn(run(
+            swarm,
+            rx,
+            inbound,
+            relay_ids.iter().copied().collect(),
+            Arc::clone(&links),
+        ));
         Ok((
             Arc::new(Self {
                 commands,
+                links,
                 peer_id: local,
                 relays: relay_ids,
                 addresses,
@@ -334,9 +338,57 @@ impl Transport for Arc<P2pTransport> {
     fn set_admission(&self, peers: Vec<Peer>, lobby_open: bool) {
         let _ = self.commands.send(Command::Allow { peers, lobby_open });
     }
+
+    fn peer_status(&self, peers: &[IdentityPublic]) -> Vec<PeerStatus> {
+        let links = self.links.lock().unwrap_or_else(PoisonError::into_inner);
+        peers
+            .iter()
+            .map(|identity| {
+                let Some(link) = peer_id(identity).ok().and_then(|id| links.get(&id)) else {
+                    return PeerStatus::default();
+                };
+                let connected = !link.connections.is_empty();
+                PeerStatus {
+                    connected,
+                    relayed: connected && link.connections.values().all(|relayed| *relayed),
+                    last_seen: link.last_seen,
+                    rtt_ms: link.rtt_ms,
+                }
+            })
+            .collect()
+    }
 }
 
-/// Waits until every listen address is bound and every relay accepted a reservation, or the timeout passes.
+/// Addresses to advertise: direct addresses first (peers try them before relaying), relay circuits always included as
+/// the fallback, at most [`MAX_ADVERTISED`].
+fn advertised(
+    config: &P2pConfig,
+    relays: &[(PeerId, Multiaddr)],
+    listening: &[Multiaddr],
+    reserved: &HashSet<PeerId>,
+) -> Vec<String> {
+    let circuits: Vec<String> = relays
+        .iter()
+        .filter(|(id, _)| reserved.contains(id))
+        .map(|(_, relay)| relay.clone().with(Protocol::P2pCircuit).to_string())
+        .take(MAX_ADVERTISED)
+        .collect();
+    // A wildcard listener reports loopback too. Advertised to another host, a loopback address dials the dialer
+    // itself, and libp2p settles a dial on its first transport success, so that self-connection (wrong peer id)
+    // would fail the whole dial, relay circuit included. Loopback is advertised only by a loopback-only keeper.
+    let routable = listening.iter().any(|a| !is_loopback(a));
+    let mut addresses: Vec<String> = config
+        .external
+        .iter()
+        .chain(listening.iter().filter(|a| !(routable && is_loopback(a))))
+        .map(ToString::to_string)
+        .collect();
+    addresses.dedup();
+    addresses.truncate(MAX_ADVERTISED - circuits.len());
+    addresses.extend(circuits);
+    addresses
+}
+
 /// Records a peer's advertised addresses, skipping any of our own: a member behind another NAT may advertise the same
 /// private address and port, and dialing it would reach this keeper and fail the whole dial.
 fn add_addresses(swarm: &mut Swarm<Behaviour>, id: PeerId, addresses: &[String]) {
@@ -355,6 +407,7 @@ fn is_loopback(address: &Multiaddr) -> bool {
     })
 }
 
+/// Waits until every listen address is bound and every relay accepted a reservation, or the timeout passes.
 async fn wait_ready(
     swarm: &mut Swarm<Behaviour>,
     config: &P2pConfig,
@@ -412,9 +465,28 @@ struct Pending {
     members: HashMap<PeerId, IdentityPublic>,
     /// Lobby requests of non-members in the current minute: window start and count.
     lobby_rate: HashMap<PeerId, (Instant, u32)>,
+    /// Connection state per peer, read by [`Transport::peer_status`].
+    links: Links,
 }
 
 impl Pending {
+    fn links(&self) -> MutexGuard<'_, HashMap<PeerId, Link>> {
+        self.links.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Records a frame received from `peer` (only peers with a tracked connection).
+    fn seen(&self, peer: &PeerId) {
+        if let Some(link) = self.links().get_mut(peer) {
+            link.last_seen = Some(SystemClock.now());
+        }
+    }
+
+    /// Forgets peers that are neither members nor connected (strangers met in a lobby, removed members).
+    fn prune_links(&self) {
+        self.links()
+            .retain(|id, link| !link.connections.is_empty() || self.members.contains_key(id));
+    }
+
     /// Counts a lobby request from a non-member; `false` once it exceeded its budget for the minute.
     fn lobby_request_allowed(&mut self, peer: PeerId) -> bool {
         let now = Instant::now();
@@ -441,8 +513,12 @@ async fn run(
     mut commands: mpsc::UnboundedReceiver<Command>,
     inbound: mpsc::UnboundedSender<Inbound>,
     relays: HashSet<PeerId>,
+    links: Links,
 ) {
-    let mut pending = Pending::default();
+    let mut pending = Pending {
+        links,
+        ..Pending::default()
+    };
     loop {
         tokio::select! {
             command = commands.recv() => match command {
@@ -517,6 +593,7 @@ fn on_command(
                 let _ = swarm.disconnect_peer_id(id);
             }
             pending.members = next;
+            pending.prune_links();
         }
     }
 }
@@ -565,10 +642,37 @@ fn on_event(
         SwarmEvent::Behaviour(BehaviourEvent::Dcutr(event)) => {
             tracing::debug!(?event, "hole punching");
         }
+        SwarmEvent::Behaviour(BehaviourEvent::Ping(ping::Event {
+            peer,
+            result: Ok(rtt),
+            ..
+        })) => {
+            if let Some(link) = pending.links().get_mut(&peer) {
+                link.rtt_ms = Some(u64::try_from(rtt.as_millis()).unwrap_or(u64::MAX));
+            }
+        }
         SwarmEvent::ConnectionEstablished {
-            peer_id, endpoint, ..
+            peer_id,
+            connection_id,
+            endpoint,
+            ..
         } => {
             tracing::debug!(%peer_id, relayed = endpoint.is_relayed(), "connected");
+            let mut links = pending.links();
+            let link = links.entry(peer_id).or_default();
+            link.connections
+                .insert(connection_id, endpoint.is_relayed());
+            link.last_seen = Some(SystemClock.now());
+        }
+        SwarmEvent::ConnectionClosed {
+            peer_id,
+            connection_id,
+            ..
+        } => {
+            if let Some(link) = pending.links().get_mut(&peer_id) {
+                link.connections.remove(&connection_id);
+            }
+            pending.prune_links();
         }
         _ => {}
     }
@@ -591,6 +695,7 @@ fn on_lane(
                 },
             ..
         } => {
+            pending.seen(&peer);
             // Members are delivered on every lane. A stranger (admitted while a lobby is open) only on the lobby lane,
             // with lobby messages, within its rate. The keeper still checks that the frame's signer is this peer.
             let identity = match pending.members.get(&peer).copied() {
@@ -624,9 +729,11 @@ fn on_lane(
             let _ = protocol.send_response(channel, Vec::new());
         }
         request_response::Event::Message {
+            peer,
             message: request_response::Message::Response { request_id, .. },
             ..
         } => {
+            pending.seen(&peer);
             if let Some(reply) = pending.sends.remove(&request_id) {
                 let _ = reply.send(Ok(()));
             }

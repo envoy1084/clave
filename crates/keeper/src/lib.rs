@@ -22,6 +22,6 @@ pub use clock::{Clock, SystemClock};
 pub use error::{Error, Result};
 pub use keeper::{
     CeremonyInfo, DkgResult, Keeper, KeeperConfig, KeeperParts, LobbyInfo, LobbyOpen,
-    LobbyPlanInfo, LobbyRole, LobbyStatus, MemberPartials, NewMember, Observation, ReshareRequest,
-    ReshareResult, VaultInfo,
+    LobbyPlanInfo, LobbyRole, LobbyStatus, MemberPartials, MemberReachability, NewMember,
+    Observation, ReshareRequest, ReshareResult, VaultInfo,
 };

@@ -5,6 +5,7 @@ mod ceremonies;
 mod ecdh;
 mod lobby;
 mod mailbox;
+mod peers;
 mod proposals;
 mod sync;
 mod vaults;
@@ -18,6 +19,7 @@ use std::{
 pub use ceremonies::{CeremonyInfo, DkgResult, NewMember, ReshareRequest, ReshareResult};
 pub use ecdh::MemberPartials;
 pub use lobby::{LobbyInfo, LobbyOpen, LobbyPlanInfo, LobbyRole, LobbyStatus};
+pub use peers::MemberReachability;
 use tecpan_crypto::ecdh::AddressSecretShare;
 use tecpan_wire::{
     Header, IdentityPublic, Message, ReplayGuard, SignedMessage, decode, encode,

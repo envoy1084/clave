@@ -6,8 +6,8 @@ use std::{
 use tecpan_wire::IdentityPublic;
 use tokio::sync::mpsc;
 
-use super::{Channel, Inbound, Peer, SendFuture, Transport};
-use crate::Error;
+use super::{Channel, Inbound, Peer, PeerStatus, SendFuture, Transport};
+use crate::{Clock, Error, SystemClock};
 
 /// An endpoint's channel and transport key.
 type Endpoint = (mpsc::UnboundedSender<Inbound>, [u8; 32]);
@@ -18,6 +18,8 @@ type Filter = Box<dyn Fn(&IdentityPublic, &IdentityPublic, &[u8]) -> bool + Send
 pub struct MemoryNetwork {
     endpoints: Mutex<HashMap<IdentityPublic, Endpoint>>,
     filter: Mutex<Option<Filter>>,
+    /// Unix seconds of the last frame delivered, by (receiver, sender).
+    seen: Mutex<HashMap<(IdentityPublic, IdentityPublic), u64>>,
 }
 
 impl MemoryNetwork {
@@ -68,6 +70,20 @@ impl MemoryNetwork {
     pub fn clear_filter(&self) {
         *self.filter.lock().unwrap_or_else(PoisonError::into_inner) = None;
     }
+
+    /// Whether frames from `from` currently reach `to`: `to` is joined and the filter lets an (empty) frame through.
+    fn reaches(&self, from: &IdentityPublic, to: &IdentityPublic) -> bool {
+        self.endpoints
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .contains_key(to)
+            && self
+                .filter
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_ref()
+                .is_none_or(|f| f(from, to, &[]))
+    }
 }
 
 /// One keeper's endpoint on a [`MemoryNetwork`].
@@ -109,7 +125,13 @@ impl Transport for MemoryTransport {
                 channel: Channel::Key(my_transport),
                 bytes: frame,
             })
-            .map_err(|_| Error::Transport("peer stopped".into()))
+            .map_err(|_| Error::Transport("peer stopped".into()))?;
+            self.network
+                .seen
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .insert((peer.identity, self.me), SystemClock.now());
+            Ok(())
         })();
         Box::pin(async move { result })
     }
@@ -118,5 +140,24 @@ impl Transport for MemoryTransport {
         // Delivery is by identity; the keeper still checks that the sender's identity maps to the channel's key.
         *self.allowed.lock().unwrap_or_else(PoisonError::into_inner) =
             peers.iter().map(|p| p.transport).collect();
+    }
+
+    /// Connected while the peer is joined and the filter lets frames through both ways; never relayed, no round trip.
+    fn peer_status(&self, peers: &[IdentityPublic]) -> Vec<PeerStatus> {
+        let seen = self
+            .network
+            .seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        peers
+            .iter()
+            .map(|peer| PeerStatus {
+                connected: self.network.reaches(&self.me, peer)
+                    && self.network.reaches(peer, &self.me),
+                relayed: false,
+                last_seen: seen.get(&(self.me, *peer)).copied(),
+                rtt_ms: None,
+            })
+            .collect()
     }
 }

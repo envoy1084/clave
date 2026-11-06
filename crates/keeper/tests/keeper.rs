@@ -1,5 +1,5 @@
 //! Keepers on an in-memory network: DKG, threshold ECDH, reshare with activation and removal, malicious members,
-//! rate limits, timeouts, restarts, and proposal replication with its events.
+//! rate limits, timeouts, restarts, proposal replication with its events, and member reachability.
 #![allow(
     clippy::unwrap_used,
     clippy::missing_panics_doc,
@@ -544,9 +544,22 @@ async fn an_unknown_committee_on_chain_raises_an_alert() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_receipt_put_by_one_member_reaches_the_others_as_an_event() {
+async fn members_report_reachability_and_a_receipt_put_by_one_reaches_the_others_as_an_event() {
     let v = vault(config()).await;
     let a = &v.keepers[0].keeper;
+    let members = a.peer_status(v.address).await.unwrap();
+    assert_eq!(members.len(), 3);
+    assert!(members[0].you);
+    assert_eq!(members[0].identity, a.identity());
+    assert!(members[0].status.connected && members[0].status.last_seen.is_none());
+    for (member, k) in members[1..].iter().zip(&v.keepers[1..]) {
+        assert!(!member.you);
+        assert_eq!(member.identity, k.keeper.identity());
+        assert!(member.status.connected);
+        // The DKG delivered frames from every member.
+        assert!(member.status.last_seen.is_some());
+    }
+
     // B stores a receipt; A's subscriber hears about it.
     let mut events = a.subscribe();
     v.keepers[1]
@@ -567,4 +580,15 @@ async fn a_receipt_put_by_one_member_reaches_the_others_as_an_event() {
             tx_hash: hex::encode([9; 32]),
         }
     );
+
+    // A member that drops off the network shows as unreachable; the others stay reachable.
+    v.harness.net.leave(&v.keepers[2].keeper.identity());
+    let members = a.peer_status(v.address).await.unwrap();
+    assert!(members[1].status.connected);
+    assert!(!members[2].status.connected);
+    assert!(members[2].status.last_seen.is_some());
+    assert!(matches!(
+        a.peer_status([9; 32]).await,
+        Err(Error::UnknownVault)
+    ));
 }

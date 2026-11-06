@@ -49,6 +49,17 @@ acknowledges with an empty response and answers, if at all, with its own request
 to the gatherer). Frames use a u32 length prefix (`tecpan_wire::p2p::FrameCodec`); request timeout 10 s, 30 s for
 mailbox calls.
 
+### Reachability
+
+The swarm task keeps a link record per peer for `Transport::peer_status` (behind `peers.status`, `keeper.md`): open
+connections and whether each is a relay circuit (`ConnectedPoint::is_relayed`), the time of the last established
+connection or received request or response (system clock, unix seconds), and the last ping round trip. A peer is
+`connected` while any connection is open and `relayed` when every open connection is a circuit, so a DCUtR upgrade
+flips it to direct. Records of peers that are neither connected nor in the allow list are dropped, so strangers met
+through a lobby are not retained. Because idle connections close after 2 minutes, an idle member can show as not
+connected until the next sync (every minute) or request reconnects it. The in-memory test transport reports a peer
+connected while it is joined and the test filter passes frames both ways.
+
 ### Membership enforcement
 
 - **Connections.** A connection gate (`transport::gate`) admits exactly the peer ids of current committees, running and

@@ -316,7 +316,7 @@ fn hex0x(bytes: &[u8]) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn receipts_and_receipt_events() {
+async fn peer_status_receipts_and_receipt_events() {
     let harness = Harness::new(KeeperConfig::default());
     let keepers: Vec<common::TestKeeper> = (1..=3).map(|i| harness.keeper(i)).collect();
     let refs: Vec<&common::TestKeeper> = keepers.iter().collect();
@@ -336,6 +336,35 @@ async fn receipts_and_receipt_events() {
         .call("session.auth", json!({ "token": "token" }))
         .await;
     events.call("events.subscribe", Value::Null).await;
+
+    let peers = exchange(&mut a, "peers.status", json!({ "vault": vault })).await;
+    assert_eq!(peers.as_array().map(Vec::len), Some(3));
+    let me = keepers[0].keeper.identity();
+    assert_eq!(
+        peers[0],
+        json!({
+            "index": 1,
+            "identity": hex0x(&me.0),
+            "peerId": tecpan_keeper::transport::peer_id(&me).unwrap().to_string(),
+            "you": true,
+            "connected": true,
+            "relayed": false,
+            "lastSeen": null,
+            "rttMs": null,
+        })
+    );
+    for (entry, k) in peers.as_array().unwrap()[1..].iter().zip(&keepers[1..]) {
+        assert_eq!(entry["identity"], hex0x(&k.keeper.identity().0));
+        assert_eq!(entry["you"], false);
+        assert_eq!(entry["connected"], true);
+        assert!(entry["lastSeen"].is_u64());
+        assert!(entry["peerId"].as_str().unwrap().starts_with("12D3Koo"));
+    }
+    assert_eq!(
+        a.call("peers.status", json!({ "vault": hex0x(&[9; 32]) }))
+            .await["error"]["code"],
+        -32_000
+    );
 
     // B records an execution; A's stream carries it and A lists it.
     exchange(
@@ -359,4 +388,10 @@ async fn receipts_and_receipt_events() {
         receipts,
         json!([{ "proposal": hex0x(&[8; 32]), "txHash": hex0x(&[9; 32]), "at": 1_700_000_000 }])
     );
+
+    // A member that leaves the network shows as unreachable.
+    harness.net.leave(&keepers[2].keeper.identity());
+    let peers = exchange(&mut a, "peers.status", json!({ "vault": vault })).await;
+    assert_eq!(peers[1]["connected"], true);
+    assert_eq!(peers[2]["connected"], false);
 }

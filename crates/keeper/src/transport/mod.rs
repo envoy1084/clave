@@ -55,6 +55,19 @@ pub struct Inbound {
     pub bytes: Vec<u8>,
 }
 
+/// What the transport knows about a peer's reachability.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PeerStatus {
+    /// The transport currently has an established connection to the peer.
+    pub connected: bool,
+    /// Every current connection to the peer is a relay circuit.
+    pub relayed: bool,
+    /// Unix seconds of the last established connection or received frame, if any.
+    pub last_seen: Option<u64>,
+    /// Last measured round trip in milliseconds, if any.
+    pub rtt_ms: Option<u64>,
+}
+
 /// Boxed send future.
 pub type SendFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 
@@ -72,4 +85,7 @@ pub trait Transport: Send + Sync + 'static {
         let _ = lobby_open;
         self.set_allowed(peers);
     }
+
+    /// Reachability of each of `peers`, in order (unknown peers are reported unreachable).
+    fn peer_status(&self, peers: &[IdentityPublic]) -> Vec<PeerStatus>;
 }
