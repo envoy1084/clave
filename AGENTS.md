@@ -124,6 +124,9 @@ cargo test --manifest-path crates/Cargo.toml -p tecpan-keeper   # keeper: custod
 cargo test --manifest-path crates/Cargo.toml -p tecpan-relay    # relay: mailbox store
 pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
+pnpm --filter @tecpan/desktop dev|build|typecheck|test   # Electron app (needs a release or debug tecpan-keeper build)
+pnpm --filter @tecpan/desktop test:e2e                   # three app instances found a vault (local network)
+pnpm --filter @tecpan/desktop package                    # unpacked, ad-hoc signed app in apps/desktop/dist/release
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 pnpm test:network   # Docker: relay + 3 keepers on separate networks (not part of pnpm test)
 ```

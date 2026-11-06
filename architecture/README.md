@@ -11,7 +11,8 @@ the gitignored `research/` folder until a phase lands.
 | `pxe-integration.md` | PXE patch, threshold key store, upgrade procedure          | Phase 7  |
 | `keeper.md`          | Keeper responsibilities, storage, RPC, ceremonies          | Phase 8  |
 | `networking.md`      | Peer mesh, protocols, sync, mailboxes, relay trust model   | Phase 9  |
-| `desktop.md`         | Electron processes, IPC contract, key custody              | Phase 10 |
+| `desktop.md`         | Electron processes, IPC contract, custody, founding flow   | Phase 10 |
+| `brand.md`           | Mark, colour, type and imagery                             | Phase 10 |
 | `membership.md`      | Membership changes and resharing end to end                | Phase 12 |
 
 ## Repository at a glance
