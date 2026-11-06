@@ -6,7 +6,10 @@ use tecpan_crypto::{Base, Point, Scalar, vault};
 /// `count` points `(seed + i) · G`, matching the Noir `points(count, seed)` test helper.
 fn points(count: u64, seed: u64) -> Vec<Point> {
     (0..count)
-        .map(|i| Point::try_from(Point::generator().mul_public(&Scalar::from(seed + i))).unwrap())
+        .map(|i| {
+            Point::try_from(Point::generator().mul_public(&Scalar::from(seed + i)))
+                .expect("non-identity")
+        })
         .collect()
 }
 

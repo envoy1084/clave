@@ -19,13 +19,13 @@ fn account_derivation_matches_aztec_for_both_signs() {
 
     for a in accounts {
         let ivsk = SecretScalar::new(scalar(&a["ivsk"]));
-        let ivpk = Point::generator_mul_secret(&ivsk).unwrap();
-        assert_point(&ivpk, &a["ivpk"]);
+        let group_key = Point::generator_mul_secret(&ivsk).unwrap();
+        assert_point(&group_key, &a["ivpk"]);
 
         let preaddress = aztec::preaddress(base(&a["publicKeysHash"]), base(&a["partialAddress"]));
         assert_eq!(preaddress, base(&a["preaddress"]));
 
-        let context = aztec::AddressContext::new(preaddress, &ivpk).unwrap();
+        let context = aztec::AddressContext::new(preaddress, &group_key).unwrap();
         assert_eq!(context.address(), base(&a["address"]));
         assert_point(&context.address_point, &a["addressPoint"]);
         let negated = a["addressSecretNegated"].as_bool().unwrap();
