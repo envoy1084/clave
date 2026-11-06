@@ -12,7 +12,8 @@ cd tecpan && pnpm install
 pnpm test                    # aztec test, cargo test, vitest
 
 aztec start --local-network  # in a second terminal
-pnpm test:e2e                # deploy vaults, threshold viewing, proposals
+pnpm cli:install             # tecpan, tecpand and the keeper into ~/.tecpan
+pnpm test:cli                # three members found a vault and run proposals with tecpan
 pnpm test:network            # Docker: a relay and 3 keepers on separate networks`;
 
 const REPO = [
@@ -32,6 +33,7 @@ const REPO = [
   },
   { path: "crates/relay", what: "tecpan-relay: untrusted circuit relay and ciphertext mailboxes" },
   { path: "crates/napi", what: "@tecpan/napi: Node bindings for the crypto and wire crates" },
+  { path: "crates/cli", what: "tecpan-cli: the tecpan command line" },
   {
     path: "packages/vault-wallet",
     what: "PXE host: vault account class, witness encoder, threshold key store",
@@ -41,11 +43,28 @@ const REPO = [
 ] as const;
 
 const CLI = [
-  { cmd: "tecpan init", what: "create a profile: signing key, keeper identity, daemon" },
-  { cmd: "tecpan lobby open --members 3 -k 2 --tv 2", what: "found a vault with other members" },
+  {
+    cmd: "tecpan init",
+    what: "a profile: passphrase-sealed signing key, keeper identity, account; starts the daemon",
+  },
+  {
+    cmd: "tecpan lobby open --name Ops -k 2 --tv 2 --members 3",
+    what: "found a vault; prints the invite",
+  },
+  { cmd: "tecpan lobby join <invite>", what: "join, confirm the plan, run DKG and deployment" },
   { cmd: "tecpan balance", what: "private balances, read through t keepers" },
-  { cmd: "tecpan propose transfer 25 ttt --to bea", what: "propose a private transfer" },
-  { cmd: "tecpan approve <id>", what: "review the rebuilt transaction, then sign" },
+  {
+    cmd: "tecpan propose transfer 25 ttt --to bea",
+    what: "propose a private transfer (--dry-run simulates)",
+  },
+  {
+    cmd: "tecpan approve <id>",
+    what: "review the rebuilt transaction and what is signed, then sign",
+  },
+  {
+    cmd: "tecpan reject <id> --reason <text>",
+    what: "a signed vote; enough of them block the proposal",
+  },
   { cmd: "tecpan execute <id>", what: "prove and send once k approvals are in" },
 ] as const;
 
@@ -88,7 +107,7 @@ export function DevelopersPage() {
           </>
         }
         lede="Tecpan is open source and pinned to Aztec 6.0.0. The suites below deploy vaults, run key generation between keepers and send private transfers on a local network; they are where every number on this site comes from."
-        meta="v0 · local network · testnet release after the CLI"
+        meta="v0 · local network · testnet release next"
       />
 
       <Section id="run" title="Run it locally." className="pt-0 sm:pt-0">
@@ -145,7 +164,7 @@ export function DevelopersPage() {
       <Section
         id="cli"
         title="The tecpan CLI."
-        lede="In development, and not in the repository yet. It will be the main way to use a vault: a Rust command line talking to a local daemon that hosts the PXE and supervises your keeper. A few of the planned commands:"
+        lede="The way to use a vault: a Rust command line talking to tecpand, a per-profile daemon that hosts your PXE, keeps your signing key sealed under your passphrase and supervises your keeper. Every approval shows the rebuilt transaction and the exact message signed first."
       >
         <ul className="divide-y divide-line border-y border-line">
           {CLI.map((c) => (

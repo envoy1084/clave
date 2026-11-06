@@ -17,7 +17,7 @@ const STOPS = [
     holds: "Your signing key",
     body: "Your wallet builds and proves every transaction on your own machine. Before you sign, it rebuilds the proposal from its calls and shows you what you are approving.",
     detail:
-      "vault-wallet: PXE host, vault account class, witness encoder, patched key store. tecpan CLI in development.",
+      "tecpan CLI and its daemon tecpand: the PXE with a patched key store, a passphrase-sealed signer, your keeper.",
   },
   {
     tray: 2,

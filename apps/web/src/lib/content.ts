@@ -8,6 +8,7 @@ export const LINKS = {
   keeper: "https://github.com/envoy1084/tecpan/blob/main/architecture/keeper.md",
   networking: "https://github.com/envoy1084/tecpan/blob/main/architecture/networking.md",
   pxe: "https://github.com/envoy1084/tecpan/blob/main/architecture/pxe-integration.md",
+  cli: "https://github.com/envoy1084/tecpan/blob/main/architecture/cli.md",
 } as const;
 
 /** architecture/contract.md, "Gate profile" (aztec profile gates, MAX_SIGNERS = 8). */
@@ -61,7 +62,11 @@ export const STATUS = [
     detail: "propose, approve, execute and cancel across members",
     done: true,
   },
-  { name: "CLI and daemon", detail: "tecpan, terminal-first operation", done: false },
+  {
+    name: "CLI and daemon",
+    detail: "tecpan and tecpand: found, propose, review, approve, reject, execute",
+    done: true,
+  },
   {
     name: "Membership drill",
     detail: "remove a member, prove it cannot read new notes",
