@@ -44,6 +44,15 @@ pub enum Error {
     /// A reshare's new commitments do not reconstruct the unchanged group key.
     #[error("reshare does not preserve the group key")]
     GroupKeyMismatch,
+    /// A transport key or encapsulated key is malformed.
+    #[error("invalid envelope key")]
+    EnvelopeKey,
+    /// Sealing an envelope failed.
+    #[error("sealing failed")]
+    EnvelopeSeal,
+    /// The envelope is not authentic for this sender, recipient and context.
+    #[error("envelope does not open")]
+    EnvelopeOpen,
     /// Input has the wrong length.
     #[error("invalid length: expected {expected}, got {actual}")]
     InvalidLength {
