@@ -291,7 +291,7 @@ export class VaultWallet extends BaseWallet {
 
   /**
    * Initializes a registered vault: `from` (a member's own account) sends the constructor with the vault in scope. The
-   * vault needs no class or instance publication (it has no public functions).
+   * vault needs no class or instance publication (it has no public functions). Returns the mined receipt.
    */
   async deployVault(
     vault: AztecAddress,
@@ -299,7 +299,7 @@ export class VaultWallet extends BaseWallet {
       from: AztecAddress;
       fee?: Parameters<ContractFunctionInteraction["send"]>[0]["fee"];
     },
-  ): Promise<void> {
+  ): Promise<TxReceipt> {
     const { deployment } = this.#vault(vault);
     const deploy = Contract.deploy(
       this,
@@ -312,7 +312,7 @@ export class VaultWallet extends BaseWallet {
         universalDeploy: true,
       },
     );
-    await deploy.send({
+    const { receipt } = await deploy.send({
       from: options.from,
       fee: options.fee,
       skipClassPublication: true,
@@ -320,6 +320,7 @@ export class VaultWallet extends BaseWallet {
       skipRegistration: true,
       additionalScopes: [vault],
     });
+    return receipt;
   }
 
   /** The vault's current config as stored on chain (read through this PXE). */

@@ -35,6 +35,8 @@ export interface LaunchedKeeper {
   /** Advertised multiaddrs: direct addresses first, then relay circuits. */
   readonly addresses: readonly string[];
   readonly rpcSocket: string;
+  /** The session token this launch generated; other local clients of the same owner (the engine) authenticate with it. */
+  readonly token: string;
   /** Stops the keeper (SIGTERM) and closes the client. */
   stop(): Promise<void>;
 }
@@ -79,6 +81,7 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
     process: child,
     client,
     ...ready,
+    token,
     async stop() {
       client.close();
       if (child.exitCode !== null) return;
