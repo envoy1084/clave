@@ -62,6 +62,15 @@ pub fn rotate(
     }
 }
 
+/// Number of occupied slots in an ordered, zero-padded key list.
+pub fn member_count(keys: [Point; MAX_SIGNERS]) -> u32 {
+    let mut count: u32 = 0;
+    for i in 0..MAX_SIGNERS {
+        count += (!keys[i].is_empty()) as u32;
+    }
+    count
+}
+
 /// Number of members of `current` whose key does not appear in `next`.
 pub fn removed_members(current: SignerSet, next: SignerSet) -> u32 {
     let mut removed: u32 = 0;

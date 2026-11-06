@@ -140,6 +140,38 @@ impl Fixture {
         self.env.execute_utility_opts(ExecuteUtilityOptions::new().with_from(self.vault), call)
     }
 
+    /// Rotates to `new_accounts` / `new_keys` (first `new_count` slots) as the vault itself, with fresh committee
+    /// shares, and returns the fixture describing the new membership.
+    pub unconstrained fn rotate(
+        self,
+        new_accounts: [AztecAddress; MAX_SIGNERS],
+        new_keys: [Point; MAX_SIGNERS],
+        new_count: u32,
+        threshold: u32,
+        viewing_threshold: u32,
+    ) -> Fixture {
+        let committee_shares = points(new_count, COMMITTEE_SEED + 100);
+        self.self_call(TecpanVault::at(self.vault).rotate_membership(
+            self.keys,
+            new_keys,
+            new_count,
+            threshold,
+            viewing_threshold,
+            committee_shares,
+        ));
+        Fixture {
+            env: self.env,
+            vault: self.vault,
+            test_signer: self.test_signer,
+            accounts: new_accounts,
+            keys: new_keys,
+            committee_shares,
+            signer_count: new_count,
+            threshold,
+            viewing_threshold,
+        }
+    }
+
     /// Calls a vault function as the vault itself (as its `entrypoint` would after approval), then syncs its notes.
     pub unconstrained fn self_call<let M: u32, let N: u32>(self, call: PrivateCall<M, N, ()>) {
         self.env.call_private(self.vault, call);

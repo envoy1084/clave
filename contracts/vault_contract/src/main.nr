@@ -28,7 +28,7 @@ pub contract TecpanVault {
             storage::storage,
         },
         messages::delivery::{MessageDelivery, OnchainConstrainedDelivery},
-        note::note_viewer_options::NoteViewerOptions,
+        note::{note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions},
         oracle::{
             auth_witness::get_auth_witness,
             get_nullifier_membership_witness::get_low_nullifier_membership_witness,
@@ -87,17 +87,55 @@ pub contract TecpanVault {
         };
         self.storage.config.initialize(config, self.address).deliver(delivery);
 
-        for slot in 0..MAX_SIGNERS {
-            if slot < signer_count {
-                let key = signers.keys[slot];
-                self
-                    .storage
-                    .signers
-                    .at(self.address)
-                    .insert(SignerNote { x: key.x, y: key.y, slot })
-                    .deliver(delivery);
-            }
-        }
+        store_signer_notes(self.storage.signers.at(self.address), signers);
+    }
+
+    /// Replaces the signer set, spending threshold and viewing committee in one step. Only callable through an
+    /// approved vault transaction.
+    ///
+    /// `current_signer_keys` must equal the stored signer set; at most `t_v - 1` current members may be absent from the
+    /// new set. `committee_shares` are the verification shares produced by the reshare that prepares this rotation:
+    /// member agents activate their new shares once this transaction is included.
+    #[external("private")]
+    #[only_self]
+    fn rotate_membership(
+        current_signer_keys: [Point; MAX_SIGNERS],
+        new_signer_keys: [Point; MAX_SIGNERS],
+        new_signer_count: u32,
+        threshold: u32,
+        viewing_threshold: u32,
+        committee_shares: [Point; MAX_SIGNERS],
+    ) {
+        self
+            .storage
+            .config
+            .replace(
+                |config| governance::rotate(
+                    config,
+                    current_signer_keys,
+                    new_signer_keys,
+                    new_signer_count,
+                    threshold,
+                    viewing_threshold,
+                    committee_shares,
+                ),
+                self.address,
+            )
+            .deliver(config_delivery(self.address));
+
+        // Live signer notes are exactly the current set, and each can be nullified only once, so popping as many notes
+        // as there are current members removes all of them.
+        let signer_notes = self.storage.signers.at(self.address);
+        let removed = signer_notes.pop_notes(NoteGetterOptions::new());
+        assert_eq(
+            removed.len(),
+            governance::member_count(current_signer_keys),
+            "stale signer notes",
+        );
+        store_signer_notes(
+            signer_notes,
+            SignerSet { keys: new_signer_keys, count: new_signer_count },
+        );
     }
 
     // @dev: Keep this signature in sync with the default account entrypoint ABI used by Aztec.js.
@@ -197,6 +235,21 @@ pub contract TecpanVault {
     #[contract_library_method]
     fn config_delivery(vault: AztecAddress) -> OnchainConstrainedDelivery {
         MessageDelivery::onchain_constrained().with_sender(vault)
+    }
+
+    /// Inserts one signer note per member of `signers`.
+    ///
+    /// Unconstrained delivery: signer notes only help members rebuild the ordered set; authorization checks the
+    /// commitment in the config note, and members also hold the set in their committee manifest.
+    #[contract_library_method]
+    fn store_signer_notes(notes: PrivateSet<SignerNote, &mut PrivateContext>, signers: SignerSet) {
+        let delivery = MessageDelivery::onchain_unconstrained().with_sender(notes.owner);
+        for slot in 0..MAX_SIGNERS {
+            if slot < signers.count {
+                let key = signers.keys[slot];
+                notes.insert(SignerNote { x: key.x, y: key.y, slot }).deliver(delivery);
+            }
+        }
     }
 
     #[contract_library_method]

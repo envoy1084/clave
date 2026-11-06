@@ -75,6 +75,10 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
 - Profile circuits with `aztec profile gates` / `aztec profile flamegraph` before and after circuit changes and keep
   the gate tables in `architecture/` current.
 - Authorization must stay valid in static calls (`verify_private_authwit`): never read state in a way that nullifies.
+- Config notes are delivered with constrained delivery everywhere except the constructor (an undelivered config note
+  would lock members out). Signer notes are discovery-only and may use unconstrained delivery.
+- Config changes are `#[only_self]` functions that bump the config version; membership and the viewing committee change
+  together in `rotate_membership`, which removes at most `t_v - 1` members.
 - Wire formats shared across Noir, Rust and TypeScript (witness layout, approval message, committee commitment) change
   only together with their `architecture/` page and every encoder.
 
