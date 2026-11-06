@@ -1,6 +1,6 @@
 use crate::utils::{COMMITTEE_SEED, create_signers, deploy_vault, setup};
 use aztec::test::helpers::test_environment::TestEnvironment;
-use tecpan_vault_contract::{
+use vault_contract::{
     committee::Committee,
     constants::MAX_SIGNERS,
     point::Point,

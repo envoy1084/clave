@@ -1,5 +1,5 @@
 [package]
-name = "tecpan_vault_contract"
+name = "vault_contract"
 type = "contract"
 
 [dependencies]

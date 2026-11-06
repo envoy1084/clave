@@ -1,7 +1,7 @@
 use crate::utils::{create_signers, encode_witness, first, Fixture, setup};
 use aztec::protocol::{address::AztecAddress, traits::FromField};
 use std::test::OracleMock;
-use tecpan_vault_contract::{
+use vault_contract::{
     authorization::{approval_message, is_authorized},
     constants::{MAX_SIGNERS, SIGNATURE_LEN, WITNESS_LEN},
     TecpanVault,

@@ -18,7 +18,7 @@ the gitignored `research/` folder until a phase lands.
 
 | Path                     | What it is                                                                                     |
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
-| `contracts/`             | Nargo workspace: `tecpan_vault_contract`, `tecpan_vault_test`                                  |
+| `contracts/`             | Nargo workspace: `vault_contract`, `vault_test`                                                |
 | `crates/`                | Cargo workspace: `tecpan-crypto`, `tecpan-wire`, `tecpan-agent`, `tecpan-relay`, `tecpan-napi` |
 | `packages/vault-wallet/` | TypeScript PXE host for vaults                                                                 |
 | `apps/desktop/`          | Electron + React desktop app                                                                   |

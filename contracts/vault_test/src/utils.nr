@@ -7,14 +7,14 @@ use aztec::{
         txe_oracles,
     },
 };
-use tecpan_vault_contract::{
+use test_signer_contract::TestSigner;
+use vault_contract::{
     authorization::approval_message,
     constants::{MAX_SIGNERS, POINT_LEN, SIGNATURE_LEN, WITNESS_LEN},
     point::Point,
     signer_set::test_utils::points,
     TecpanVault,
 };
-use test_signer_contract::TestSigner;
 
 /// Seed for deterministic viewing verification shares (any distinct on-curve points will do in contract tests).
 pub global COMMITTEE_SEED: Field = 1000;
@@ -61,7 +61,7 @@ pub unconstrained fn deploy_vault(
     committee_shares: [Point; MAX_SIGNERS],
 ) -> AztecAddress {
     let deployer = env.create_light_account();
-    let deployment = env.deploy("@tecpan_vault_contract/TecpanVault");
+    let deployment = env.deploy("@vault_contract/TecpanVault");
     let constructor = TecpanVault::interface().constructor(
         keys,
         signer_count,
