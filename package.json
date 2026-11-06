@@ -6,6 +6,7 @@
   "scripts": {
     "build": "turbo run build",
     "check": "pnpm format:check && turbo run lint typecheck build deny",
+    "cli:install": "scripts/cli-install.sh",
     "codegen": "turbo run codegen",
     "dev": "turbo run dev",
     "format": "oxfmt --write . && turbo run format",
@@ -15,6 +16,7 @@
     "prepare": "lefthook install",
     "test": "turbo run test --concurrency=2",
     "test:e2e": "turbo run test:e2e",
+    "test:cli": "scripts/cli-e2e.sh",
     "test:network": "crates/keeper/tests/network/run.sh",
     "typecheck": "turbo run typecheck"
   },

@@ -25,8 +25,10 @@ crates/               Cargo workspace
   keeper/               tecpan-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
   relay/                tecpan-relay: optional untrusted store-and-forward relay (ciphertext only)
   napi/                 @tecpan/napi: Node bindings of tecpan-crypto and tecpan-wire (secret helpers only in /testing)
+  cli/                  tecpan-cli: the `tecpan` command line, a client of the member's daemon
 packages/             TypeScript, only where Aztec requires it
   vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
+  engine/               @tecpan/engine: `tecpand`, the member's daemon (PXE, signer, founding, proposals, keeper)
 apps/
   web/                  the Tecpan site (Vite, React, TanStack Router): pages and isometric figures
 patches/              minimal pnpm patch of @aztec-labs/pxe for the threshold key store
@@ -34,9 +36,10 @@ architecture/         maintained design docs (verified decisions only)
 research/             gitignored plans and investigation; never a build or doc input
 ```
 
-The member-facing interface is the `tecpan` CLI and its local daemon (in development, see `research/cli-design.md`);
-the Electron desktop app was removed after Phase 12 and can be restored from git (`3eb2d7e`). Signing keys never leave
-the member's device. Viewing shares live only in `tecpan-keeper`, which may run locally or on the member's own server.
+Members use the `tecpan` CLI, a client of `tecpand`, a per-profile daemon that hosts the PXE and the passphrase-sealed
+signer and supervises the member's keeper (`architecture/cli.md`). The Electron desktop app was removed after Phase 12
+and can be restored from git (`3eb2d7e`). Signing keys never leave the member's device. Viewing shares live only in
+`tecpan-keeper`, which may run locally or on the member's own server.
 
 Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package names keep it
 (`crates/keeper` builds `tecpan-keeper`).
@@ -59,7 +62,7 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
 - Inspect branch, working tree and recent commits before changing anything; preserve unrelated work.
 - Commit after each coherent change with a Conventional Commit, e.g. `feat(contracts): verify k-of-n witness`.
   Scopes are kebab-case package or area names (`contracts`, `crypto`, `wire`, `keeper`, `relay`, `napi`,
-  `vault-wallet`, `web`, `repo`).
+  `vault-wallet`, `engine`, `cli`, `web`, `repo`).
 - Never commit `research/`, `.env` files, keys, shares, or generated `target/`, `out/` and artifact output.
 - Keep files focused and split by responsibility. Reuse a helper only for real repeated use or a domain invariant.
 - Update the owning `architecture/` page in the same change when a contract, wire format, key flow or trust boundary
@@ -123,6 +126,10 @@ cargo test --manifest-path crates/Cargo.toml -p tecpan-keeper   # keeper: custod
 cargo test --manifest-path crates/Cargo.toml -p tecpan-relay    # relay: mailbox store
 pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
 pnpm --filter @tecpan/vault-wallet typecheck|test|build
+pnpm --filter @tecpan/engine build|test|typecheck    # tecpand: contract, signer, socket server
+cargo test --manifest-path crates/Cargo.toml -p tecpan-cli      # CLI: parsing, references, renderers, fake daemon
+pnpm cli:install    # tecpan, tecpan-keeper and tecpand into ~/.tecpan (TECPAN_HOME); prints the PATH line
+pnpm test:cli       # three members through tecpan only, against `aztec start --local-network` (not part of pnpm test)
 pnpm --filter @tecpan/web dev|build|preview|typecheck|lint   # the site on http://localhost:3000
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 pnpm test:network   # Docker: relay + 3 keepers on separate networks (not part of pnpm test)
