@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- macOS icon grid: 824px rounded square centred in 1024. The Clave mark in signal green on ink. -->
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="#15180F"/>
+  <!-- macOS icon grid: 824px rounded square centred in 1024. The Clave mark in signal green on navy. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#0E1530"/>
   <g transform="translate(512 512) scale(11.2) translate(-20 -22.25)" fill="#C8F500">
     <path d="M7 31V20A13 13 0 0 1 18 7.15V13.82A6.5 6.5 0 0 0 13.5 20V31Z"/>
     <path d="M33 31V20A13 13 0 0 0 22 7.15V13.82A6.5 6.5 0 0 1 26.5 20V31Z"/>

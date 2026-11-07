@@ -3,6 +3,7 @@ import { Section } from "@/components/ui/section";
 import { Steps } from "@/components/ui/steps";
 import { CombineDiagram } from "@/figures/simple/combine";
 import { ViewingIllustration } from "@/figures/simple/viewing";
+import { usePageMeta } from "@/lib/seo";
 
 const FLOW = [
   {
@@ -39,6 +40,7 @@ const FACTS = [
 ] as const;
 
 export function ViewingPage() {
+  usePageMeta("viewing");
   return (
     <>
       <PageHeader

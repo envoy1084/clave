@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Steps } from "@/components/ui/steps";
 import { MembershipIllustration } from "@/figures/simple/membership";
+import { usePageMeta } from "@/lib/seo";
 
 const ROTATION = [
   {
@@ -35,6 +36,7 @@ const GUARANTEES = [
 ] as const;
 
 export function MembershipPage() {
+  usePageMeta("membership");
   return (
     <>
       <PageHeader

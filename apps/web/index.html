@@ -3,13 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clave: private k-of-n multisig on Aztec</title>
+    <title>Clave: private k-of-n multisig for Aztec</title>
     <meta
       name="description"
-      content="A k-of-n vault account on Aztec. Spending needs k signatures in the entrypoint; reading needs a quorum of keepers, and the incoming viewing secret is never assembled."
+      content="Clave is a k-of-n multisig for Aztec. Payments need k member signatures, checked inside the proof, and the vault's notes can only be read when t members' keepers decrypt together."
     />
+    <meta
+      name="keywords"
+      content="Aztec multisig, private multisig, Aztec account contract, account abstraction, threshold viewing key, threshold ECDH, distributed key generation, DKG, Noir, zero knowledge, private treasury, shared custody, k-of-n wallet"
+    />
+    <meta name="author" content="Clave" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="%SITE_URL%/" />
     <meta name="theme-color" content="#0e1530" />
+    <meta name="color-scheme" content="light" />
+
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Clave" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="%SITE_URL%/" />
+    <meta property="og:title" content="Clave: private k-of-n multisig for Aztec" />
+    <meta
+      property="og:description"
+      content="Shared custody, private by default. k signatures to spend, t keepers to read, and no single key that opens the vault."
+    />
+    <meta property="og:image" content="%SITE_URL%/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Clave: shared custody, private by default. A k-of-n multisig for Aztec, with threshold viewing."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Clave: private k-of-n multisig for Aztec" />
+    <meta
+      name="twitter:description"
+      content="Shared custody, private by default. k signatures to spend, t keepers to read, and no single key that opens the vault."
+    />
+    <meta name="twitter:image" content="%SITE_URL%/og.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Clave: shared custody, private by default. A k-of-n multisig for Aztec, with threshold viewing."
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Clave",
+        "description": "A private k-of-n multisig for Aztec. Spending needs k member signatures, checked inside the proof by the vault's account contract; reading the vault needs t of n keepers through threshold decryption.",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "macOS, Linux",
+        "url": "%SITE_URL%/",
+        "image": "%SITE_URL%/logo.png",
+        "isAccessibleForFree": true,
+        "codeRepository": "https://github.com/envoy1084/tecpan",
+        "sameAs": ["https://github.com/envoy1084/tecpan"],
+        "keywords": "Aztec, multisig, zero knowledge, threshold cryptography, private treasury"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

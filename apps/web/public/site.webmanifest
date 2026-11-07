@@ -1,0 +1,14 @@
+{
+  "name": "Clave",
+  "short_name": "Clave",
+  "description": "A private k-of-n multisig for Aztec, with threshold viewing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1530",
+  "theme_color": "#0e1530",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

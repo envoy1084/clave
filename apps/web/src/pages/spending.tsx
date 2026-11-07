@@ -3,6 +3,7 @@ import { Section } from "@/components/ui/section";
 import { Steps } from "@/components/ui/steps";
 import { ApprovalDiagram } from "@/figures/simple/approval";
 import { SpendingIllustration } from "@/figures/simple/spending";
+import { usePageMeta } from "@/lib/seo";
 
 const LIFECYCLE = [
   {
@@ -39,6 +40,7 @@ const CHECKS = [
 ] as const;
 
 export function SpendingPage() {
+  usePageMeta("spending");
   return (
     <>
       <PageHeader
