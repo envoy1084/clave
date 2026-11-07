@@ -1,7 +1,7 @@
 // Every fact the page states, with where it comes from in the repository. Numbers are measurements, never estimates.
 
 export const LINKS = {
-  repo: "https://github.com/envoy1084/tecpan",
+  repo: "https://github.com/envoy1084/clave",
 } as const;
 
 /** architecture/contract.md, "Gate profile" (aztec profile gates, MAX_SIGNERS = 8). */
