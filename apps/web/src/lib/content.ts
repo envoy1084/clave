@@ -2,13 +2,6 @@
 
 export const LINKS = {
   repo: "https://github.com/envoy1084/tecpan",
-  architecture: "https://github.com/envoy1084/tecpan/tree/main/architecture",
-  contract: "https://github.com/envoy1084/tecpan/blob/main/architecture/contract.md",
-  viewing: "https://github.com/envoy1084/tecpan/blob/main/architecture/viewing-keys.md",
-  keeper: "https://github.com/envoy1084/tecpan/blob/main/architecture/keeper.md",
-  networking: "https://github.com/envoy1084/tecpan/blob/main/architecture/networking.md",
-  pxe: "https://github.com/envoy1084/tecpan/blob/main/architecture/pxe-integration.md",
-  cli: "https://github.com/envoy1084/tecpan/blob/main/architecture/cli.md",
 } as const;
 
 /** architecture/contract.md, "Gate profile" (aztec profile gates, MAX_SIGNERS = 8). */
@@ -33,44 +26,4 @@ export const TIMINGS = [
     value: "6.9 s",
     where: "client-side proving, includes mining",
   },
-] as const;
-
-/** research/progress.md status table, as shipped in the repository. */
-export const STATUS = [
-  {
-    name: "Vault account contract",
-    detail: "k-of-n Schnorr entrypoint, private config notes, governance",
-    done: true,
-  },
-  {
-    name: "Threshold cryptography",
-    detail: "Feldman DKG, resharing, threshold ECDH with DLEQ proofs",
-    done: true,
-  },
-  {
-    name: "PXE integration",
-    detail: "patched key store; the incoming viewing secret is never loaded",
-    done: true,
-  },
-  {
-    name: "Keeper and relay",
-    detail: "share custody, ceremonies, libp2p mesh, ciphertext mailboxes",
-    done: true,
-  },
-  {
-    name: "Proposals end to end",
-    detail: "propose, approve, execute and cancel across members",
-    done: true,
-  },
-  {
-    name: "CLI and daemon",
-    detail: "clave and claved: found, propose, review, approve, reject, execute",
-    done: true,
-  },
-  {
-    name: "Membership drill",
-    detail: "remove a member, prove it cannot read new notes",
-    done: false,
-  },
-  { name: "Testnet release", detail: "binaries, hosted relay, live vault", done: false },
 ] as const;

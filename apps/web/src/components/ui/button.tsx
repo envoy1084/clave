@@ -2,16 +2,18 @@ import type { AnchorHTMLAttributes } from "react";
 
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "signal" | "ghost" | "outline";
+type Variant = "primary" | "signal" | "outline" | "outline-dark";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-ink text-paper hover-fine:bg-ink-2",
+  // The one lime action per screen: used only on the navy hero.
   signal: "bg-signal text-ink hover-fine:bg-[#bde800]",
-  ghost: "text-ink hover-fine:bg-paper-2",
   outline: "text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover-fine:bg-paper-2",
+  "outline-dark":
+    "text-paper shadow-[inset_0_0_0_1px_rgb(251_248_242/0.28)] hover-fine:bg-paper/10",
 };
 
-/** A link styled as a button: every action on this page navigates somewhere real. */
+/** A link styled as a button: every action on this site navigates somewhere real. */
 export function ButtonLink({
   variant = "primary",
   className,

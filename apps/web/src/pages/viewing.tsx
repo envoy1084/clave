@@ -1,50 +1,40 @@
-import { Code, CodeBlock } from "@/components/ui/code";
-import { NextPage } from "@/components/ui/next-page";
 import { PageHeader } from "@/components/ui/page-header";
-import { Container, Section } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { Steps } from "@/components/ui/steps";
-import { ViewingFigure } from "@/figures/keepers/viewing-figure";
-import { LINKS } from "@/lib/content";
+import { CombineDiagram } from "@/figures/simple/combine";
+import { ViewingIllustration } from "@/figures/simple/viewing";
 
 const FLOW = [
   {
-    title: "A note arrives",
-    body: "Someone pays the vault. On Aztec the payment is an encrypted note that only the vault's viewing key can open.",
-    detail: "note carries an ephemeral public key P",
+    title: "A payment arrives",
+    body: "On Aztec it arrives as an encrypted note that only the vault's viewing key can open.",
   },
   {
     title: "The wallet asks",
-    body: "Your wallet's key store has no viewing secret to use, so it sends P to the members' keepers instead.",
-    detail: "patched PXE key store; batch request over the mesh",
+    body: "Your wallet has no viewing key to use, so it asks the members' keepers for help instead.",
   },
   {
     title: "Keepers answer, with proof",
-    body: "Each keeper multiplies P by its share and proves it used the right share. A wrong answer is caught and its sender named.",
-    detail: "Dᵢ = xᵢ · P, Chaum-Pedersen DLEQ",
+    body: "Each keeper answers with a piece computed from its share, and proves it used the right share.",
   },
   {
-    title: "The wallet combines",
-    body: "Any t answers combine into exactly the value Aztec's own key store would have computed. The note opens; the key never existed.",
-    detail: "Σ λᵢ · Dᵢ = address_secret · P",
+    title: "The note opens",
+    body: "Any t answers combine into exactly what the full key would have produced. The key itself never appears.",
   },
 ] as const;
-
-const MATH = `member i:  xᵢ = σ · (sᵢ + h)            Aᵢ = xᵢ · G   (public)
-partial:   Dᵢ = xᵢ · P                  DLEQ: log_G(Aᵢ) = log_P(Dᵢ)
-combine:   address_secret · P = Σ_{i∈S} λᵢ · Dᵢ,   |S| = t_v`;
 
 const FACTS = [
   {
     term: "Created without a dealer",
-    body: "A Feldman DKG on Grumpkin gives each keeper a share. The group key is the vault's Ivpk, so its address is an ordinary Aztec address.",
+    body: "The members' keepers generate the key together. Each gets a share; nobody ever holds the whole key.",
   },
   {
-    term: "Byte-for-byte Aztec",
-    body: "Point encoding, the address-secret derivation and its sign rule, and the ECDH-to-AES step are pinned by golden tests against Aztec 6.0.0.",
+    term: "A normal Aztec address",
+    body: "The vault's address and encryption match what Aztec expects, verified against Aztec's own output.",
   },
   {
-    term: "Shares never travel",
-    body: "A share is never exported or backed up. It moves only as sub-shares during resharing, sealed to the receiving keeper.",
+    term: "Shares stay put",
+    body: "A share is never exported or backed up. It moves only when members change, sealed to its new holder.",
   },
 ] as const;
 
@@ -54,15 +44,12 @@ export function ViewingPage() {
       <PageHeader
         title={
           <>
-            Viewing needs a quorum. <em className="serif-em">The key never exists.</em>
+            Reading the vault takes <em className="serif-em">t keepers.</em>
           </>
         }
-        lede="Every Aztec account has a secret that decrypts its incoming funds. In a Clave vault that secret is split across the members' keepers from the start. Reading a note takes any t of them, and no one, including the members, ever holds the whole thing."
-        meta="clave-crypto · threshold ECDH · patched @aztec-labs/pxe key store"
+        lede="Every Aztec account has a key that decrypts what it receives. In Clave that key is split across the members' keepers from day one, and no one ever holds all of it."
       />
-      <Container>
-        <ViewingFigure />
-      </Container>
+      <ViewingIllustration />
 
       <Section
         id="flow"
@@ -71,46 +58,31 @@ export function ViewingPage() {
             Reading one note, <em className="serif-em">step by step.</em>
           </>
         }
-        lede="Measured end to end with three keepers on separate networks, reachable only through a relay: 7 to 12 ms per batch."
+        lede="With three keepers on separate networks, an answer takes 7 to 12 milliseconds."
       >
         <Steps steps={FLOW} />
       </Section>
 
       <Section
-        id="math"
-        title="The arithmetic."
-        lede={
+        id="key"
+        tone="dark"
+        title={
           <>
-            <Code>h</Code> is the vault&rsquo;s preaddress and <Code>σ</Code> the sign Aztec applies
-            to the address secret. Both are public, so every keeper applies them to its own share
-            without learning the secret.
+            The key that <em className="serif-em text-signal">never exists.</em>
           </>
         }
-        aside={
-          <a
-            href={LINKS.viewing}
-            className="text-[0.88rem] font-medium text-olive underline-offset-4 hover-fine:underline"
-          >
-            viewing-keys.md
-          </a>
-        }
+        lede="Each keeper works only with its own share. The combination happens on the answers, never on the key."
       >
-        <CodeBlock className="text-[0.74rem] sm:text-[0.84rem]">{MATH}</CodeBlock>
-        <dl className="mt-10 grid gap-8 md:grid-cols-3">
+        <CombineDiagram className="mx-auto max-w-[860px]" />
+        <dl className="mt-12 grid gap-8 md:grid-cols-3">
           {FACTS.map((f) => (
             <div key={f.term}>
-              <dt className="text-[0.98rem] font-medium">{f.term}</dt>
-              <dd className="mt-2 text-[0.9rem] leading-relaxed text-ink-soft">{f.body}</dd>
+              <dt className="text-[1.02rem] font-medium">{f.term}</dt>
+              <dd className="mt-2 text-[0.94rem] leading-relaxed text-paper/75">{f.body}</dd>
             </div>
           ))}
         </dl>
       </Section>
-
-      <NextPage
-        to="/membership"
-        label="How membership works"
-        teaser="Remove a member and they lose the ability to read anything new, without moving funds to a new address."
-      />
     </>
   );
 }

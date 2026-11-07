@@ -68,7 +68,7 @@ export function Exposure() {
     <section
       id="exposure"
       aria-labelledby="exposure-title"
-      className="bg-ink py-16 text-paper sm:py-24"
+      className="bg-navy py-16 text-paper sm:py-24"
     >
       <Container>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -77,11 +77,12 @@ export function Exposure() {
               id="exposure-title"
               className="serif-display text-[2.2rem] leading-[1.06] sm:text-[3rem]"
             >
-              What leaves the room, <em className="serif-em text-signal">and what never does.</em>
+              What the network sees,{" "}
+              <em className="serif-em text-signal">and what it never does.</em>
             </h2>
-            <p className="mt-4 text-[1.02rem] leading-relaxed text-paper/70">
-              Switch sides. Everything that describes the vault stays with its members; the chain
-              and the relays see proofs, commitments and sealed envelopes.
+            <p className="mt-4 text-[1.02rem] leading-relaxed text-paper/75">
+              Flip the view. Members, thresholds, balances and proposals stay encrypted. The chain
+              sees proofs and random-looking hashes.
             </p>
           </div>
           <div
@@ -132,11 +133,11 @@ export function Exposure() {
                   row.value
                 )}
               </span>
-              <span className="text-[0.86rem] text-paper/60">{row.where}</span>
+              <span className="text-[0.86rem] text-paper/70">{row.where}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-[0.78rem] text-paper/50">Values are illustrative.</p>
+        <p className="mt-4 text-[0.8rem] text-paper/65">Example values.</p>
       </Container>
     </section>
   );

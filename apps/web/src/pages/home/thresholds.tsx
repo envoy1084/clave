@@ -5,16 +5,10 @@ import { Link } from "@tanstack/react-router";
 import { Reveal } from "@/components/motion/reveal";
 import { Section } from "@/components/ui/section";
 
-type To = "/spending" | "/viewing" | "/membership";
+type To = "/spending" | "/viewing";
 
-const CARDS: readonly {
-  to: To;
-  rule: ReactNode;
-  title: string;
-  body: string;
-  detail: string;
-  cta: string;
-}[] = [
+// Two parallel rules, so two cards of equal weight.
+const CARDS: readonly { to: To; rule: ReactNode; title: string; body: string; cta: string }[] = [
   {
     to: "/spending",
     rule: (
@@ -22,9 +16,8 @@ const CARDS: readonly {
         k <em className="serif-em">of</em> n
       </>
     ),
-    title: "to move funds",
-    body: "A payment leaves the vault only when enough members sign it. The check runs inside the vault's own account contract, as part of a zero-knowledge proof, so no one can skip it.",
-    detail: "entrypoint verifies k Schnorr signatures over Poseidon2(approval.v0, …)",
+    title: "signatures to move funds",
+    body: "A payment runs only when enough members sign it. The vault's own contract checks the signatures inside the proof, so nobody can skip the rule.",
     cta: "How spending works",
   },
   {
@@ -34,12 +27,11 @@ const CARDS: readonly {
         t <em className="serif-em">of</em> n
       </>
     ),
-    title: "to see what it holds",
-    body: "On Aztec, funds are encrypted notes. Clave splits the key that reads them across the members' keepers. Any t of them can help a wallet read a note; fewer learn nothing.",
-    detail: "threshold ECDH with DLEQ proofs; the incoming viewing secret is never assembled",
+    title: "keepers to read the vault",
+    body: "On Aztec, funds are encrypted notes. Clave splits the key that reads them across the members, so any t can read together and fewer learn nothing.",
     cta: "How viewing works",
   },
-] as const;
+];
 
 export function Thresholds() {
   return (
@@ -47,10 +39,10 @@ export function Thresholds() {
       id="thresholds"
       title={
         <>
-          Two thresholds, <em className="serif-em">two different jobs.</em>
+          One threshold to spend. <em className="serif-em">One to read.</em>
         </>
       }
-      lede="A normal multisig protects spending and leaves everything else public. On a private chain the harder problem is who can read the vault, so Clave puts a threshold on that too."
+      lede="Spending needs k of n member signatures, checked by the vault's contract. Reading needs t of n keepers, because the vault's viewing key is split between them."
     >
       <div className="grid gap-5 md:grid-cols-2">
         {CARDS.map((card, i) => (
@@ -63,36 +55,16 @@ export function Thresholds() {
                 {card.rule}
               </p>
               <p className="mt-2 text-[1.1rem] font-medium">{card.title}</p>
-              <p className="mt-4 text-[0.95rem] leading-relaxed text-ink-soft">{card.body}</p>
-              <p className="mt-6 font-mono text-[0.74rem] leading-relaxed text-muted">
-                {card.detail}
+              <p className="mt-4 max-w-[46ch] text-[0.96rem] leading-relaxed text-ink-soft">
+                {card.body}
               </p>
-              <span className="mt-8 text-[0.9rem] font-medium text-olive underline-offset-4 group-hover:underline">
+              <span className="mt-auto pt-8 text-[0.92rem] font-medium text-olive underline-offset-4 group-hover:underline">
                 {card.cta}
               </span>
             </Link>
           </Reveal>
         ))}
       </div>
-      <Reveal delay={0.1}>
-        <Link
-          to="/membership"
-          className="group mt-5 flex flex-col gap-2 rounded-3xl p-6 shadow-[inset_0_0_0_1px_var(--color-line)] transition-colors duration-150 hover-fine:bg-paper-2 sm:flex-row sm:items-center sm:justify-between sm:p-8"
-        >
-          <span>
-            <span className="block text-[1.1rem] font-medium">
-              Members change. The address does not.
-            </span>
-            <span className="mt-1 block text-[0.92rem] text-ink-soft">
-              Removing someone reshares the viewing key, so they cannot read anything that arrives
-              afterwards.
-            </span>
-          </span>
-          <span className="shrink-0 text-[0.9rem] font-medium text-olive underline-offset-4 group-hover:underline">
-            How membership works
-          </span>
-        </Link>
-      </Reveal>
     </Section>
   );
 }

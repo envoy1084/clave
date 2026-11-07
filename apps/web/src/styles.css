@@ -32,6 +32,11 @@
   --color-peri-soft: #ededff;
   --color-peri-ink: #3b2f7a;
   --color-night: #0e1530;
+  /* The dark chapters (hero, network view, footer) share the footer's navy. */
+  --color-navy: #0e1530;
+  --color-navy-2: #18214a;
+  /* The system tour sits on the figure's own light grey, so drawing and section read as one surface. */
+  --color-mist: #f0f0ed;
   --color-coral: #c4432a;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);

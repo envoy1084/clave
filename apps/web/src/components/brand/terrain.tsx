@@ -58,11 +58,14 @@ export function Terrain({
   seed = 21,
   shade = "left",
   clusters = DEFAULT_CLUSTERS,
+  priority = false,
 }: {
   className?: string;
   seed?: number;
   shade?: Shade;
   clusters?: readonly Cluster[];
+  /** The hero's image: fetched first, never deferred. */
+  priority?: boolean;
 }) {
   // Clusters arrive as literals; key the cache on their values, not identity.
   const key = JSON.stringify(clusters);
@@ -77,7 +80,8 @@ export function Terrain({
       width={W}
       height={H}
       draggable={false}
-      decoding="async"
+      decoding={priority ? "sync" : "async"}
+      fetchPriority={priority ? "high" : "auto"}
       className={cn("pointer-events-none size-full object-cover", className)}
     />
   );

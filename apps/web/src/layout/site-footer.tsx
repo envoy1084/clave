@@ -7,49 +7,28 @@ import { LINKS } from "@/lib/content";
 
 import { NAV } from "./nav-items";
 
-const DOCS = [
-  { href: LINKS.contract, label: "contract.md" },
-  { href: LINKS.viewing, label: "viewing-keys.md" },
-  { href: LINKS.pxe, label: "pxe-integration.md" },
-  { href: LINKS.keeper, label: "keeper.md" },
-  { href: LINKS.networking, label: "networking.md" },
-] as const;
+const linkClass = "text-paper/80 underline-offset-4 hover-fine:text-paper hover-fine:underline";
 
 export function SiteFooter() {
   return (
-    <footer className="relative overflow-hidden bg-night text-paper">
+    <footer className="relative overflow-hidden bg-navy text-paper">
       <Terrain seed={21} shade="left" className="absolute inset-0 opacity-50" />
-      <Container className="relative grid gap-12 py-16 sm:grid-cols-[1.4fr_1fr_1fr]">
+      <Container className="relative flex flex-col gap-10 py-16 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Wordmark className="text-[1.3rem]" />
-          <p className="mt-3 max-w-[34ch] text-[0.88rem] leading-relaxed text-paper/70">
+          <p className="mt-3 max-w-[34ch] text-[0.9rem] leading-relaxed text-paper/75">
             A private k-of-n multisig with threshold viewing, built on Aztec.
           </p>
         </div>
-        <nav aria-label="Pages" className="flex flex-col gap-2 text-[0.88rem]">
+        <nav aria-label="Pages" className="flex flex-col gap-2 text-[0.92rem] sm:items-end">
           {NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="text-paper/80 underline-offset-4 hover-fine:text-paper hover-fine:underline"
-            >
+            <Link key={item.to} to={item.to} className={linkClass}>
               {item.label}
             </Link>
           ))}
-        </nav>
-        <nav aria-label="Design documents" className="flex flex-col gap-2 font-mono text-[0.8rem]">
-          {DOCS.map((d) => (
-            <a
-              key={d.href}
-              href={d.href}
-              className="text-paper/80 underline-offset-4 hover-fine:text-paper hover-fine:underline"
-            >
-              {d.label}
-            </a>
-          ))}
           <a
             href={LINKS.repo}
-            className="mt-2 font-sans text-[0.88rem] font-medium text-signal underline-offset-4 hover-fine:underline"
+            className="mt-2 font-medium text-signal underline-offset-4 hover-fine:underline"
           >
             Source on GitHub
           </a>
