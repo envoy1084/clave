@@ -24,6 +24,7 @@ crates/               Cargo workspace
   wire/                 clave-wire: wire types and canonical encoding shared by keeper, relay and app
   keeper/               clave-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
   relay/                clave-relay: optional untrusted store-and-forward relay (ciphertext only)
+  demo/                 clave-demo: narrated two-member demo in one terminal (dev tool, never shipped)
   napi/                 @clave/napi: Node bindings of clave-crypto and clave-wire (secret helpers only in /testing)
   cli/                  clave-cli: the `clave` command line, a client of the member's daemon
 packages/             TypeScript, only where Aztec requires it
@@ -133,6 +134,7 @@ pnpm test:cli       # three members through clave only, against `aztec start --l
 pnpm --filter @clave/web dev|build|preview|typecheck|lint   # the site on http://localhost:3000
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 pnpm test:network   # Docker: relay + 3 keepers on separate networks (not part of pnpm test)
+pnpm demo           # Alice and Bob side by side, narrated 2-of-2 flow (needs aztec start --local-network)
 ```
 
 Hooks: pre-commit runs oxfmt, oxlint, rustfmt and nargo fmt on staged files; commit-msg runs commitlint; pre-push runs
