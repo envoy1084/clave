@@ -1,4 +1,4 @@
-//! Mailbox protocol between keepers and an untrusted relay (`/tecpan/mailbox/0`). The relay stores sealed
+//! Mailbox protocol between keepers and an untrusted relay (`/clave/mailbox/0`). The relay stores sealed
 //! [`RelayEnvelope`]s under opaque 32-byte mailbox ids that only the sender and recipient can derive; it never sees a
 //! plaintext, an identity or a vault address. Messages use the same canonical `postcard` encoding as the wire format.
 
@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use crate::{Error, codec::canonical, messages::RelayEnvelope};
 
 /// Domain tag of envelope ids.
-pub const ENVELOPE_DOMAIN: &[u8] = b"tecpan.mailbox.envelope.v0";
+pub const ENVELOPE_DOMAIN: &[u8] = b"clave.mailbox.envelope.v0";
 /// Most mailboxes in one fetch.
 pub const MAX_FETCH_MAILBOXES: usize = 128;
 /// Most ids in one delete.
@@ -75,7 +75,7 @@ pub enum MailboxResponse {
     Deleted(u32),
 }
 
-/// `SHA-256("tecpan.mailbox.envelope.v0" ‖ canonical(envelope))`.
+/// `SHA-256("clave.mailbox.envelope.v0" ‖ canonical(envelope))`.
 ///
 /// # Errors
 /// [`Error::Malformed`] if the envelope cannot be encoded.

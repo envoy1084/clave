@@ -1,8 +1,8 @@
 {
-  "name": "@tecpan/vault-wallet",
+  "name": "@clave/vault-wallet",
   "version": "0.0.0",
   "private": true,
-  "description": "Hosts an Aztec PXE able to operate a Tecpan threshold-viewing vault",
+  "description": "Hosts an Aztec PXE able to operate a Clave threshold-viewing vault",
   "files": [
     "dist"
   ],
@@ -31,12 +31,12 @@
     "@aztec-labs/pxe": "catalog:",
     "@aztec-labs/stdlib": "catalog:",
     "@aztec-labs/wallet-sdk": "catalog:",
-    "@tecpan/napi": "workspace:*"
+    "@clave/napi": "workspace:*"
   },
   "devDependencies": {
     "@aztec-labs/noir-contracts.js": "catalog:",
-    "@tecpan/contracts": "workspace:*",
-    "@tecpan/crates": "workspace:*",
+    "@clave/contracts": "workspace:*",
+    "@clave/crates": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "klarity": "catalog:",

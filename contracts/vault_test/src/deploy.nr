@@ -1,17 +1,17 @@
 use crate::utils::{COMMITTEE_SEED, create_signers, deploy_vault, setup};
 use aztec::test::helpers::test_environment::TestEnvironment;
 use vault_contract::{
+    ClaveVault,
     committee::Committee,
     constants::MAX_SIGNERS,
     point::Point,
     signer_set::{SignerSet, test_utils::points},
-    TecpanVault,
 };
 
 #[test]
 unconstrained fn stores_config_and_signer_set() {
     let fixture = setup(3, 2, 2);
-    let vault = TecpanVault::at(fixture.vault);
+    let vault = ClaveVault::at(fixture.vault);
 
     let config = fixture.view(vault.get_config());
     let expected_signers = SignerSet { keys: fixture.keys, count: 3 };
@@ -30,7 +30,7 @@ unconstrained fn stores_config_and_signer_set() {
 #[test]
 unconstrained fn deploys_with_max_members() {
     let fixture = setup(MAX_SIGNERS, MAX_SIGNERS, MAX_SIGNERS);
-    let config = fixture.view(TecpanVault::at(fixture.vault).get_config());
+    let config = fixture.view(ClaveVault::at(fixture.vault).get_config());
     assert_eq(config.signer_count, MAX_SIGNERS);
     assert_eq(config.threshold, MAX_SIGNERS);
     assert_eq(config.viewing_threshold, MAX_SIGNERS);

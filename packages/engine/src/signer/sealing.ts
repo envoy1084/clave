@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { DaemonError } from "../rpc/errors.ts";
 
 const derive = promisify(argon2);
-const AAD = Buffer.from("tecpan.signer.v1", "utf8");
+const AAD = Buffer.from("clave.signer.v1", "utf8");
 /** 64 MiB, 3 passes, one lane (memory is given in KiB). */
 const KDF = { memory: 65_536, passes: 3, parallelism: 1, tagLength: 32 } as const;
 

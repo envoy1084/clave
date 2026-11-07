@@ -1,4 +1,4 @@
-//! Threshold viewing-key cryptography for Tecpan vaults.
+//! Threshold viewing-key cryptography for Clave vaults.
 //!
 //! Grumpkin arithmetic and encodings byte-compatible with Aztec 6.0.0, Aztec's Poseidon2, the vault contract's wire
 //! formats, Shamir sharing with Feldman commitments, distributed key generation, threshold ECDH with DLEQ proofs,

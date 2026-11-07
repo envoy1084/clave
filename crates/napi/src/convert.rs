@@ -1,10 +1,10 @@
-//! Boundary conversions: hex strings and `{ x, y }` objects to and from `tecpan-crypto` values.
+//! Boundary conversions: hex strings and `{ x, y }` objects to and from `clave-crypto` values.
 
 use std::fmt::Display;
 
+use clave_crypto::{Base, Scalar, curve};
 use napi::{Error, Result, Status};
 use napi_derive::napi;
-use tecpan_crypto::{Base, Scalar, curve};
 
 /// A Grumpkin point in affine coordinates, each a `0x`-prefixed 32-byte hex field element.
 #[napi(object)]
@@ -49,15 +49,15 @@ pub(crate) fn scalar_hex(value: &Scalar) -> String {
     hex32(&curve::scalar_to_bytes(value))
 }
 
-pub(crate) fn point(value: &Point) -> Result<tecpan_crypto::Point> {
-    tecpan_crypto::Point::from_xy(base(&value.x)?, base(&value.y)?).map_err(invalid)
+pub(crate) fn point(value: &Point) -> Result<clave_crypto::Point> {
+    clave_crypto::Point::from_xy(base(&value.x)?, base(&value.y)?).map_err(invalid)
 }
 
-pub(crate) fn points(values: &[Point]) -> Result<Vec<tecpan_crypto::Point>> {
+pub(crate) fn points(values: &[Point]) -> Result<Vec<clave_crypto::Point>> {
     values.iter().map(point).collect()
 }
 
-pub(crate) fn point_out(value: &tecpan_crypto::Point) -> Point {
+pub(crate) fn point_out(value: &clave_crypto::Point) -> Point {
     Point {
         x: base_hex(&value.x()),
         y: base_hex(&value.y()),

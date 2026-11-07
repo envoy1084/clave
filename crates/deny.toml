@@ -1,4 +1,4 @@
-# cargo-deny: dependency policy for the Tecpan Rust workspace.
+# cargo-deny: dependency policy for the Clave Rust workspace.
 
 [graph]
 all-features = true

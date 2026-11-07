@@ -1,6 +1,6 @@
 import { mkdir, open } from "node:fs/promises";
 
-import { type LaunchedKeeper, launchKeeper } from "@tecpan/vault-wallet";
+import { type LaunchedKeeper, launchKeeper } from "@clave/vault-wallet";
 
 import type { KeeperState } from "../types.ts";
 /** Listen on every interface so co-signers on the LAN (or this machine) can dial in; ports are picked by the OS. */

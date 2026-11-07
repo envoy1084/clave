@@ -22,7 +22,7 @@ export function SiteNav() {
         <Link
           to="/"
           className="text-[1.05rem]"
-          aria-label="Tecpan home"
+          aria-label="Clave home"
           onClick={() => setOpen(false)}
         >
           <Wordmark />

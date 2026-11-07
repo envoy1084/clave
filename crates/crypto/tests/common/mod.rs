@@ -6,8 +6,8 @@
     clippy::missing_panics_doc
 )]
 
+use clave_crypto::{Base, Point, Scalar, curve};
 use serde_json::Value;
-use tecpan_crypto::{Base, Point, Scalar, curve};
 
 pub fn vectors() -> Value {
     serde_json::from_str(include_str!("../vectors/aztec.json")).expect("valid vectors json")
@@ -47,8 +47,8 @@ pub fn run_dkg(
     t: usize,
     n: u32,
     rng: &mut rand_chacha::ChaCha20Rng,
-) -> Vec<tecpan_crypto::dkg::KeyShare> {
-    use tecpan_crypto::dkg;
+) -> Vec<clave_crypto::dkg::KeyShare> {
+    use clave_crypto::dkg;
     let params = dkg::Parameters {
         session: [7u8; 32],
         threshold: t,

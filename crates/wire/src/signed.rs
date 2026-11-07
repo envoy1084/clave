@@ -29,7 +29,7 @@ pub struct SignedMessage {
     pub body: Message,
     /// The sending keeper.
     pub signer: IdentityPublic,
-    /// Ed25519 signature over `"tecpan.wire.v0" ‖ canonical(version, header, body, signer)`.
+    /// Ed25519 signature over `"clave.wire.v0" ‖ canonical(version, header, body, signer)`.
     pub signature: Bytes64,
 }
 

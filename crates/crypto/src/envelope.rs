@@ -23,7 +23,7 @@ type Aead = ChaCha20Poly1305;
 type Kdf = HkdfSha256;
 
 /// Domain tag prefixed to every HPKE `info`.
-pub const DOMAIN: &[u8] = b"tecpan.envelope.v0";
+pub const DOMAIN: &[u8] = b"clave.envelope.v0";
 /// Length of an encoded transport public key and of an encapsulated key.
 pub const KEY_BYTES: usize = 32;
 

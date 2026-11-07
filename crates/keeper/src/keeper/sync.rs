@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use tecpan_wire::{
+use clave_wire::{
     Header, IdentityPublic, Message, decode_body,
     messages::{ApprovalRef, ExecutionReceipt, MAX_SYNC_ITEMS, SyncRequest},
 };

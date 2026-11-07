@@ -3,7 +3,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_wire::{Message, decode, decode_body, encode, encode_body, lobby::Invite, mailbox};
+use clave_wire::{Message, decode, decode_body, encode, encode_body, lobby::Invite, mailbox};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(invite) = Invite::from_bytes(data) {
@@ -38,10 +38,10 @@ fn exercise(body: &Message) {
             let _ = manifest.address_context();
         }
         Message::DkgRound1(round1) => {
-            let _ = tecpan_crypto::dkg::Round1Package::try_from(round1);
+            let _ = clave_crypto::dkg::Round1Package::try_from(round1);
         }
         Message::ReshareDeal(deal) => {
-            let _ = tecpan_crypto::reshare::DealerPackage::try_from(deal);
+            let _ = clave_crypto::reshare::DealerPackage::try_from(deal);
         }
         Message::EcdhResponse(response) => {
             let _ = response.partials();

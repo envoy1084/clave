@@ -80,7 +80,7 @@ pub async fn serve(keeper: Keeper, path: PathBuf, token: RpcToken) -> Result<()>
     }
 }
 
-/// Serves JSON-RPC 2.0 on the named pipe `path` (e.g. `\\.\pipe\tecpan-keeper`), refusing remote clients.
+/// Serves JSON-RPC 2.0 on the named pipe `path` (e.g. `\\.\pipe\clave-keeper`), refusing remote clients.
 ///
 /// # Errors
 /// Pipe creation failures.

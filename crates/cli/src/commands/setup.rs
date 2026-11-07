@@ -26,7 +26,7 @@ pub(crate) fn init(ctx: &Ctx, name: Option<String>, touch_id: bool) -> Result<()
     if profile.exists() {
         return Err(
             Error::usage(format!("Profile \"{}\" already exists.", profile.name))
-                .hint(format!("Use it: tecpan {}status", profile.flag())),
+                .hint(format!("Use it: clave {}status", profile.flag())),
         );
     }
     profile.create_dir()?;
@@ -71,7 +71,7 @@ pub(crate) fn init(ctx: &Ctx, name: Option<String>, touch_id: bool) -> Result<()
         let _ = writeln!(out, "  {:<12}{}", "Directory", profile.dir.display());
         let _ = write!(
             out,
-            "\nNext: tecpan {f}lobby open --name <vault> -k 2 --tv 2, or tecpan {f}lobby join <invite>\n",
+            "\nNext: clave {f}lobby open --name <vault> -k 2 --tv 2, or clave {f}lobby join <invite>\n",
             f = profile.flag()
         );
         out
@@ -140,7 +140,7 @@ fn probe_url(ctx: &Ctx) -> String {
 fn node_check(url: &str) -> std::result::Result<String, (String, String)> {
     if url.starts_with("https://") {
         return Ok(format!(
-            "{url} (https: not probed here; the daemon checks it, see tecpan status)"
+            "{url} (https: not probed here; the daemon checks it, see clave status)"
         ));
     }
     let info = http::json_rpc(url, "node_getNodeInfo", Duration::from_secs(5)).map_err(|e| {
@@ -184,8 +184,8 @@ pub(crate) fn doctor(ctx: &Ctx) -> Result<()> {
         "keeper",
         daemon::keeper_path(&ctx.home).map(|p| p.display().to_string()).ok_or_else(|| {
             (
-                "tecpan-keeper not found".to_owned(),
-                "Build it: cargo build --release -p tecpan-keeper (in crates/), or set TECPAN_KEEPER_BIN".to_owned(),
+                "clave-keeper not found".to_owned(),
+                "Build it: cargo build --release -p clave-keeper (in crates/), or set CLAVE_KEEPER_BIN".to_owned(),
             )
         }),
     ));
@@ -201,7 +201,7 @@ pub(crate) fn doctor(ctx: &Ctx) -> Result<()> {
     } else {
         Err((
             format!("profile \"{}\" does not exist", profile.name),
-            format!("Create it: tecpan {}init", profile.flag()),
+            format!("Create it: clave {}init", profile.flag()),
         ))
     };
     checks.push(check("profile", dir));
@@ -215,9 +215,9 @@ pub(crate) fn doctor(ctx: &Ctx) -> Result<()> {
             private_path(&profile.token(), "600", "absent (daemon not running)"),
         ));
         let daemon = match daemon::info(profile) {
-            Some(info) => format!("running (pid {}, tecpand {})", info.pid, info.version),
+            Some(info) => format!("running (pid {}, claved {})", info.pid, info.version),
             None => format!(
-                "not running (start it: tecpan {}daemon start)",
+                "not running (start it: clave {}daemon start)",
                 profile.flag()
             ),
         };
@@ -284,7 +284,7 @@ pub(crate) fn status(ctx: &Ctx) -> Result<()> {
     ctx.out(&render_status(&status, pid, &open, now_ms, ctx.style));
     if status.profile.is_none() {
         ctx.out(&format!(
-            "\nThe profile is not created yet: tecpan {}init\n",
+            "\nThe profile is not created yet: clave {}init\n",
             ctx.profile.flag()
         ));
     }
@@ -306,7 +306,7 @@ pub(crate) fn profile(ctx: &Ctx, cmd: ProfileCmd) -> Result<()> {
             let value = json!(rows.iter().map(|(name, running)| json!({ "name": name, "running": running, "current": *name == ctx.profile.name })).collect::<Vec<_>>());
             ctx.emit(&value, || {
                 if rows.is_empty() {
-                    return "No profiles yet: tecpan init\n".to_owned();
+                    return "No profiles yet: clave init\n".to_owned();
                 }
                 rows.iter().fold(String::new(), |mut out, (name, running)| {
                     let mark = if *name == ctx.profile.name { "*" } else { " " };
@@ -339,11 +339,7 @@ pub(crate) fn profile(ctx: &Ctx, cmd: ProfileCmd) -> Result<()> {
                     out,
                     "{:<11}{}",
                     "Created",
-                    if p.exists() {
-                        "yes"
-                    } else {
-                        "no (tecpan init)"
-                    }
+                    if p.exists() { "yes" } else { "no (clave init)" }
                 );
                 let daemon = info.as_ref().map_or_else(
                     || "stopped".to_owned(),
@@ -390,6 +386,6 @@ pub(crate) fn profile(ctx: &Ctx, cmd: ProfileCmd) -> Result<()> {
 
 pub(crate) fn completions(shell: clap_complete::Shell) {
     let mut buffer = Vec::new();
-    clap_complete::generate(shell, &mut crate::Cli::command(), "tecpan", &mut buffer);
+    clap_complete::generate(shell, &mut crate::Cli::command(), "clave", &mut buffer);
     write_stdout(&String::from_utf8_lossy(&buffer));
 }

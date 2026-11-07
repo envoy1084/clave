@@ -1,4 +1,4 @@
-// Recipes shared by every Tecpan figure, bound to one projection: a base plate on feet with its groove, corner screws
+// Recipes shared by every Clave figure, bound to one projection: a base plate on feet with its groove, corner screws
 // and label plate, plus the small helpers each geometry module needs. Geometry is built once at module load.
 import {
   corners,

@@ -4,22 +4,22 @@
 
 use std::collections::BTreeMap;
 
-use rand_core::CryptoRng;
-use serde::{Deserialize, Serialize};
-use tecpan_crypto::{
+use clave_crypto::{
     SecretScalar,
     dkg::KeyShare,
     envelope::{self, Context, TransportPublic, TransportSecret},
     reshare::{self, DealerPackage, Parameters, SubShare},
     shamir::{Commitments, MemberIndex},
 };
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic, Message,
     messages::{
         AbortReason, Ceremony, Complaint, Confirm, Justification, ReshareDeal, SealedShare,
     },
     types::{Bytes64, WirePoint, parse_points, parse_scalar, scalar},
 };
+use rand_core::CryptoRng;
+use serde::{Deserialize, Serialize};
 
 use super::{
     Failure, KIND_RESHARE_SUB_SHARE, Outbox, Participant, Status, Target, abort_message,
@@ -111,7 +111,7 @@ impl Reshare {
         };
         crypto.validate()?;
         if crypto.new_threshold < 2
-            || crypto.new_participants.len() > tecpan_crypto::vault::MAX_SIGNERS
+            || crypto.new_participants.len() > clave_crypto::vault::MAX_SIGNERS
         {
             return Err(Error::Invalid(
                 "a viewing committee has 2 <= t_v <= n <= 8".into(),
@@ -455,7 +455,7 @@ impl Reshare {
                 );
                 self.check_confirms();
             }
-            Err(tecpan_crypto::Error::InvalidShare(dealer)) => self.complain(dealer, now, outbox),
+            Err(clave_crypto::Error::InvalidShare(dealer)) => self.complain(dealer, now, outbox),
             Err(error) => {
                 self.fail_and_announce(format!("cannot combine sub-shares: {error}"), &[], outbox);
             }

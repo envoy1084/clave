@@ -52,7 +52,7 @@ export function MembershipPage() {
             Remove a member. <em className="serif-em">Keep the address.</em>
           </>
         }
-        lede="In most private wallets, losing trust in someone with the viewing key means moving everything to a new account. In Tecpan the remaining members reshare the key instead: same secret, new shares, and the person who left holds a share that no longer fits."
+        lede="In most private wallets, losing trust in someone with the viewing key means moving everything to a new account. In Clave the remaining members reshare the key instead: same secret, new shares, and the person who left holds a share that no longer fits."
         meta={
           <>
             rotate_membership · signers and viewing committee change together · at most t_v − 1

@@ -7,7 +7,7 @@ import {
   computePartialAddress,
   getContractInstanceFromInstantiationParams,
 } from "@aztec-labs/stdlib/contract";
-import { addressContext, committeeCommitment, signerSetCommitment } from "@tecpan/napi";
+import { addressContext, committeeCommitment, signerSetCommitment } from "@clave/napi";
 
 import { toNapiPoint } from "../keys/points.ts";
 import { vaultArtifact } from "./artifact.ts";

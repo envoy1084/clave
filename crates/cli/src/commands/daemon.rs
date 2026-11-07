@@ -48,7 +48,7 @@ pub(crate) fn run(ctx: &Ctx, cmd: &DaemonCmd) -> Result<()> {
                 let mut out = String::new();
                 let _ = writeln!(
                     out,
-                    "{:<10}tecpand {} (pid {})",
+                    "{:<10}claved {} (pid {})",
                     "Daemon", info.version, info.pid
                 );
                 let _ = writeln!(out, "{:<10}{}", "Profile", info.profile_dir);

@@ -5,11 +5,11 @@
 pub mod dkg;
 pub mod reshare;
 
-use serde::{Deserialize, Serialize};
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic, Message,
     messages::{Abort, AbortReason, Ceremony},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::transport::Peer;
 

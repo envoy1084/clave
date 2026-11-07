@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { verifySignature } from "@tecpan/napi";
+import { verifySignature } from "@clave/napi";
 import { describe, expect, it } from "vitest";
 
 import { DaemonError } from "../src/rpc/errors.ts";
@@ -29,7 +29,7 @@ describe("sealing", () => {
 });
 
 const signer = async () => {
-  const dir = await mkdtemp(join(tmpdir(), "tecpan-signer-"));
+  const dir = await mkdtemp(join(tmpdir(), "clave-signer-"));
   const s = new Signer(join(dir, "signer.sealed"));
   return { signer: s, publicKey: await s.create("correct horse") };
 };

@@ -4,15 +4,15 @@
 
 mod common;
 
-use common::{base, point, scalar, vectors};
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Error, Point, SecretScalar,
     aztec::AddressContext,
     ecdh::{AddressSecretShare, EcdhContext, Partial, combine, verify_and_combine, verify_partial},
     shamir::{MemberIndex, Polynomial, random_scalar},
 };
+use common::{base, point, scalar, vectors};
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 struct Dealt {
     shares: Vec<AddressSecretShare>,
@@ -22,7 +22,7 @@ struct Dealt {
 /// Deals `ivsk` into `t`-of-`n` viewing shares and maps them to address-secret shares.
 fn deal(
     ivsk: &SecretScalar,
-    preaddress: tecpan_crypto::Base,
+    preaddress: clave_crypto::Base,
     t: usize,
     n: u32,
     rng: &mut ChaCha20Rng,
@@ -90,7 +90,7 @@ fn member_public_shares_match_address_verification_shares() {
     let mut rng = ChaCha20Rng::seed_from_u64(2);
     let ivsk = random_scalar(&mut rng);
     let ivpk = Point::generator_mul_secret(&ivsk).unwrap();
-    let context = AddressContext::new(tecpan_crypto::Base::from(99u64), &ivpk).unwrap();
+    let context = AddressContext::new(clave_crypto::Base::from(99u64), &ivpk).unwrap();
     let poly = Polynomial::random(ivsk, 2, &mut rng).unwrap();
     let commitments = poly.commitments().unwrap();
     for i in 1..=3 {
@@ -106,7 +106,7 @@ fn member_public_shares_match_address_verification_shares() {
 fn setup() -> (Dealt, Point, EcdhContext, ChaCha20Rng) {
     let mut rng = ChaCha20Rng::seed_from_u64(3);
     let ivsk = random_scalar(&mut rng);
-    let dealt = deal(&ivsk, tecpan_crypto::Base::from(1234u64), 2, 3, &mut rng);
+    let dealt = deal(&ivsk, clave_crypto::Base::from(1234u64), 2, 3, &mut rng);
     let input = Point::generator_mul_secret(&random_scalar(&mut rng)).unwrap();
     let ctx = EcdhContext {
         vault: dealt.context.address(),
@@ -135,7 +135,7 @@ fn proof_is_bound_to_member_epoch_vault_and_input() {
     assert!(verify_partial(&partial, &input, dealt.shares[1].public(), &ctx).is_err());
     assert!(verify_partial(&partial, &input, public, &EcdhContext { epoch: 2, ..ctx }).is_err());
     let other_vault = EcdhContext {
-        vault: tecpan_crypto::Base::from(5u64),
+        vault: clave_crypto::Base::from(5u64),
         ..ctx
     };
     assert!(verify_partial(&partial, &input, public, &other_vault).is_err());

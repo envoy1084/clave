@@ -1,4 +1,4 @@
-// Who answers the vault's threshold ECDH in the end-to-end suite: in-process shares, or real `tecpan-keeper` processes
+// Who answers the vault's threshold ECDH in the end-to-end suite: in-process shares, or real `clave-keeper` processes
 // that ran a DKG among themselves. The suite runs once per backend.
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -90,13 +90,13 @@ export async function inProcessBackend(): Promise<ViewingBackend> {
 }
 
 const KEEPER_BINARY =
-  process.env.TECPAN_KEEPER_BIN ??
-  fileURLToPath(new URL("../../../../crates/target/debug/tecpan-keeper", import.meta.url));
+  process.env.CLAVE_KEEPER_BIN ??
+  fileURLToPath(new URL("../../../../crates/target/debug/clave-keeper", import.meta.url));
 
 function keeperBinary(): string {
   if (!existsSync(KEEPER_BINARY)) {
     const manifest = fileURLToPath(new URL("../../../../crates/Cargo.toml", import.meta.url));
-    execFileSync("cargo", ["build", "--manifest-path", manifest, "-p", "tecpan-keeper"], {
+    execFileSync("cargo", ["build", "--manifest-path", manifest, "-p", "clave-keeper"], {
       stdio: "inherit",
     });
   }
@@ -133,7 +133,7 @@ const participant = (k: LaunchedKeeper) => ({
 
 export async function keeperBackend(): Promise<ViewingBackend> {
   const binary = keeperBinary();
-  const dirs = await Promise.all([1, 2, 3, 4].map((i) => mkdtemp(join(tmpdir(), `tecpan-k${i}-`))));
+  const dirs = await Promise.all([1, 2, 3, 4].map((i) => mkdtemp(join(tmpdir(), `clave-k${i}-`))));
   const keepers = await Promise.all(
     dirs.map((dataDir) =>
       launchKeeper({ binary, dataDir, masterKey: randomBytes(32).toString("hex") }),
@@ -165,7 +165,7 @@ export async function keeperBackend(): Promise<ViewingBackend> {
   let manifest: ReturnType<typeof keeperManifest> | undefined;
   let reshareSession = "";
   const backend: ViewingBackend = {
-    name: "tecpan-keeper processes",
+    name: "clave-keeper processes",
     groupKey: fromNapiPoint(result.groupKey),
     verificationShares: result.verificationShares.map(fromNapiPoint),
     epoch: 0,

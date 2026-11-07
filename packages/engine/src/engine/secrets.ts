@@ -1,7 +1,7 @@
 // The vault's shared protocol secrets travel between members as one opaque blob (sealed by the keepers per member);
 // only engines ever read it. Compact JSON, hex encoded, well under the keeper's 1 KiB limit.
 import { GrumpkinScalar, type Point } from "@aztec-labs/foundation/curves/grumpkin";
-import { type VaultProtocolSecrets, fromNapiPoint, toNapiPoint } from "@tecpan/vault-wallet";
+import { type VaultProtocolSecrets, fromNapiPoint, toNapiPoint } from "@clave/vault-wallet";
 
 export interface SharedSecrets {
   readonly protocol: VaultProtocolSecrets;

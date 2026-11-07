@@ -128,13 +128,13 @@ fn open(ctx: &Ctx, client: &mut Client, args: &LobbyOpen) -> Result<()> {
     let invite = lobby.invite.clone().unwrap_or_default();
     ctx.emit(&raw, || {
         format!(
-            "Lobby {} open  (spend {threshold}, view {viewing_threshold})\n\nInvite (send it to the other members):\n\n  {invite}\n\nThey join with: tecpan lobby join <invite>\n",
+            "Lobby {} open  (spend {threshold}, view {viewing_threshold})\n\nInvite (send it to the other members):\n\n  {invite}\n\nThey join with: clave lobby join <invite>\n",
             ctx.style.bold(name)
         )
     });
     if args.no_wait {
         ctx.out(&format!(
-            "Start founding later: tecpan {}lobby start\n",
+            "Start founding later: clave {}lobby start\n",
             ctx.profile.flag()
         ));
         return Ok(());
@@ -164,7 +164,7 @@ fn join(ctx: &Ctx, client: &mut Client, invite: &str, alias: Option<&str>) -> Re
             "The invite is for network {}, but this daemon uses another node.",
             preview.network
         ))
-        .hint("Point the daemon at the same network: tecpan config set node-url <url>"));
+        .hint("Point the daemon at the same network: clave config set node-url <url>"));
     }
     ctx.confirm(&format!(
         "Join {} hosted by {}?",
@@ -320,7 +320,7 @@ fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&s
         let raw: Value = client.call("founding.get", json!({ "lobby": lobby }))?;
         if raw.is_null() {
             if started.elapsed() > Duration::from_secs(30) {
-                return Err(Error::failed("Founding did not start.").hint("tecpan lobby status"));
+                return Err(Error::failed("Founding did not start.").hint("clave lobby status"));
             }
             std::thread::sleep(Duration::from_millis(500));
             continue;
@@ -352,7 +352,7 @@ fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&s
                 let _ = write!(message, " (blamed: {})", error.blamed.join(", "));
             }
             return Err(Error::failed(message)
-                .hint("Retry: tecpan lobby start (host) or tecpan lobby join (guests)"));
+                .hint("Retry: clave lobby start (host) or clave lobby join (guests)"));
         }
         if state.done {
             if let (Some(alias), Some(vault)) = (alias, &state.vault) {

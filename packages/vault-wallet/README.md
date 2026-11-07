@@ -1,6 +1,6 @@
-# @tecpan/vault-wallet
+# @clave/vault-wallet
 
-Node library that hosts an Aztec 6.0.0 PXE able to operate a Tecpan vault without its incoming viewing secret:
+Node library that hosts an Aztec 6.0.0 PXE able to operate a Clave vault without its incoming viewing secret:
 
 - a pnpm patch of `@aztec-labs/pxe` (`patches/`) routing every viewing-secret use through the key store;
 - `ThresholdKeyStore` and `ThresholdEcdhProvider` (threshold ECDH with verified DLEQ partials);
@@ -9,9 +9,9 @@ Node library that hosts an Aztec 6.0.0 PXE able to operate a Tecpan vault withou
 See `architecture/pxe-integration.md`.
 
 ```sh
-pnpm --filter @tecpan/vault-wallet test        # unit tests
+pnpm --filter @clave/vault-wallet test        # unit tests
 aztec start --local-network                    # in another terminal
-pnpm --filter @tecpan/vault-wallet test:e2e    # end to end (TECPAN_E2E_PROVE=1 to prove client-side)
+pnpm --filter @clave/vault-wallet test:e2e    # end to end (CLAVE_E2E_PROVE=1 to prove client-side)
 ```
 
-`@tecpan/vault-wallet/testing` deals viewing shares in-process for tests; the app never uses it.
+`@clave/vault-wallet/testing` deals viewing shares in-process for tests; the app never uses it.

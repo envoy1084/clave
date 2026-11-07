@@ -1,18 +1,18 @@
 # CLI and daemon
 
-A member operates Tecpan from the terminal. `tecpan` (`crates/cli`, Rust) is a short-lived client; `tecpand`
+A member operates Clave from the terminal. `clave` (`crates/cli`, Rust) is a short-lived client; `claved`
 (`packages/engine`, Node 24) is a per-profile background daemon that hosts the member's PXE, signer and founding and
-proposal workflows, and supervises the member's `tecpan-keeper`. Node is a prerequisite and is not bundled.
+proposal workflows, and supervises the member's `clave-keeper`. Node is a prerequisite and is not bundled.
 
 ```text
-tecpan (Rust) ──JSON-RPC, unix socket──▶ tecpand (Node) ──JSON-RPC, unix socket──▶ tecpan-keeper (Rust)
- per command                              one per profile                           child of tecpand
+clave (Rust) ──JSON-RPC, unix socket──▶ claved (Node) ──JSON-RPC, unix socket──▶ clave-keeper (Rust)
+ per command                              one per profile                           child of claved
  args, refs, rendering, prompts           PXE, signer, founding, proposals          viewing share, DKG, ECDH, p2p
 ```
 
 ## Profiles and files
 
-`TECPAN_HOME` (default `~/.tecpan`) holds `profiles/<name>/`; `-P, --profile` / `TECPAN_PROFILE` selects one
+`CLAVE_HOME` (default `~/.clave`) holds `profiles/<name>/`; `-P, --profile` / `CLAVE_PROFILE` selects one
 (`default` when unset). Profile names match `^[a-z0-9][a-z0-9_-]{0,31}$`. Directories are `0700`, files `0600`.
 
 | Path                                     | Contents                                                                                  |
@@ -27,17 +27,17 @@ tecpan (Rust) ──JSON-RPC, unix socket──▶ tecpand (Node) ──JSON-RPC
 | `daemon.pid`, `daemon.log`, `keeper.log` | Process id and logs                                                                       |
 
 The daemon's socket is `<profile>/daemon.sock` unless that path is longer than 100 bytes (macOS limits socket paths to
-104), in which case it is `$TMPDIR/tecpand-<hash>.sock`; either way the path is written to `daemon.addr`. The keeper's
-socket always lives in the temp directory (`tecpan-<hash>.sock`).
+104), in which case it is `$TMPDIR/claved-<hash>.sock`; either way the path is written to `daemon.addr`. The keeper's
+socket always lives in the temp directory (`clave-<hash>.sock`).
 
 ## Daemon
 
-`tecpand --profile-dir <dir> [--foreground]` serves until `daemon.stop` or a signal. `tecpan daemon start` spawns it
-detached (stdout and stderr to `daemon.log`), waits for the socket to answer `daemon.info`, and returns; `tecpan`
+`claved --profile-dir <dir> [--foreground]` serves until `daemon.stop` or a signal. `clave daemon start` spawns it
+detached (stdout and stderr to `daemon.log`), waits for the socket to answer `daemon.info`, and returns; `clave`
 commands that need the daemon fail with exit code 3 when it is not running (they never start it implicitly, except
-`tecpan init`). The engine binary is found at `TECPAN_ENGINE` (a `.js` entry run with `node`), else
-`$TECPAN_HOME/lib/engine/tecpand.js`, else the repository build (`packages/engine/dist/tecpand.js`). The keeper binary
-is `TECPAN_KEEPER_BIN`, else `$TECPAN_HOME/bin/tecpan-keeper`, else `crates/target/{release,debug}/tecpan-keeper`.
+`clave init`). The engine binary is found at `CLAVE_ENGINE` (a `.js` entry run with `node`), else
+`$CLAVE_HOME/lib/engine/claved.js`, else the repository build (`packages/engine/dist/claved.js`). The keeper binary
+is `CLAVE_KEEPER_BIN`, else `$CLAVE_HOME/bin/clave-keeper`, else `crates/target/{release,debug}/clave-keeper`.
 
 ### Transport
 
@@ -161,19 +161,19 @@ The approval signing key (Grumpkin) exists at rest only as `signer.sealed`:
 
 ```text
 sealing key = Argon2id(passphrase, salt, memory 64 MiB, passes 3, parallelism 1, 32 bytes)
-signer.sealed = { v: 1, kdf: { salt }, nonce, ciphertext }      ChaCha20-Poly1305, AAD "tecpan.signer.v1"
+signer.sealed = { v: 1, kdf: { salt }, nonce, ciphertext }      ChaCha20-Poly1305, AAD "clave.signer.v1"
 ```
 
 It is decrypted only inside the daemon, for one signature or for an unlock window (`signer.unlock { ttlSecs }`), and
 the plaintext is dropped afterwards. The passphrase reaches the daemon only over the owner-only socket, typed at a
-no-echo prompt or read from `TECPAN_PASSPHRASE_FILE`, never from argv or plain environment variables.
+no-echo prompt or read from `CLAVE_PASSPHRASE_FILE`, never from argv or plain environment variables.
 
-Touch ID (macOS, optional): `tecpan signer enable-touch-id` asks for the passphrase, obtains the sealing key with
-`signer.sealingKey`, and stores it as a login-keychain item of the `tecpan` binary. Reading it requires a successful
+Touch ID (macOS, optional): `clave signer enable-touch-id` asks for the passphrase, obtains the sealing key with
+`signer.sealingKey`, and stores it as a login-keychain item of the `clave` binary. Reading it requires a successful
 `LocalAuthentication` check (Touch ID, or the account password as fallback) in the CLI, which then passes
 `{ key }` as the secret. The passphrase always remains the recovery path.
 
-`--yes` skips confirmations, never authentication. `tecpan approve` shows the review screen before asking.
+`--yes` skips confirmations, never authentication. `clave approve` shows the review screen before asking.
 
 ## Trust boundaries
 

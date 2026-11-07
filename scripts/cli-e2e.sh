@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 13 end to end: three members (ana, bea, cai) on one machine operate a 2-of-3 vault only through `tecpan`,
+# Phase 13 end to end: three members (ana, bea, cai) on one machine operate a 2-of-3 vault only through `clave`,
 # against `aztec start --local-network` on http://localhost:8080 (or AZTEC_NODE_URL):
 #   init → lobby and founding → test token → propose → reject → approve → offline catch-up → execute
 #   → blocked by rejections → cancel, and a check that --yes never skips authentication.
@@ -7,15 +7,15 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 node_url="${AZTEC_NODE_URL:-http://localhost:8080}"
-work="$(mktemp -d "${TMPDIR:-/tmp}/tecpan-e2e.XXXXXX")"
-export TECPAN_HOME="$work/home" NO_COLOR=1
-export TECPAN_ENGINE="$root/packages/engine/dist/tecpand.js"
-export TECPAN_KEEPER_BIN="$root/crates/target/debug/tecpan-keeper"
+work="$(mktemp -d "${TMPDIR:-/tmp}/clave-e2e.XXXXXX")"
+export CLAVE_HOME="$work/home" NO_COLOR=1
+export CLAVE_ENGINE="$root/packages/engine/dist/claved.js"
+export CLAVE_KEEPER_BIN="$root/crates/target/debug/clave-keeper"
 passphrase="$work/passphrase"
 printf 'correct horse battery staple' >"$passphrase"
 chmod 600 "$passphrase"
-export TECPAN_PASSPHRASE_FILE="$passphrase"
-tecpan="$root/crates/target/debug/tecpan"
+export CLAVE_PASSPHRASE_FILE="$passphrase"
+clave="$root/crates/target/debug/clave"
 started=$(date +%s)
 
 step() { printf '\n[%4ss] %s\n' "$(($(date +%s) - started))" "$*"; }
@@ -23,7 +23,7 @@ fail() {
   echo "FAILED: $*" >&2
   exit 1
 }
-t() { "$tecpan" "$@"; }
+t() { "$clave" "$@"; }
 # A field of a JSON document on stdin: `field .profile.account` (numbers index arrays).
 field() { node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{let v=JSON.parse(s);for(const k of process.argv[1].split('.').filter(Boolean))v=v?.[k];console.log(typeof v==='string'?v:JSON.stringify(v))})" "$1"; }
 # Status of proposal $2 as profile $1 sees it.
@@ -42,8 +42,8 @@ cleanup() {
 trap cleanup EXIT
 
 step "build"
-cargo build -q --manifest-path "$root/crates/Cargo.toml" -p tecpan-cli -p tecpan-keeper
-pnpm --dir "$root" --filter @tecpan/engine... build >/dev/null
+cargo build -q --manifest-path "$root/crates/Cargo.toml" -p clave-cli -p clave-keeper
+pnpm --dir "$root" --filter @clave/engine... build >/dev/null
 curl -sf -m 5 -X POST "$node_url" -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"node_getBlockNumber","params":[]}' >/dev/null ||
   fail "no Aztec node at $node_url (aztec start --local-network)"
@@ -56,8 +56,8 @@ t -P ana status
 step "found a 2-of-3 vault (t_v 2)"
 t -P ana lobby open --name Ops -k 2 --tv 2 --members 3 --alias ops >"$work/ana-lobby.log" 2>&1 &
 host=$!
-wait_for "the invite" "grep -qo 'tecpan-invite-v0:[A-Za-z0-9_-]*' '$work/ana-lobby.log'" 120
-invite="$(grep -o 'tecpan-invite-v0:[A-Za-z0-9_-]*' "$work/ana-lobby.log" | head -1)"
+wait_for "the invite" "grep -qo 'clave-invite-v0:[A-Za-z0-9_-]*' '$work/ana-lobby.log'" 120
+invite="$(grep -o 'clave-invite-v0:[A-Za-z0-9_-]*' "$work/ana-lobby.log" | head -1)"
 t -P bea lobby inspect "$invite"
 t -P bea -y lobby join "$invite" --alias ops >"$work/bea-lobby.log" 2>&1 &
 bea_join=$!
@@ -110,7 +110,7 @@ step "--yes never skips authentication"
 second="$(t -P ana --json propose transfer 1 ttt --to bea | field .id)"
 wait_for "replication" "[ -n \"\$(status_of bea ${second:2:8})\" ]" 120
 set +e
-TECPAN_PASSPHRASE_FILE='' t -P bea --json -y approve "${second:2:8}" </dev/null >/dev/null 2>"$work/locked.err"
+CLAVE_PASSPHRASE_FILE='' t -P bea --json -y approve "${second:2:8}" </dev/null >/dev/null 2>"$work/locked.err"
 code=$?
 set -e
 [ "$code" -ne 0 ] || fail "approve without a passphrase succeeded"

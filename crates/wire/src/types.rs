@@ -1,7 +1,7 @@
-//! Byte representations of field elements, scalars and points, with validated conversions to `tecpan-crypto` types.
+//! Byte representations of field elements, scalars and points, with validated conversions to `clave-crypto` types.
 
+use clave_crypto::{Base, Point, Scalar, curve};
 use serde::{Deserialize, Serialize};
-use tecpan_crypto::{Base, Point, Scalar, curve};
 
 use crate::Error;
 

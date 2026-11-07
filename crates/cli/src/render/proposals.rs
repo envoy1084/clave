@@ -1,4 +1,4 @@
-//! `tecpan proposals` and `tecpan proposal show`.
+//! `clave proposals` and `clave proposal show`.
 
 use std::fmt::Write as _;
 
@@ -11,7 +11,7 @@ use crate::{
     units::format_amount,
 };
 
-/// Statuses `tecpan proposals` shows by default.
+/// Statuses `clave proposals` shows by default.
 pub(crate) const OPEN: [&str; 3] = ["collecting", "ready", "blocked"];
 
 /// `Ops  0x2874…5e69   spend 2/3  view 2/3  config v0   block 412`.
@@ -131,7 +131,7 @@ pub(crate) fn table(
     let mut out = format!("{header}\n\n");
     if proposals.is_empty() {
         out.push_str(
-            "No proposals.\n\nPropose one: tecpan propose transfer <amount> <token> --to <ref>\n",
+            "No proposals.\n\nPropose one: clave propose transfer <amount> <token> --to <ref>\n",
         );
         return out;
     }
@@ -157,7 +157,7 @@ pub(crate) fn table(
         .count();
     let _ = write!(
         out,
-        "\n{open} open · tecpan proposal show <id> · tecpan approve <id>\n"
+        "\n{open} open · clave proposal show <id> · clave approve <id>\n"
     );
     out
 }
@@ -308,7 +308,7 @@ pub(crate) mod tests {
             expires_at: NOW + 6 * 86_400 + 23 * 3600 + 120,
             token: Some(TokenInfo {
                 address: addr("0f9d"),
-                name: "Tecpan Test Token".into(),
+                name: "Clave Test Token".into(),
                 symbol: "TTT".into(),
                 decimals: 18,
             }),
@@ -390,7 +390,7 @@ ID      PROPOSAL                             APPROVALS  EXPIRES    STATUS
 c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collecting  rejected by cai
 51bd02  cancel 9a10e2 (burn nonce)           ░░ 0/2     in 6d 22h  collecting
 
-3 open · tecpan proposal show <id> · tecpan approve <id>
+3 open · clave proposal show <id> · clave approve <id>
 "
         );
     }

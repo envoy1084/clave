@@ -17,7 +17,7 @@ const STOPS = [
     holds: "Your signing key",
     body: "Your wallet builds and proves every transaction on your own machine. Before you sign, it rebuilds the proposal from its calls and shows you what you are approving.",
     detail:
-      "tecpan CLI and its daemon tecpand: the PXE with a patched key store, a passphrase-sealed signer, your keeper.",
+      "clave CLI and its daemon claved: the PXE with a patched key store, a passphrase-sealed signer, your keeper.",
   },
   {
     tray: 2,
@@ -25,7 +25,7 @@ const STOPS = [
     holds: "One share of the viewing key",
     body: "A small daemon you run on your laptop or your own server. It keeps your share of the viewing key and answers decryption requests from other members' wallets, each answer with a proof.",
     detail:
-      "tecpan-keeper: DKG and resharing, ECDH responder with DLEQ proofs, proposal replication over libp2p with Noise.",
+      "clave-keeper: DKG and resharing, ECDH responder with DLEQ proofs, proposal replication over libp2p with Noise.",
   },
   {
     tray: 1,
@@ -33,7 +33,7 @@ const STOPS = [
     holds: "Sealed envelopes only",
     body: "Passes messages between keepers that cannot reach each other and holds them for members who are offline. Anyone can run one; it cannot read, forge or link what it stores.",
     detail:
-      "tecpan-relay: circuit relay and HPKE-sealed mailboxes. It can drop or delay traffic, nothing more.",
+      "clave-relay: circuit relay and HPKE-sealed mailboxes. It can drop or delay traffic, nothing more.",
   },
   {
     tray: 0,
@@ -41,7 +41,7 @@ const STOPS = [
     holds: "Proofs and commitments",
     body: "Checks the proof and records the result. Who the members are, the thresholds and the amounts stay inside encrypted notes that only the vault can read.",
     detail:
-      "TecpanVault account contract; config in private notes; fees through a sponsored fee payment contract.",
+      "ClaveVault account contract; config in private notes; fees through a sponsored fee payment contract.",
   },
 ] as const;
 
@@ -85,7 +85,7 @@ export function SystemTour() {
             Four places, <em className="serif-em">none of them in charge.</em>
           </h2>
           <p className="mt-4 text-[1.02rem] leading-relaxed text-ink-soft">
-            There is no Tecpan server. Each member runs their own wallet and keeper; relays are
+            There is no Clave server. Each member runs their own wallet and keeper; relays are
             optional and untrusted; the chain only sees proofs.
           </p>
         </div>

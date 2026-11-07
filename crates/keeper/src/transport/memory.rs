@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex, PoisonError},
 };
 
-use tecpan_wire::IdentityPublic;
+use clave_wire::IdentityPublic;
 use tokio::sync::mpsc;
 
 use super::{Channel, Inbound, Peer, PeerStatus, SendFuture, Transport};

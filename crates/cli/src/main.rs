@@ -1,4 +1,4 @@
-//! `tecpan`: the Tecpan command line. A short-lived client of the profile's `tecpand` daemon
+//! `clave`: the Clave command line. A short-lived client of the profile's `claved` daemon
 //! (`architecture/cli.md`): it parses arguments, resolves references, renders, prompts and reads passphrases.
 
 mod commands;
@@ -22,9 +22,9 @@ use crate::{context::Ctx, error::Error};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "tecpan",
+    name = "clave",
     version,
-    about = "Tecpan: a private k-of-n multisig vault on Aztec with threshold viewing",
+    about = "Clave: a private k-of-n multisig vault on Aztec with threshold viewing",
     // `-V` is `--vault`; the version flag stays as `--version`.
     disable_version_flag = true,
     propagate_version = true
@@ -47,13 +47,13 @@ pub(crate) struct Global {
     #[arg(
         short = 'P',
         long,
-        env = "TECPAN_PROFILE",
+        env = "CLAVE_PROFILE",
         default_value = "default",
         global = true
     )]
     pub(crate) profile: String,
     /// Target vault (alias, name or address); default is the profile's selected or only vault.
-    #[arg(short = 'V', long, env = "TECPAN_VAULT", global = true)]
+    #[arg(short = 'V', long, env = "CLAVE_VAULT", global = true)]
     pub(crate) vault: Option<String>,
     /// Aztec node URL (used by `init` and `doctor`; the daemon keeps its own in `config`).
     #[arg(short = 'n', long, env = "AZTEC_NODE_URL", global = true)]
@@ -259,7 +259,7 @@ pub(crate) enum RelayCmd {
     Remove { multiaddr: String },
 }
 
-/// `tecpan lobby open`.
+/// `clave lobby open`.
 #[derive(Args, Debug)]
 pub(crate) struct LobbyOpen {
     /// Vault name.
@@ -277,7 +277,7 @@ pub(crate) struct LobbyOpen {
     /// Alias for the founded vault.
     #[arg(long)]
     pub(crate) alias: Option<String>,
-    /// Print the invite and return; start later with `tecpan lobby start`.
+    /// Print the invite and return; start later with `clave lobby start`.
     #[arg(long)]
     pub(crate) no_wait: bool,
 }
@@ -457,7 +457,7 @@ mod tests {
     use super::*;
 
     fn parse(args: &[&str]) -> Cli {
-        Cli::try_parse_from(std::iter::once("tecpan").chain(args.iter().copied())).unwrap()
+        Cli::try_parse_from(std::iter::once("clave").chain(args.iter().copied())).unwrap()
     }
 
     #[test]
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn quiet_and_verbose_conflict() {
-        assert!(Cli::try_parse_from(["tecpan", "-q", "-v", "status"]).is_err());
+        assert!(Cli::try_parse_from(["clave", "-q", "-v", "status"]).is_err());
     }
 
     #[test]
@@ -608,6 +608,6 @@ mod tests {
         assert!(
             matches!(parse(&["proposals"]).command, Command::Proposals { ref status, limit: 20 } if status == "open")
         );
-        assert!(Cli::try_parse_from(["tecpan", "approve"]).is_err());
+        assert!(Cli::try_parse_from(["clave", "approve"]).is_err());
     }
 }

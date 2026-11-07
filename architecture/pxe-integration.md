@@ -1,6 +1,6 @@
 # PXE integration and the vault wallet
 
-`packages/vault-wallet` (`@tecpan/vault-wallet`) hosts an Aztec 6.0.0 PXE that operates Tecpan vaults without ever
+`packages/vault-wallet` (`@clave/vault-wallet`) hosts an Aztec 6.0.0 PXE that operates Clave vaults without ever
 holding a vault's incoming viewing secret. A 53-line pnpm patch of `@aztec-labs/pxe` routes every use of that secret
 through the key store; `ThresholdKeyStore` answers with threshold ECDH (see `viewing-keys.md`). On top of it,
 `VaultWallet` deploys vaults, verifies their config and runs k-of-n transactions and authwits.
@@ -11,7 +11,7 @@ shares remain for unit tests and as a second end-to-end backend.
 ## The patch (`patches/@aztec-labs__pxe@6.0.0.patch`)
 
 Applied by pnpm (`patchedDependencies` in `pnpm-workspace.yaml`) to the compiled `dest/` files. Each patch site is
-marked `// tecpan:`.
+marked `// clave:`.
 
 | Site                                                           | Before                                               | After, for threshold accounts                         |
 | -------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
@@ -59,14 +59,14 @@ epoch. With the cache: 32 requests for 35 points.
 ## Threshold ECDH provider
 
 `ThresholdEcdhProvider` holds a `ViewingCommittee` (vault, epoch, preaddress, `Ivpk`, verification shares, `t_v`) and a
-`PartialsSource`. For each batch it asks the source for partials, then `@tecpan/napi.verifyAndCombine` checks every DLEQ
+`PartialsSource`. For each batch it asks the source for partials, then `@clave/napi.verifyAndCombine` checks every DLEQ
 proof against `A_i` and combines `t_v` valid partials per point. Members with bad proofs are reported and skipped; fewer
 than `t_v` valid partials for any point fails the batch.
 
-| `PartialsSource`          | Where                                                                       | Status  |
-| ------------------------- | --------------------------------------------------------------------------- | ------- |
-| `InProcessPartialsSource` | `@tecpan/vault-wallet/testing`                                              | Phase 7 |
-| `KeeperPartialsSource`    | the member's `tecpan-keeper` (local RPC; it gathers from the other keepers) | Phase 8 |
+| `PartialsSource`          | Where                                                                      | Status  |
+| ------------------------- | -------------------------------------------------------------------------- | ------- |
+| `InProcessPartialsSource` | `@clave/vault-wallet/testing`                                              | Phase 7 |
+| `KeeperPartialsSource`    | the member's `clave-keeper` (local RPC; it gathers from the other keepers) | Phase 8 |
 
 A request carries vault, epoch, purpose (`decryption` / `tagging`) and points. Keepers take the address context from
 their own manifest, never from the request.
@@ -94,12 +94,12 @@ their own manifest, never from the request.
 1. **Prepare** (`prepareVaultTx`): the app calls with the fee payment calls merged in, a pinned `txNonce`, and the
    current config version. The outer hash is captured from Aztec's own `DefaultAccountEntrypoint`, so it is exactly
    what the entrypoint will ask the witness for. The approval message is
-   `Poseidon2("tecpan.approval.v0", [vault, outerHash, version, expiresAt])`.
+   `Poseidon2("clave.approval.v0", [vault, outerHash, version, expiresAt])`.
 2. **Preview** (`previewVaultTx`): simulation with the vault's class overridden by Aztec's stub Schnorr account, whose
    authorization always passes. Shows the effects of app calls; calls into the vault itself (governance) cannot be
    previewed this way.
 3. **Approve**: each signer signs the approval message (`signApproval`, Aztec Schnorr).
-4. **Execute** (`executeVaultTx`): every approval is verified, the 49-field witness is encoded through `@tecpan/napi`,
+4. **Execute** (`executeVaultTx`): every approval is verified, the 49-field witness is encoded through `@clave/napi`,
    and the transaction is proven with the pinned nonce. Vault transactions are always cancellable: a second approved
    transaction with the same nonce burns it.
 
@@ -133,4 +133,4 @@ transfer seen by both engines; cancellation burns the nonce; `transfer_in_privat
 stale approvals, accepts the new member's and both engines keep reading the vault at the new epoch.
 
 Measured on macOS arm64: 10 tests in about 40 s with fake proofs, 62 s with client-side proving
-(`TECPAN_E2E_PROVE=1`); a vault transfer takes 4.3 s (fake) / 6.9 s (proven) including mining.
+(`CLAVE_E2E_PROVE=1`); a vault transfer takes 4.3 s (fake) / 6.9 s (proven) including mining.

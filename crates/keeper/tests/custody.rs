@@ -1,13 +1,13 @@
 //! Sealed secrets at rest.
 #![allow(clippy::unwrap_used)]
 
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::dkg;
-use tecpan_keeper::{
+use clave_crypto::dkg;
+use clave_keeper::{
     Error,
     custody::{KeeperKeys, MasterKey, SecretStore, ShareSlot, StoredShare},
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 #[test]
 fn secrets_round_trip_and_never_appear_in_plaintext() {

@@ -1,13 +1,13 @@
 //! A vault committee: a checked manifest and the crypto context derived from it.
 
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point,
     aztec::AddressContext,
     ecdh::EcdhContext,
     shamir::{Commitments, MemberIndex},
     vault,
 };
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic,
     messages::{Manifest, Member},
     types::{field, parse_field},

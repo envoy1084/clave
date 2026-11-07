@@ -38,5 +38,5 @@ pub enum Error {
     Stale,
     /// A cryptographic value inside the message is invalid.
     #[error("invalid content: {0}")]
-    Crypto(#[from] tecpan_crypto::Error),
+    Crypto(#[from] clave_crypto::Error),
 }

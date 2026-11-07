@@ -1,5 +1,5 @@
 /**
- * Tecpan vault wallet: hosts an Aztec PXE able to operate a threshold-viewing vault. The patched PXE routes every use
+ * Clave vault wallet: hosts an Aztec PXE able to operate a threshold-viewing vault. The patched PXE routes every use
  * of an account's incoming viewing secret through {@link ThresholdKeyStore}, which never holds a vault's secret and
  * obtains `address_secret · P` from members through threshold ECDH. See `architecture/pxe-integration.md`.
  */

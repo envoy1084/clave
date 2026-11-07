@@ -1,6 +1,6 @@
 import type { Point } from "@aztec-labs/foundation/curves/grumpkin";
 import type { AztecAddress } from "@aztec-labs/stdlib/aztec-address";
-import { type MemberPartials, type Point as NapiPoint, verifyAndCombine } from "@tecpan/napi";
+import { type MemberPartials, type Point as NapiPoint, verifyAndCombine } from "@clave/napi";
 
 import type { EcdhProvider, EcdhPurpose } from "./ecdh.ts";
 import { fromNapiPoint, toNapiPoint } from "./points.ts";
@@ -35,7 +35,7 @@ export interface PartialsSource {
 
 /**
  * {@link EcdhProvider} for a threshold account: asks a {@link PartialsSource} for partials, verifies every DLEQ proof
- * and combines `t_v` valid partials per point (in Rust, through `@tecpan/napi`). Members whose partials fail are
+ * and combines `t_v` valid partials per point (in Rust, through `@clave/napi`). Members whose partials fail are
  * reported to `onInvalidMembers` and ignored.
  */
 export class ThresholdEcdhProvider implements EcdhProvider {

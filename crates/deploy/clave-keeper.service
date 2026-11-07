@@ -1,18 +1,18 @@
 # systemd unit for a member's keeper on their own server. The passphrase that seals the keeper's secrets comes from
 # a credentials file readable only by root (systemd-creds); the RPC socket and token live in the state directory.
 [Unit]
-Description=Tecpan keeper (viewing-share custody)
+Description=Clave keeper (viewing-share custody)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 DynamicUser=yes
-StateDirectory=tecpan-keeper
+StateDirectory=clave-keeper
 StateDirectoryMode=0700
-LoadCredential=passphrase:/etc/tecpan/keeper-passphrase
-Environment=TECPAN_KEEPER_DATA=/var/lib/tecpan-keeper
-ExecStart=/bin/sh -c 'TECPAN_KEEPER_PASSPHRASE="$(cat "$CREDENTIALS_DIRECTORY/passphrase")" exec /usr/local/bin/tecpan-keeper run --listen /ip4/0.0.0.0/udp/4001/quic-v1 --listen /ip4/0.0.0.0/tcp/4001 --log-format json'
+LoadCredential=passphrase:/etc/clave/keeper-passphrase
+Environment=CLAVE_KEEPER_DATA=/var/lib/clave-keeper
+ExecStart=/bin/sh -c 'CLAVE_KEEPER_PASSPHRASE="$(cat "$CREDENTIALS_DIRECTORY/passphrase")" exec /usr/local/bin/clave-keeper run --listen /ip4/0.0.0.0/udp/4001/quic-v1 --listen /ip4/0.0.0.0/tcp/4001 --log-format json'
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes

@@ -35,7 +35,7 @@ pub(crate) fn balance(ctx: &Ctx, token: Option<&str>) -> Result<()> {
     ctx.emit(&value, || {
         let mut out = format!("{}  {}\n\n", ctx.style.bold(&vault.name), short_hex(&vault.address));
         if balances.is_empty() {
-            out.push_str("No tracked tokens. Track one: tecpan token add <address> (local network: tecpan token deploy-test)\n");
+            out.push_str("No tracked tokens. Track one: clave token add <address> (local network: clave token deploy-test)\n");
             return out;
         }
         let mut table = Table::new(&["TOKEN", "BALANCE", "ADDRESS"]);
@@ -141,7 +141,7 @@ pub(crate) fn receive(ctx: &Ctx, show_qr: bool) -> Result<()> {
     if !ctx.quiet {
         let _ = write!(
             out,
-            "\nSend private notes to this address. Balances need t_v keepers online: tecpan balance\n"
+            "\nSend private notes to this address. Balances need t_v keepers online: clave balance\n"
         );
     }
     ctx.out(&out);

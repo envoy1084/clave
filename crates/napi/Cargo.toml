@@ -1,6 +1,6 @@
 [package]
-name = "tecpan-napi"
-description = "Node-API bindings of Tecpan crypto and wire for the vault wallet"
+name = "clave-napi"
+description = "Node-API bindings of Clave crypto and wire for the vault wallet"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # Helpers that create or use secret shares, for tests only. Never enabled in release builds of the app.
-testing = ["dep:rand_chacha", "dep:rand_core", "tecpan-crypto/test-utils"]
+testing = ["dep:rand_chacha", "dep:rand_core", "clave-crypto/test-utils"]
 
 [dependencies]
 hex = "0.4"
@@ -19,8 +19,8 @@ napi = { version = "3.16", default-features = false, features = ["napi8"] }
 napi-derive = "3.7"
 rand_chacha = { version = "0.10", optional = true }
 rand_core = { version = "0.10", optional = true }
-tecpan-crypto = { workspace = true }
-tecpan-wire = { workspace = true }
+clave-crypto = { workspace = true }
+clave-wire = { workspace = true }
 
 [build-dependencies]
 napi-build = "2.6"

@@ -240,10 +240,10 @@ const multiples = (count: number, from: number) =>
 describe("contract wire vectors", () => {
   it("matches the Noir commitments and approval message", async () => {
     expect(napi.signerSetCommitment(await multiples(3, 1))).toBe(
-      "0x1814a2b2e68b9355116626143fe5d6549a64c5618c702464c1ccc982b659fe40",
+      "0x2da3848d05fa8a416557d6cbde36dff16699731c6115d91f412b5356bd7e0418",
     );
     expect(napi.committeeCommitment(2, await multiples(3, 1000))).toBe(
-      "0x2bafa2a18e587afb28f4f7a6b48a24e94e39ca2b1d7c9caf151a03afe750f1a8",
+      "0x1322cdffa6bbec966aaa4b630b180459c06d4f2f0f59d507f4ddc9f2fce3d80b",
     );
     expect(
       napi.approvalMessage(
@@ -252,7 +252,7 @@ describe("contract wire vectors", () => {
         3,
         1_700_000_000,
       ),
-    ).toBe("0x1705887c43c37444a89a18523d5dd6729415b781cc5946946c9983f5a7371251");
+    ).toBe("0x1e76704d76265cda2e0fdf4073e61c88e9a7526b5a2a9b0068186a02f09841e1");
   });
 
   it("lays out the 49-field witness", async () => {

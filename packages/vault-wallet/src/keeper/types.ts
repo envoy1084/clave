@@ -1,4 +1,4 @@
-import type { Point as NapiPoint } from "@tecpan/napi";
+import type { Point as NapiPoint } from "@clave/napi";
 
 /** A keeper's public identity, as `keeper.info` reports it. */
 export interface KeeperInfo {

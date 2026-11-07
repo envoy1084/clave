@@ -13,10 +13,10 @@ export const LINKS = {
 
 /** architecture/contract.md, "Gate profile" (aztec profile gates, MAX_SIGNERS = 8). */
 export const GATES = [
-  { circuit: "entrypoint", tecpan: 27_176, schnorr: 15_002 },
-  { circuit: "verify_private_authwit", tecpan: 18_665, schnorr: 6_489 },
-  { circuit: "constructor", tecpan: 25_351, schnorr: 7_905 },
-  { circuit: "rotate_membership", tecpan: 85_734, schnorr: null },
+  { circuit: "entrypoint", clave: 27_176, schnorr: 15_002 },
+  { circuit: "verify_private_authwit", clave: 18_665, schnorr: 6_489 },
+  { circuit: "constructor", clave: 25_351, schnorr: 7_905 },
+  { circuit: "rotate_membership", clave: 85_734, schnorr: null },
 ] as const;
 
 /** Timings from the end-to-end suites (progress log, phases 9–11), macOS arm64, Aztec local network. */
@@ -64,7 +64,7 @@ export const STATUS = [
   },
   {
     name: "CLI and daemon",
-    detail: "tecpan and tecpand: found, propose, review, approve, reject, execute",
+    detail: "clave and claved: found, propose, review, approve, reject, execute",
     done: true,
   },
   {

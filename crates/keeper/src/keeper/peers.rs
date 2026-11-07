@@ -1,5 +1,5 @@
-use tecpan_crypto::shamir::MemberIndex;
-use tecpan_wire::IdentityPublic;
+use clave_crypto::shamir::MemberIndex;
+use clave_wire::IdentityPublic;
 
 use super::Keeper;
 use crate::{Error, Result, transport::PeerStatus};

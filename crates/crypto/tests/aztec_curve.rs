@@ -2,8 +2,8 @@
 
 mod common;
 
+use clave_crypto::{Base, Point, SecretScalar, poseidon2};
 use common::{assert_point, base, bytes, scalar, vectors};
-use tecpan_crypto::{Base, Point, SecretScalar, poseidon2};
 
 #[test]
 fn generator_and_encodings_match_aztec() {
@@ -63,7 +63,7 @@ fn rejects_invalid_encodings() {
     off_curve[63] = 1;
     assert_eq!(
         Point::from_bytes(&off_curve),
-        Err(tecpan_crypto::Error::PointNotOnCurve)
+        Err(clave_crypto::Error::PointNotOnCurve)
     );
 
     // A coordinate equal to the modulus is not canonical.
@@ -72,6 +72,6 @@ fn rejects_invalid_encodings() {
     non_canonical[..32].copy_from_slice(&modulus);
     assert_eq!(
         Point::from_bytes(&non_canonical),
-        Err(tecpan_crypto::Error::NonCanonicalEncoding)
+        Err(clave_crypto::Error::NonCanonicalEncoding)
     );
 }

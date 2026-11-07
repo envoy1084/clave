@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use tecpan_wire::{
+use clave_wire::{
     mailbox::{self, MailboxRequest, MailboxResponse, StoredEnvelope},
     messages::RelayEnvelope,
 };

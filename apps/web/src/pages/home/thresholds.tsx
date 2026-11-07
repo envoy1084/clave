@@ -35,7 +35,7 @@ const CARDS: readonly {
       </>
     ),
     title: "to see what it holds",
-    body: "On Aztec, funds are encrypted notes. Tecpan splits the key that reads them across the members' keepers. Any t of them can help a wallet read a note; fewer learn nothing.",
+    body: "On Aztec, funds are encrypted notes. Clave splits the key that reads them across the members' keepers. Any t of them can help a wallet read a note; fewer learn nothing.",
     detail: "threshold ECDH with DLEQ proofs; the incoming viewing secret is never assembled",
     cta: "How viewing works",
   },
@@ -50,7 +50,7 @@ export function Thresholds() {
           Two thresholds, <em className="serif-em">two different jobs.</em>
         </>
       }
-      lede="A normal multisig protects spending and leaves everything else public. On a private chain the harder problem is who can read the vault, so Tecpan puts a threshold on that too."
+      lede="A normal multisig protects spending and leaves everything else public. On a private chain the harder problem is who can read the vault, so Clave puts a threshold on that too."
     >
       <div className="grid gap-5 md:grid-cols-2">
         {CARDS.map((card, i) => (

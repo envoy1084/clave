@@ -1,4 +1,4 @@
-//! Node-API bindings exposing `tecpan-crypto` and `tecpan-wire` to the vault wallet and its host.
+//! Node-API bindings exposing `clave-crypto` and `clave-wire` to the vault wallet and its host.
 //!
 //! Only public-data operations are exposed: vault formats, address derivation, Schnorr verification, threshold ECDH
 //! verification and combination, and the proposal / approval codecs. Field elements and scalars cross the boundary

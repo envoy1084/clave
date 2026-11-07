@@ -241,7 +241,7 @@ fn submit(
     ctx.emit(&raw, || {
         let id = short_id(&proposal.id);
         format!(
-            "{} Proposed {id}: {}\n  Approvals {}/{} · expires in {} · replicated to the members' keepers\n\nNext: tecpan approve {id}\n",
+            "{} Proposed {id}: {}\n  Approvals {}/{} · expires in {} · replicated to the members' keepers\n\nNext: clave approve {id}\n",
             ctx.style.ok(),
             describe(&proposal, &contacts),
             proposal.valid_approvals(),

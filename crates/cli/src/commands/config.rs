@@ -98,7 +98,7 @@ pub(crate) fn config(ctx: &Ctx, cmd: ConfigCmd) -> Result<()> {
                     ctx.emit(&updated, || format!("default-vault = {}\n", vault.address));
                     return Ok(());
                 }
-                "relays" => return Err(Error::usage("Use tecpan relay add|remove for relays.")),
+                "relays" => return Err(Error::usage("Use clave relay add|remove for relays.")),
                 other => {
                     return Err(Error::usage(format!(
                         "Unknown setting \"{other}\"; use one of {KEYS}"
@@ -150,7 +150,7 @@ pub(crate) fn relay(ctx: &Ctx, cmd: RelayCmd) -> Result<()> {
             relays.retain(|r| r != &multiaddr);
             if relays.len() == before {
                 return Err(
-                    Error::usage(format!("{multiaddr} is not a relay.")).hint("tecpan relay list")
+                    Error::usage(format!("{multiaddr} is not a relay.")).hint("clave relay list")
                 );
             }
         }

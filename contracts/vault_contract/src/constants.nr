@@ -24,11 +24,11 @@ pub global MIN_VIEWING_THRESHOLD: u32 = 2;
 /// Bounds how long a superseded config can still authorize. The resulting expiration timestamp is public.
 pub global CONFIG_MAX_AGE: u64 = 3600;
 
-/// Domain separator of the approval message: ASCII `tecpan.approval.v0`.
-pub global DOM_SEP__APPROVAL: Field = 0x74656370616e2e617070726f76616c2e7630;
+/// Domain separator of the approval message: ASCII `clave.approval.v0`.
+pub global DOM_SEP__APPROVAL: Field = 0x636c6176652e617070726f76616c2e7630;
 
-/// Domain separator of the signer set commitment: ASCII `tecpan.signers.v0`.
-pub global DOM_SEP__SIGNER_SET: Field = 0x74656370616e2e7369676e6572732e7630;
+/// Domain separator of the signer set commitment: ASCII `clave.signers.v0`.
+pub global DOM_SEP__SIGNER_SET: Field = 0x636c6176652e7369676e6572732e7630;
 
-/// Domain separator of the viewing committee commitment: ASCII `tecpan.committee.v0`.
-pub global DOM_SEP__COMMITTEE: Field = 0x74656370616e2e636f6d6d69747465652e7630;
+/// Domain separator of the viewing committee commitment: ASCII `clave.committee.v0`.
+pub global DOM_SEP__COMMITTEE: Field = 0x636c6176652e636f6d6d69747465652e7630;

@@ -10,17 +10,17 @@ use libp2p::{StreamProtocol, request_response::Codec};
 use crate::{MAX_MESSAGE_BYTES, mailbox::MAX_MAILBOX_MESSAGE_BYTES};
 
 /// Threshold ECDH requests and responses.
-pub const ECDH: StreamProtocol = StreamProtocol::new("/tecpan/ecdh/0");
+pub const ECDH: StreamProtocol = StreamProtocol::new("/clave/ecdh/0");
 /// DKG and reshare rounds, complaints and echoes.
-pub const CEREMONY: StreamProtocol = StreamProtocol::new("/tecpan/ceremony/0");
+pub const CEREMONY: StreamProtocol = StreamProtocol::new("/clave/ceremony/0");
 /// Proposals, approvals, receipts and sync requests.
-pub const SYNC: StreamProtocol = StreamProtocol::new("/tecpan/sync/0");
+pub const SYNC: StreamProtocol = StreamProtocol::new("/clave/sync/0");
 /// Vault-founding lobbies: the only lane on which a keeper hosting an open lobby accepts frames from non-members.
-pub const LOBBY: StreamProtocol = StreamProtocol::new("/tecpan/lobby/0");
+pub const LOBBY: StreamProtocol = StreamProtocol::new("/clave/lobby/0");
 /// Keeper to relay mailbox.
-pub const MAILBOX: StreamProtocol = StreamProtocol::new("/tecpan/mailbox/0");
-/// libp2p identify protocol version of Tecpan nodes.
-pub const IDENTIFY_VERSION: &str = "/tecpan/0";
+pub const MAILBOX: StreamProtocol = StreamProtocol::new("/clave/mailbox/0");
+/// libp2p identify protocol version of Clave nodes.
+pub const IDENTIFY_VERSION: &str = "/clave/0";
 
 /// Length-prefixed byte codec with per-direction size limits.
 #[derive(Clone, Copy, Debug)]

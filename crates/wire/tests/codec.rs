@@ -5,11 +5,11 @@ mod common;
 
 use std::collections::BTreeMap;
 
-use common::{header, identity, samples, signed};
-use tecpan_wire::{
+use clave_wire::{
     Error, MAX_MESSAGE_BYTES, Message, SignedMessage, decode, encode,
     messages::{EcdhPurpose, EcdhRequest, MAX_ECDH_POINTS, RelayEnvelope},
 };
+use common::{header, identity, samples, signed};
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/wire.json");
 
@@ -23,7 +23,7 @@ fn every_message_round_trips() {
 }
 
 /// Byte-exact encodings of every message kind. Any change here is a wire-format change: bump `WIRE_VERSION` or
-/// only append. Regenerate with `UPDATE_WIRE_FIXTURES=1 cargo test -p tecpan-wire --test codec`.
+/// only append. Regenerate with `UPDATE_WIRE_FIXTURES=1 cargo test -p clave-wire --test codec`.
 #[test]
 fn encodings_match_golden_fixtures() {
     let actual: BTreeMap<String, String> = samples()
@@ -57,11 +57,11 @@ fn variant_tags_follow_declaration_order() {
 #[test]
 fn bodies_round_trip_without_a_signature() {
     for (name, body) in samples() {
-        let bytes = tecpan_wire::encode_body(&body).unwrap();
-        assert_eq!(tecpan_wire::decode_body(&bytes).unwrap(), body, "{name}");
+        let bytes = clave_wire::encode_body(&body).unwrap();
+        assert_eq!(clave_wire::decode_body(&bytes).unwrap(), body, "{name}");
         let mut trailing = bytes.clone();
         trailing.push(0);
-        assert!(tecpan_wire::decode_body(&trailing).is_err(), "{name}");
+        assert!(clave_wire::decode_body(&trailing).is_err(), "{name}");
     }
 }
 

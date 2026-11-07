@@ -101,7 +101,7 @@ export class Daemon {
         if (ttlSecs > limit)
           throw new DaemonError(
             "invalid",
-            `Unlock windows are at most ${limit} s (tecpan config set unlock-timeout)`,
+            `Unlock windows are at most ${limit} s (clave config set unlock-timeout)`,
           );
         return this.#signer.unlock(secret, ttlSecs);
       }
@@ -277,7 +277,7 @@ export class Daemon {
     await this.#engine
       .connectKeeper(connection)
       .catch((error: unknown) =>
-        process.stderr.write(`tecpand: keeper reconnect failed: ${String(error)}\n`),
+        process.stderr.write(`claved: keeper reconnect failed: ${String(error)}\n`),
       );
   }
 
@@ -314,7 +314,7 @@ export class Daemon {
 
   #requireEngine(): Engine {
     if (!this.#profile.value.profile)
-      throw new DaemonError("not-ready", "Create your profile first: tecpan init");
+      throw new DaemonError("not-ready", "Create your profile first: clave init");
     if (!this.#engine) throw new DaemonError("not-ready", "The engine is still starting");
     return this.#engine;
   }
@@ -322,7 +322,7 @@ export class Daemon {
   async #requireSecrets(): Promise<StoredSecrets> {
     const secrets = await this.#secrets.get();
     if (!secrets)
-      throw new DaemonError("not-ready", "This profile has no account yet: run tecpan init");
+      throw new DaemonError("not-ready", "This profile has no account yet: run clave init");
     return secrets;
   }
 

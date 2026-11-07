@@ -22,7 +22,7 @@ import {
   proposalRejectionMessage,
   verifyProposalApproval,
   verifyProposalRejection,
-} from "@tecpan/napi";
+} from "@clave/napi";
 import {
   ProposalMismatchError,
   type VaultWallet,
@@ -30,7 +30,7 @@ import {
   proposalOf,
   vaultApprovalsOf,
   vaultTxOf,
-} from "@tecpan/vault-wallet";
+} from "@clave/vault-wallet";
 
 import type { Secret } from "../rpc/contract.ts";
 import { DaemonError } from "../rpc/errors.ts";
@@ -118,7 +118,7 @@ export class Operations {
     const { contract } = await TokenContract.deploy(
       wallet,
       from,
-      "Tecpan Test Token",
+      "Clave Test Token",
       "TTT",
       18,
     ).send({ from, fee });
@@ -127,7 +127,7 @@ export class Operations {
       .send({ from, fee });
     const info: TokenInfo = {
       address: contract.address.toString(),
-      name: "Tecpan Test Token",
+      name: "Clave Test Token",
       symbol: "TTT",
       decimals: 18,
     };
@@ -229,11 +229,11 @@ export class Operations {
       simulation,
       signs: {
         message: view.approvalMessage,
-        formula: `Poseidon2(tecpan.approval.v0, [vault, outer hash, v${view.configVersion}, ${view.expiresAt}])`,
+        formula: `Poseidon2(clave.approval.v0, [vault, outer hash, v${view.configVersion}, ${view.expiresAt}])`,
       },
       rejects: {
         message: proposalRejectionMessage(id, vault.address),
-        formula: "Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])",
+        formula: "Poseidon2(clave.rejection.v0, [vault, id_hi, id_lo])",
       },
     };
   }
@@ -266,7 +266,7 @@ export class Operations {
     if (view.approvedByMe)
       throw new DaemonError(
         "invalid",
-        "You approved this proposal; an approval cannot be withdrawn. Propose a cancel instead: tecpan cancel",
+        "You approved this proposal; an approval cannot be withdrawn. Propose a cancel instead: clave cancel",
       );
     if (view.status !== "collecting" && view.status !== "ready" && view.status !== "blocked")
       throw new DaemonError("invalid", `Proposal ${short(id)} is ${view.status}`);

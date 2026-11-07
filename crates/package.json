@@ -1,8 +1,8 @@
 {
-  "name": "@tecpan/crates",
+  "name": "@clave/crates",
   "version": "0.0.0",
   "private": true,
-  "description": "Tecpan Rust workspace (Cargo); Turbo orders these tasks, Cargo caches them",
+  "description": "Clave Rust workspace (Cargo); Turbo orders these tasks, Cargo caches them",
   "type": "module",
   "scripts": {
     "build": "cargo build --workspace --all-targets",

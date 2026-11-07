@@ -132,7 +132,7 @@ export function LockFigure({ tour = false, fig = "Fig. 1" }: { tour?: boolean; f
           ))}
           <Line d={BOX_ART.lidGroove} tone="faint" />
           <FaceText transform={BOX_ART.name} size={5} tone="lo">
-            TECPAN · MAX_SIGNERS 8
+            CLAVE · MAX_SIGNERS 8
           </FaceText>
 
           <Solid paths={RULER_ART.strip} tone="lo" crease="none" />

@@ -6,9 +6,9 @@ mod common;
 
 use std::time::Duration;
 
+use clave_keeper::{KeeperConfig, rpc};
 use common::Harness;
 use serde_json::{Value, json};
-use tecpan_keeper::{KeeperConfig, rpc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::UnixStream,
@@ -192,7 +192,7 @@ async fn lobby_methods_found_a_vault_plan() {
     .await;
     let lobby = opened["lobby"].as_str().unwrap().to_owned();
     let invite = opened["invite"].as_str().unwrap().to_owned();
-    assert!(invite.starts_with("tecpan-invite-v0:"));
+    assert!(invite.starts_with("clave-invite-v0:"));
 
     let preview = exchange(&mut b, "lobby.inspect", json!({ "invite": invite })).await;
     assert_eq!(preview["lobby"], lobby);
@@ -203,11 +203,8 @@ async fn lobby_methods_found_a_vault_plan() {
         format!("0x{}", hex::encode(host.keeper.identity().0))
     );
     assert_eq!(
-        b.call(
-            "lobby.inspect",
-            json!({ "invite": "tecpan-invite-v0:AAAA" })
-        )
-        .await["error"]["code"],
+        b.call("lobby.inspect", json!({ "invite": "clave-invite-v0:AAAA" }))
+            .await["error"]["code"],
         -32_000
     );
     assert_eq!(b.call("lobby.list", Value::Null).await["result"], json!([]));
@@ -345,7 +342,7 @@ async fn peer_status_receipts_and_receipt_events() {
         json!({
             "index": 1,
             "identity": hex0x(&me.0),
-            "peerId": tecpan_keeper::transport::peer_id(&me).unwrap().to_string(),
+            "peerId": clave_keeper::transport::peer_id(&me).unwrap().to_string(),
             "you": true,
             "connected": true,
             "relayed": false,

@@ -1,5 +1,5 @@
-use tecpan_crypto::envelope::{TransportPublic, TransportSecret};
-use tecpan_wire::KeeperIdentity;
+use clave_crypto::envelope::{TransportPublic, TransportSecret};
+use clave_wire::KeeperIdentity;
 
 use super::SecretStore;
 use crate::{Error, Result, random::os_rng};

@@ -14,7 +14,7 @@ use crate::{
 
 fn render(contacts: &[Contact]) -> String {
     if contacts.is_empty() {
-        return "No contacts. Add one: tecpan contacts add <address> <label>\n".to_owned();
+        return "No contacts. Add one: clave contacts add <address> <label>\n".to_owned();
     }
     let width = contacts.iter().map(|c| c.label.len()).max().unwrap_or(0);
     contacts.iter().fold(String::new(), |mut out, c| {

@@ -8,9 +8,7 @@
 
 use std::collections::VecDeque;
 
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point, Scalar, SecretScalar,
     aztec::AddressContext,
     dkg::KeyShare,
@@ -18,16 +16,18 @@ use tecpan_crypto::{
     envelope::{self, Context, TransportPublic, TransportSecret},
     shamir::random_scalar,
 };
-use tecpan_keeper::ceremony::{
+use clave_keeper::ceremony::{
     Outbox, Participant, Status, Target,
     dkg::{Dkg, DkgParams},
     reshare::{Reshare, ReshareParams},
 };
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic, KeeperIdentity, Message,
     messages::{Justification, SealedShare},
     types::{WirePoint, scalar},
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 const TIMEOUT: u64 = 60;
 

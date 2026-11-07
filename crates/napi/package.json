@@ -1,8 +1,8 @@
 {
-  "name": "@tecpan/napi",
+  "name": "@clave/napi",
   "version": "0.0.0",
   "private": true,
-  "description": "Node-API bindings of Tecpan crypto and wire",
+  "description": "Node-API bindings of Clave crypto and wire",
   "files": [
     "dist"
   ],
@@ -36,6 +36,6 @@
     "vitest": "catalog:"
   },
   "napi": {
-    "binaryName": "tecpan"
+    "binaryName": "clave"
   }
 }

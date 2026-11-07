@@ -14,7 +14,7 @@ const servers: RpcServer[] = [];
 afterEach(async () => Promise.all(servers.splice(0).map((s) => s.close())));
 
 async function start() {
-  const path = join(await mkdtemp(join(tmpdir(), "tecpan-rpc-")), "daemon.sock");
+  const path = join(await mkdtemp(join(tmpdir(), "clave-rpc-")), "daemon.sock");
   const server = await RpcServer.listen(path, "t0ken", async (method, params) => {
     if (method === "signer.status") return { locked: true };
     if (method === "proposals.execute") throw new DaemonError("not-ready", "1 of 2 approvals");

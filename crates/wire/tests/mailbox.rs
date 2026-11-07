@@ -1,7 +1,7 @@
 //! Mailbox protocol encoding.
 #![allow(clippy::unwrap_used)]
 
-use tecpan_wire::{
+use clave_wire::{
     Error,
     mailbox::{
         MAX_ENVELOPE_BYTES, MAX_FETCH_MAILBOXES, MailboxRequest, MailboxResponse, Rejection,

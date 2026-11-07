@@ -10,22 +10,22 @@ mod common;
 
 use std::time::Duration;
 
-use common::{Harness, TestKeeper, ecdh, eventually, manifest, point, run_dkg, status};
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{SecretScalar, ecdh::AddressSecretShare, schnorr, shamir::random_scalar};
-use tecpan_keeper::{
+use clave_crypto::{SecretScalar, ecdh::AddressSecretShare, schnorr, shamir::random_scalar};
+use clave_keeper::{
     Error, KeeperConfig, NewMember, Observation, ReshareRequest, ReshareResult,
     ceremony::dkg::DkgParams,
     committee::Committee,
     events::Event,
     transport::{Peer, Transport},
 };
-use tecpan_wire::{
+use clave_wire::{
     Header, Message, SignedMessage, decode, encode, encode_body,
     messages::{Approval, EcdhPurpose, EcdhRequest, EcdhResponse, Proposal},
     types::{WirePoint, parse_field},
 };
+use common::{Harness, TestKeeper, ecdh, eventually, manifest, point, run_dkg, status};
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 fn config() -> KeeperConfig {
     KeeperConfig {
@@ -40,7 +40,7 @@ struct Vault {
     keepers: Vec<TestKeeper>,
     address: [u8; 32],
     signers: Vec<SecretScalar>,
-    manifest: tecpan_wire::messages::Manifest,
+    manifest: clave_wire::messages::Manifest,
 }
 
 /// Three keepers, a 2-of-3 committee from a real DKG, registered as a vault.
@@ -136,7 +136,7 @@ async fn a_lying_member_is_detected_and_routed_around() {
             };
             let wrong =
                 AddressSecretShare::new(2, &random_scalar(&mut rng), &committee.context).unwrap();
-            let points = tecpan_wire::types::parse_points(&request.points).unwrap();
+            let points = clave_wire::types::parse_points(&request.points).unwrap();
             let partials = wrong
                 .partials(&points, &committee.ecdh_context(), &mut rng)
                 .unwrap();
@@ -144,7 +144,7 @@ async fn a_lying_member_is_detected_and_routed_around() {
                 scope: message.header.scope,
                 epoch: 0,
                 id: [7; 16],
-                created_at: tecpan_keeper::Clock::now(&*clock),
+                created_at: clave_keeper::Clock::now(&*clock),
             };
             let body = Message::EcdhResponse(EcdhResponse::new(message.header.id, 2, &partials));
             let frame =
@@ -232,7 +232,7 @@ async fn reshare_activates_on_chain_and_removes_the_departing_member() {
             transport: k.keeper.transport_key(),
             addresses: Vec::new(),
             signer_key: WirePoint::from(
-                &tecpan_crypto::Point::generator_mul_secret(&random_scalar(&mut rng)).unwrap(),
+                &clave_crypto::Point::generator_mul_secret(&random_scalar(&mut rng)).unwrap(),
             ),
         })
         .collect();
@@ -336,7 +336,7 @@ async fn reshare_activates_on_chain_and_removes_the_departing_member() {
         scope: v.address,
         epoch: 1,
         id: [8; 16],
-        created_at: tecpan_keeper::Clock::now(&*v.harness.clock),
+        created_at: clave_keeper::Clock::now(&*v.harness.clock),
     };
     let body = Message::EcdhRequest(EcdhRequest {
         purpose: EcdhPurpose::NoteDecryption,

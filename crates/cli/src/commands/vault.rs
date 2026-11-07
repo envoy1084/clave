@@ -37,7 +37,7 @@ fn yes_no(value: &Value, pointer: &str) -> &'static str {
 
 fn vault_table(vaults: &[VaultSummary]) -> String {
     if vaults.is_empty() {
-        return "No vaults yet: tecpan lobby open, or tecpan lobby join <invite>\n".to_owned();
+        return "No vaults yet: clave lobby open, or clave lobby join <invite>\n".to_owned();
     }
     let mut table = Table::new(&["", "ALIAS", "NAME", "ADDRESS", "SPEND", "VIEW", "SLOT"]);
     for v in vaults {

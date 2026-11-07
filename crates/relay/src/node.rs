@@ -4,16 +4,16 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use clave_wire::{
+    mailbox::{self, MailboxRequest, MailboxResponse, Rejection},
+    p2p::{FrameCodec, IDENTIFY_VERSION, MAILBOX},
+};
 use futures::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, Swarm, allow_block_list, identify, identity, noise, ping, relay,
     request_response::{self, ProtocolSupport},
     swarm::{NetworkBehaviour, SwarmEvent, behaviour::toggle::Toggle},
     tcp, yamux,
-};
-use tecpan_wire::{
-    mailbox::{self, MailboxRequest, MailboxResponse, Rejection},
-    p2p::{FrameCodec, IDENTIFY_VERSION, MAILBOX},
 };
 use tokio::sync::oneshot;
 

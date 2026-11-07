@@ -1,6 +1,6 @@
 [package]
-name = "tecpan-crypto"
-description = "Threshold viewing-key cryptography for Tecpan vaults"
+name = "clave-crypto"
+description = "Threshold viewing-key cryptography for Clave vaults"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

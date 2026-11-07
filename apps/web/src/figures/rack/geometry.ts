@@ -97,7 +97,7 @@ function network(): TrayArt {
     dots: dotGrid(chip.x + 9, chip.y + 9, 6, 5, 8, z + 8, P),
     label: {
       transform: topMatrix([chip.x + 8, chip.y + chip.d - 4], z + 8, P),
-      text: "TecpanVault",
+      text: "ClaveVault",
     },
   };
 }
@@ -158,7 +158,7 @@ function keeper(): TrayArt {
     ],
     label: {
       transform: topMatrix([server.x + 8, server.y + server.d - 6], z + 20, P),
-      text: "tecpan-keeper",
+      text: "clave-keeper",
     },
   };
 }

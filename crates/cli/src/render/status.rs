@@ -1,4 +1,4 @@
-//! `tecpan status` and `tecpan signer status`.
+//! `clave status` and `clave signer status`.
 
 use std::fmt::Write as _;
 
@@ -117,7 +117,7 @@ pub(crate) fn status(
     if status.vaults.is_empty() {
         let _ = writeln!(
             out,
-            "{:<10}none yet (tecpan lobby open, or tecpan lobby join <invite>)",
+            "{:<10}none yet (clave lobby open, or clave lobby join <invite>)",
             "Vaults"
         );
     }

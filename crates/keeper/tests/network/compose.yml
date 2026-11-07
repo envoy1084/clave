@@ -1,17 +1,17 @@
 # Three keepers in three separate, internal networks. The only node attached to all of them is the relay, so keepers
 # can reach each other only through relay circuits. The driver has no network at all: it talks to each keeper over the
 # RPC socket in that keeper's data volume. Run with ./run.sh.
-name: tecpan-network-test
+name: clave-network-test
 
 x-keeper: &keeper
-  image: tecpan-node:test
+  image: clave-node:test
   environment:
     RUST_LOG: "${RUST_LOG:-info}"
   command:
     - sh
     - -c
     - >-
-      exec tecpan-keeper run --data-dir /data
+      exec clave-keeper run --data-dir /data
       --listen /ip4/0.0.0.0/udp/4001/quic-v1 --listen /ip4/0.0.0.0/tcp/4001
       --relay /dns4/relay/udp/4001/quic-v1/p2p/${RELAY_PEER:-}
       --log-format json
@@ -19,10 +19,10 @@ x-keeper: &keeper
 
 services:
   relay:
-    image: tecpan-node:test
+    image: clave-node:test
     command:
       [
-        "tecpan-relay",
+        "clave-relay",
         "run",
         "--data-dir",
         "/data",
@@ -39,24 +39,24 @@ services:
 
   keeper1:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-one, RUST_LOG: "${RUST_LOG:-info}" }
+    environment: { CLAVE_KEEPER_PASSPHRASE: network-test-one, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k1:/data]
     networks: [net1]
 
   keeper2:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-two, RUST_LOG: "${RUST_LOG:-info}" }
+    environment: { CLAVE_KEEPER_PASSPHRASE: network-test-two, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k2:/data]
     networks: [net2]
 
   keeper3:
     <<: *keeper
-    environment: { TECPAN_KEEPER_PASSPHRASE: network-test-three, RUST_LOG: "${RUST_LOG:-info}" }
+    environment: { CLAVE_KEEPER_PASSPHRASE: network-test-three, RUST_LOG: "${RUST_LOG:-info}" }
     volumes: [k3:/data]
     networks: [net3]
 
   driver:
-    image: tecpan-node:test
+    image: clave-node:test
     network_mode: none
     command: ["network_scenario", "/k1", "/k2", "/k3"]
     volumes: [k1:/k1, k2:/k2, k3:/k3]

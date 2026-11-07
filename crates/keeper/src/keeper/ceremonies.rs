@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use tecpan_crypto::shamir::MemberIndex;
-use tecpan_wire::{
+use clave_crypto::shamir::MemberIndex;
+use clave_wire::{
     IdentityPublic, Message, decode,
     messages::{Echo, Manifest, Member},
     types::{Bytes64, WirePoint},
 };
+use serde::{Deserialize, Serialize};
 
 use super::{Keeper, State};
 use crate::{

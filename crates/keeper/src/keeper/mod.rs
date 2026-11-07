@@ -17,14 +17,14 @@ use std::{
 };
 
 pub use ceremonies::{CeremonyInfo, DkgResult, NewMember, ReshareRequest, ReshareResult};
-pub use ecdh::MemberPartials;
-pub use lobby::{LobbyInfo, LobbyOpen, LobbyPlanInfo, LobbyRole, LobbyStatus};
-pub use peers::MemberReachability;
-use tecpan_crypto::ecdh::AddressSecretShare;
-use tecpan_wire::{
+use clave_crypto::ecdh::AddressSecretShare;
+use clave_wire::{
     Header, IdentityPublic, Message, ReplayGuard, SignedMessage, decode, encode,
     messages::{Approval, EcdhResponse},
 };
+pub use ecdh::MemberPartials;
+pub use lobby::{LobbyInfo, LobbyOpen, LobbyPlanInfo, LobbyRole, LobbyStatus};
+pub use peers::MemberReachability;
 use tokio::sync::{Mutex, broadcast, mpsc};
 pub use vaults::{Observation, VaultInfo};
 

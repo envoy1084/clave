@@ -1,6 +1,6 @@
 # Vault contract
 
-`contracts/vault_contract` defines `TecpanVault`, an Aztec account contract (Aztec.nr 6.0.0, Noir 1.0). It holds the
+`contracts/vault_contract` defines `ClaveVault`, an Aztec account contract (Aztec.nr 6.0.0, Noir 1.0). It holds the
 vault's spending policy (signer set, threshold `k`) and a commitment to its viewing committee (threshold `t_v`,
 verification shares), and it authorizes `entrypoint` and `verify_private_authwit` only with valid signatures from at
 least `k` signers before an approval deadline.
@@ -25,20 +25,20 @@ Status: Phases 3–4 (authorization and governance).
 
 ## Wire formats
 
-These are shared with the Rust (`tecpan-crypto`, `tecpan-wire`) and TypeScript (`vault-wallet`) encoders. Change them
+These are shared with the Rust (`clave-crypto`, `clave-wire`) and TypeScript (`vault-wallet`) encoders. Change them
 only together with this page and every encoder.
 
 ### Constants
 
-| Name                    | Value                                      | Meaning                                        |
-| ----------------------- | ------------------------------------------ | ---------------------------------------------- |
-| `MAX_SIGNERS`           | 8                                          | Member slots (hard ceiling 15: notes per call) |
-| `WITNESS_LEN`           | `MAX_SIGNERS · 6 + 1` = 49                 | Auth witness length                            |
-| `MIN_VIEWING_THRESHOLD` | 2                                          | No single member can read the vault            |
-| `CONFIG_MAX_AGE`        | 3600 s                                     | Max anchor-to-inclusion time; public           |
-| `DOM_SEP__APPROVAL`     | `0x74656370616e2e617070726f76616c2e7630`   | ASCII `tecpan.approval.v0`                     |
-| `DOM_SEP__SIGNER_SET`   | `0x74656370616e2e7369676e6572732e7630`     | ASCII `tecpan.signers.v0`                      |
-| `DOM_SEP__COMMITTEE`    | `0x74656370616e2e636f6d6d69747465652e7630` | ASCII `tecpan.committee.v0`                    |
+| Name                    | Value                                    | Meaning                                        |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------- |
+| `MAX_SIGNERS`           | 8                                        | Member slots (hard ceiling 15: notes per call) |
+| `WITNESS_LEN`           | `MAX_SIGNERS · 6 + 1` = 49               | Auth witness length                            |
+| `MIN_VIEWING_THRESHOLD` | 2                                        | No single member can read the vault            |
+| `CONFIG_MAX_AGE`        | 3600 s                                   | Max anchor-to-inclusion time; public           |
+| `DOM_SEP__APPROVAL`     | `0x636c6176652e617070726f76616c2e7630`   | ASCII `clave.approval.v0`                      |
+| `DOM_SEP__SIGNER_SET`   | `0x636c6176652e7369676e6572732e7630`     | ASCII `clave.signers.v0`                       |
+| `DOM_SEP__COMMITTEE`    | `0x636c6176652e636f6d6d69747465652e7630` | ASCII `clave.committee.v0`                     |
 
 Poseidon2 below is Aztec's `poseidon2_hash_with_separator`: the separator is prepended as a field, then the Barretenberg
 sponge (rate 3, capacity initialised to `len · 2^64`) runs over the inputs.
@@ -177,14 +177,14 @@ constrained delivery of `MAX_SIGNERS + 1` notes would also exceed per-call limit
 
 `aztec profile gates` (MAX_SIGNERS = 8 unless noted):
 
-| Circuit                  | TecpanVault | Aztec `SchnorrAccount` (single key) |
-| ------------------------ | ----------- | ----------------------------------- |
-| `constructor`            | 25,351      | 7,905                               |
-| `entrypoint`             | 27,176      | 15,002                              |
-| `verify_private_authwit` | 18,665      | 6,489                               |
-| `set_threshold`          | 37,443      | —                                   |
-| `invalidate_pending`     | 37,385      | —                                   |
-| `rotate_membership`      | 85,734      | —                                   |
+| Circuit                  | ClaveVault | Aztec `SchnorrAccount` (single key) |
+| ------------------------ | ---------- | ----------------------------------- |
+| `constructor`            | 25,351     | 7,905                               |
+| `entrypoint`             | 27,176     | 15,002                              |
+| `verify_private_authwit` | 18,665     | 6,489                               |
+| `set_threshold`          | 37,443     | —                                   |
+| `invalidate_pending`     | 37,385     | —                                   |
+| `rotate_membership`      | 85,734     | —                                   |
 
 | MAX_SIGNERS | constructor | entrypoint | verify_private_authwit | rotate_membership |
 | ----------- | ----------- | ---------- | ---------------------- | ----------------- |

@@ -9,20 +9,20 @@ mod common;
 
 use std::time::Duration;
 
-use common::{Harness, TestKeeper, eventually, manifest, run_dkg};
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{SecretScalar, schnorr, vault};
-use tecpan_keeper::{
+use clave_crypto::{SecretScalar, schnorr, vault};
+use clave_keeper::{
     KeeperConfig,
     ceremony::dkg::{Dkg, DkgParams},
     transport::{Peer, Transport},
 };
-use tecpan_wire::{
+use clave_wire::{
     Header, Message, SignedMessage, encode, encode_body,
     messages::{Approval, Proposal, Rejection},
     types::{field, parse_field},
 };
+use common::{Harness, TestKeeper, eventually, manifest, run_dkg};
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 fn config() -> KeeperConfig {
     KeeperConfig {
@@ -65,7 +65,7 @@ async fn an_equivocating_dealer_is_caught_by_the_echo() {
             scope: [5; 32],
             epoch: 0,
             id: [u8::try_from(n).unwrap() + 1; 16],
-            created_at: tecpan_keeper::Clock::now(&*harness.clock),
+            created_at: clave_keeper::Clock::now(&*harness.clock),
         };
         let frame =
             encode(&SignedMessage::sign(&keys.identity, header, outbox.0[0].1.clone()).unwrap())
@@ -183,12 +183,10 @@ async fn records_while_member_3_is_away(harness: &Harness) -> (Vec<TestKeeper>, 
 async fn an_offline_member_catches_up_through_sync() {
     let harness = Harness::new(config());
     let (keepers, vault, records) = records_while_member_3_is_away(&harness).await;
-    let id = Proposal::id(
-        &match tecpan_wire::decode_body(&records.proposal).unwrap() {
-            Message::Proposal(p) => p,
-            _ => unreachable!(),
-        },
-    )
+    let id = Proposal::id(&match clave_wire::decode_body(&records.proposal).unwrap() {
+        Message::Proposal(p) => p,
+        _ => unreachable!(),
+    })
     .unwrap();
     harness.net.clear_filter();
     keepers[2].keeper.sync(vault).await.unwrap();
@@ -256,11 +254,11 @@ async fn an_offline_member_catches_up_from_its_mailbox_hours_later() {
         keepers[2].keeper.proposals(vault).unwrap(),
         vec![records.proposal]
     );
-    let id =
-        match tecpan_wire::decode_body(&keepers[2].keeper.proposals(vault).unwrap()[0]).unwrap() {
-            Message::Proposal(p) => p.id().unwrap(),
-            _ => unreachable!(),
-        };
+    let id = match clave_wire::decode_body(&keepers[2].keeper.proposals(vault).unwrap()[0]).unwrap()
+    {
+        Message::Proposal(p) => p.id().unwrap(),
+        _ => unreachable!(),
+    };
     eventually(async || {
         (keepers[2].keeper.approvals(id).unwrap() == vec![records.approval.clone()]).then_some(())
     })

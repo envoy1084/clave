@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Domain tag of the DLEQ challenge hash.
-pub const DLEQ_DOMAIN: &[u8] = b"tecpan.dleq.v0";
+pub const DLEQ_DOMAIN: &[u8] = b"clave.dleq.v0";
 
 /// What every partial is bound to: the vault and the committee epoch (the vault config version).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

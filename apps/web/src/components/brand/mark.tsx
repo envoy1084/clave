@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/cn";
 
-// The Tecpan mark: an arch in two halves standing on a sill. The halves meet but never join; the doorway exists only
+// The Clave mark: an arch in two halves standing on a sill. The halves meet but never join; the doorway exists only
 // when both are there. Drawn on a 40-unit grid; see architecture/brand.md.
 const LEFT = "M7 31V20A13 13 0 0 1 18 7.15V13.82A6.5 6.5 0 0 0 13.5 20V31Z";
 const RIGHT = "M33 31V20A13 13 0 0 0 22 7.15V13.82A6.5 6.5 0 0 1 26.5 20V31Z";
@@ -69,7 +69,7 @@ export function Wordmark({ className }: { className?: string }) {
       className={cn("inline-flex items-center gap-2 font-medium tracking-[-0.02em]", className)}
     >
       <Mark className="size-[1.15em]" />
-      Tecpan
+      Clave
     </span>
   );
 }

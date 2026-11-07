@@ -138,11 +138,11 @@ mod tests {
             error.to_json(),
             json!({ "error": { "code": "usage", "message": "Ambiguous proposal \"7f\": 7f3a1c, 7f90d2." } })
         );
-        let mut locked = Error::failed("signer locked").hint("tecpan unlock");
+        let mut locked = Error::failed("signer locked").hint("clave unlock");
         locked.daemon_kind = Some("locked".into());
         assert_eq!(
             locked.to_json(),
-            json!({ "error": { "code": "locked", "message": "signer locked", "hint": "tecpan unlock" } })
+            json!({ "error": { "code": "locked", "message": "signer locked", "hint": "clave unlock" } })
         );
     }
 }

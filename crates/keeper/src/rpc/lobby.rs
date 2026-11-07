@@ -1,8 +1,8 @@
 //! JSON shapes and handlers of the `lobby.*` methods.
 
+use clave_wire::lobby::{Invite, KeeperContact};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tecpan_wire::lobby::{Invite, KeeperContact};
 use zeroize::Zeroizing;
 
 use super::json::{JsonPoint, hex16, hex32, parse_bytes, parse16, parse32};

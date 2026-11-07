@@ -3,9 +3,9 @@
 
 mod common;
 
+use clave_wire::{Error, KeeperIdentity, ReplayGuard, decode, encode};
 use common::{NOW, header, identity, samples, signed};
 use rand_core::SeedableRng;
-use tecpan_wire::{Error, KeeperIdentity, ReplayGuard, decode, encode};
 
 #[test]
 fn signatures_verify_and_bind_the_signer() {

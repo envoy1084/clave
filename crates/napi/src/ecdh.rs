@@ -1,11 +1,11 @@
 //! Threshold ECDH: verifies members' partials (DLEQ) and combines them into `address_secret · P`.
 
-use napi::Result;
-use napi_derive::napi;
-use tecpan_crypto::{
+use clave_crypto::{
     aztec,
     ecdh::{self, DleqProof, EcdhContext, Partial},
 };
+use napi::Result;
+use napi_derive::napi;
 
 use crate::convert::{Point, base, invalid, point, point_out, points, scalar};
 

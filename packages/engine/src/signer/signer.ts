@@ -79,7 +79,7 @@ export class Signer {
     if (!signingKey)
       throw new DaemonError(
         "locked",
-        "The signer is locked: give your passphrase or run tecpan unlock",
+        "The signer is locked: give your passphrase or run clave unlock",
       );
     const signature = await new Schnorr().constructSignature(Fr.fromString(message), signingKey);
     return signature.toLimbFields().map((limb) => limb.toString());
@@ -87,7 +87,7 @@ export class Signer {
 
   async #sealed(): Promise<Sealed> {
     const sealed = await readJson<Sealed>(this.#path);
-    if (!sealed) throw new DaemonError("not-ready", "No signing key yet: run tecpan init");
+    if (!sealed) throw new DaemonError("not-ready", "No signing key yet: run clave init");
     return sealed;
   }
 

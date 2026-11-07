@@ -1,11 +1,11 @@
 {
-  "name": "@tecpan/contracts",
+  "name": "@clave/contracts",
   "version": "0.0.0",
   "private": true,
-  "description": "Tecpan vault contract (Aztec.nr v6, Noir 1.0)",
+  "description": "Clave vault contract (Aztec.nr v6, Noir 1.0)",
   "type": "module",
   "exports": {
-    "./TecpanVault.json": "./target/vault_contract-TecpanVault.json"
+    "./ClaveVault.json": "./target/vault_contract-ClaveVault.json"
   },
   "scripts": {
     "build": "aztec compile",

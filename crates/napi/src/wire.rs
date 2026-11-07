@@ -1,9 +1,9 @@
 //! Proposal, approval and rejection bodies in the canonical wire encoding (signed and sent by the member's keeper).
 
+use clave_crypto::{schnorr, vault};
+use clave_wire::{Message, WIRE_VERSION, decode_body, encode_body, messages};
 use napi::{Result, bindgen_prelude::Buffer};
 use napi_derive::napi;
-use tecpan_crypto::{schnorr, vault};
-use tecpan_wire::{Message, WIRE_VERSION, decode_body, encode_body, messages};
 
 use crate::convert::{
     Point, base, base_hex, bytes32, hex32, invalid, limbs, point, timestamp_out, unix_seconds,
@@ -61,7 +61,7 @@ pub fn wire_version() -> u32 {
     u32::from(WIRE_VERSION)
 }
 
-/// `SHA-256("tecpan.proposal.v0" ‖ canonical(proposal))`.
+/// `SHA-256("clave.proposal.v0" ‖ canonical(proposal))`.
 #[napi]
 pub fn proposal_id(proposal: Proposal) -> Result<String> {
     Ok(hex32(&to_wire(&proposal)?.id().map_err(invalid)?))
@@ -190,7 +190,7 @@ fn rejection_to_wire(rejection: &Rejection) -> Result<messages::Rejection> {
         proposal: bytes32(&rejection.proposal)?,
         slot: rejection.slot,
         reason: rejection.reason.clone(),
-        signature: parsed.map(|limb| tecpan_wire::types::field(&limb)),
+        signature: parsed.map(|limb| clave_wire::types::field(&limb)),
     })
 }
 
@@ -229,6 +229,6 @@ fn approval_to_wire(approval: &Approval) -> Result<messages::Approval> {
     Ok(messages::Approval {
         proposal: bytes32(&approval.proposal)?,
         slot: approval.slot,
-        signature: parsed.map(|limb| tecpan_wire::types::field(&limb)),
+        signature: parsed.map(|limb| clave_wire::types::field(&limb)),
     })
 }

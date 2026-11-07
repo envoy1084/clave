@@ -12,8 +12,8 @@ publish = false
 
 # Shared dependency versions; crates opt in with `dep = { workspace = true }`.
 [workspace.dependencies]
-tecpan-crypto = { path = "crypto" }
-tecpan-wire = { path = "wire" }
+clave-crypto = { path = "crypto" }
+clave-wire = { path = "wire" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

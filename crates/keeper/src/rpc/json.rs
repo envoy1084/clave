@@ -1,13 +1,13 @@
-//! JSON shapes of the local RPC. 32-byte values are `0x`-prefixed hex; points are `{ x, y }` (the `@tecpan/napi`
+//! JSON shapes of the local RPC. 32-byte values are `0x`-prefixed hex; points are `{ x, y }` (the `@clave/napi`
 //! convention); message bodies are hex of their canonical wire encoding.
 
-use serde::{Deserialize, Serialize};
-use tecpan_crypto::ecdh::Partial;
-use tecpan_wire::{
+use clave_crypto::ecdh::Partial;
+use clave_wire::{
     IdentityPublic,
     messages::{Manifest, Member},
     types::{WirePoint, scalar},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
@@ -66,7 +66,7 @@ impl JsonPoint {
             x: parse32(&self.x)?,
             y: parse32(&self.y)?,
         };
-        tecpan_crypto::Point::try_from(&point)?;
+        clave_crypto::Point::try_from(&point)?;
         Ok(point)
     }
 }
@@ -208,7 +208,7 @@ impl JsonNewMember {
     }
 }
 
-/// One partial (the `@tecpan/napi` `EcdhPartial` shape).
+/// One partial (the `@clave/napi` `EcdhPartial` shape).
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct JsonPartial {
     /// `D_i`.
@@ -219,7 +219,7 @@ pub(crate) struct JsonPartial {
     pub(crate) response: String,
 }
 
-/// A member's partials (the `@tecpan/napi` `MemberPartials` shape).
+/// A member's partials (the `@clave/napi` `MemberPartials` shape).
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct JsonMemberPartials {
     /// Member index.

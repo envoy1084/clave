@@ -1,5 +1,5 @@
 import { Fr } from "@aztec-labs/foundation/curves/bn254";
-import type { Approval as WireApproval, Proposal as WireProposal } from "@tecpan/napi";
+import type { Approval as WireApproval, Proposal as WireProposal } from "@clave/napi";
 
 import type { VaultTx } from "../wallet/vault-wallet.ts";
 import type { VaultApproval } from "./approvals.ts";

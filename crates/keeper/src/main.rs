@@ -1,8 +1,8 @@
-//! `tecpan-keeper`: run a member's keeper.
+//! `clave-keeper`: run a member's keeper.
 //!
-//! The supervising app launches `tecpan-keeper run --secrets-stdin` and writes one JSON line with the
+//! The supervising app launches `clave-keeper run --secrets-stdin` and writes one JSON line with the
 //! master key (kept in the OS keychain) and a fresh RPC token. A keeper on a member's own server uses a passphrase
-//! (`TECPAN_KEEPER_PASSPHRASE`) instead. When ready, `run` prints one JSON line on stdout with its identity, transport
+//! (`CLAVE_KEEPER_PASSPHRASE`) instead. When ready, `run` prints one JSON line on stdout with its identity, transport
 //! key, addresses and RPC socket; logs go to stderr.
 
 use std::{
@@ -12,9 +12,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
-use serde::Deserialize;
-use serde_json::json;
-use tecpan_keeper::{
+use clave_keeper::{
     Error, Keeper, KeeperParts, Result, SystemClock,
     config::FileConfig,
     custody::{KeeperKeys, MasterKey, SecretStore, create_private_dir, write_private},
@@ -23,13 +21,15 @@ use tecpan_keeper::{
     store::Store,
     transport::{P2pConfig, P2pTransport, RelayMailbox},
 };
+use serde::Deserialize;
+use serde_json::json;
 use zeroize::Zeroizing;
 
 #[derive(Parser)]
 #[command(
-    name = "tecpan-keeper",
+    name = "clave-keeper",
     version,
-    about = "Tecpan keeper: custody of a member's viewing shares"
+    about = "Clave keeper: custody of a member's viewing shares"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -67,7 +67,7 @@ struct RpcCall {
 #[derive(clap::Args)]
 struct Common {
     /// Data directory.
-    #[arg(long, env = "TECPAN_KEEPER_DATA")]
+    #[arg(long, env = "CLAVE_KEEPER_DATA")]
     data_dir: PathBuf,
     /// Read `{"masterKey": "<hex>", "rpcToken": "<token>"}` from the first line of stdin.
     #[arg(long)]
@@ -127,8 +127,8 @@ fn unlock(common: &Common) -> Result<Unlocked> {
         )
     } else {
         let passphrase =
-            Zeroizing::new(std::env::var("TECPAN_KEEPER_PASSPHRASE").map_err(|_| {
-                Error::Invalid("set TECPAN_KEEPER_PASSPHRASE or use --secrets-stdin".into())
+            Zeroizing::new(std::env::var("CLAVE_KEEPER_PASSPHRASE").map_err(|_| {
+                Error::Invalid("set CLAVE_KEEPER_PASSPHRASE or use --secrets-stdin".into())
             })?);
         (
             MasterKey::from_passphrase(passphrase.as_bytes(), &salt(data)?)?,
@@ -253,7 +253,7 @@ fn multiaddrs(values: &[String]) -> Result<Vec<libp2p::Multiaddr>> {
         .collect()
 }
 
-/// `tecpan-keeper rpc`: one authenticated call over the socket.
+/// `clave-keeper rpc`: one authenticated call over the socket.
 #[cfg(unix)]
 fn rpc_call(call: &RpcCall) -> Result<()> {
     use std::{io::BufReader, os::unix::net::UnixStream};
@@ -349,7 +349,7 @@ fn main() -> std::process::ExitCode {
     match result {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
-            tracing::error!(%error, "tecpan-keeper failed");
+            tracing::error!(%error, "clave-keeper failed");
             std::process::ExitCode::FAILURE
         }
     }

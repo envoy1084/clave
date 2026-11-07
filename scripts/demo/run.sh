@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scripted two-member demo of a 2-of-2 Tecpan vault, driven from this terminal (the narrator).
+# Scripted two-member demo of a 2-of-2 Clave vault, driven from this terminal (the narrator).
 # It opens one Ghostty window for Alice and one for Bob, then cues each step in the right window and pauses so you can
 # talk. Passphrases and [y/N] confirmations are typed by you, in the member's window.
 #
@@ -12,13 +12,13 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 node_url="${AZTEC_NODE_URL:-http://localhost:8080}"
-demo="${TMPDIR:-/tmp}/tecpan-demo"
-tecpan="$root/crates/target/debug/tecpan"
+demo="${TMPDIR:-/tmp}/clave-demo"
+clave="$root/crates/target/debug/clave"
 unattended="${DEMO_UNATTENDED:-}"
 gap="${DEMO_GAP:-}"
 
 bold=$'\033[1m' dim=$'\033[2m' green=$'\033[32m' yellow=$'\033[33m' red=$'\033[31m' reset=$'\033[0m'
-t() { "$tecpan" "$@"; }
+t() { "$clave" "$@"; }
 fail() {
   printf '%s\n' "${red}✗ $*${reset}" >&2
   exit 1
@@ -30,16 +30,16 @@ short() { printf '%s…%s' "${1:0:6}" "${1: -4}"; }
 # ── setup ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 stop_daemons() { for m in alice bob; do t -P "$m" daemon stop >/dev/null 2>&1 || true; done; }
 
-printf '%s\n' "${bold}Tecpan demo${reset} ${dim}· preparing${reset}"
-cargo build -q --manifest-path "$root/crates/Cargo.toml" -p tecpan-cli -p tecpan-keeper
-[ -f "$root/packages/engine/dist/tecpand.js" ] || pnpm --dir "$root" --filter @tecpan/engine... build >/dev/null
+printf '%s\n' "${bold}Clave demo${reset} ${dim}· preparing${reset}"
+cargo build -q --manifest-path "$root/crates/Cargo.toml" -p clave-cli -p clave-keeper
+[ -f "$root/packages/engine/dist/claved.js" ] || pnpm --dir "$root" --filter @clave/engine... build >/dev/null
 curl -sf -m 5 -X POST "$node_url" -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"node_getBlockNumber","params":[]}' >/dev/null ||
   fail "no Aztec node at $node_url: start one with  aztec start --local-network"
 
-export TECPAN_HOME="$demo/home"
-export TECPAN_ENGINE="$root/packages/engine/dist/tecpand.js"
-export TECPAN_KEEPER_BIN="$root/crates/target/debug/tecpan-keeper"
+export CLAVE_HOME="$demo/home"
+export CLAVE_ENGINE="$root/packages/engine/dist/claved.js"
+export CLAVE_KEEPER_BIN="$root/crates/target/debug/clave-keeper"
 stop_daemons
 rm -rf "$demo"
 mkdir -p "$demo/q/alice" "$demo/q/bob"
@@ -50,13 +50,13 @@ yes_flag=""
 if [ -n "$unattended" ]; then
   printf 'correct horse battery staple' >"$demo/passphrase"
   chmod 600 "$demo/passphrase"
-  export TECPAN_PASSPHRASE_FILE="$demo/passphrase" NO_COLOR=1
+  export CLAVE_PASSPHRASE_FILE="$demo/passphrase" NO_COLOR=1
   yes_flag=" -y"
 fi
 # Everything a member window needs; Ghostty starts it with launchd's PATH, not this shell's.
 {
-  printf 'export PATH=%q\n' "$(dirname "$tecpan"):$PATH"
-  for v in TECPAN_HOME TECPAN_ENGINE TECPAN_KEEPER_BIN AZTEC_NODE_URL TECPAN_PASSPHRASE_FILE NO_COLOR DEMO_UNATTENDED; do
+  printf 'export PATH=%q\n' "$(dirname "$clave"):$PATH"
+  for v in CLAVE_HOME CLAVE_ENGINE CLAVE_KEEPER_BIN AZTEC_NODE_URL CLAVE_PASSPHRASE_FILE NO_COLOR DEMO_UNATTENDED; do
     [ -n "${!v:-}" ] && printf 'export %s=%q\n' "$v" "${!v}"
   done
 } >"$demo/env"
@@ -82,7 +82,7 @@ finish() {
   fi
   printf '\n%s ' "Stop Alice's and Bob's daemons now? [Y/n]"
   read -r answer || answer=y
-  case "$answer" in n | N) printf '%s\n' "${dim}Left running. Stop later: TECPAN_HOME=$TECPAN_HOME tecpan -P alice daemon stop${reset}" ;; *) stop_daemons ;; esac
+  case "$answer" in n | N) printf '%s\n' "${dim}Left running. Stop later: CLAVE_HOME=$CLAVE_HOME clave -P alice daemon stop${reset}" ;; *) stop_daemons ;; esac
 }
 trap finish EXIT
 
@@ -169,25 +169,25 @@ wait_for() {
 
 # ── the story ────────────────────────────────────────────────────────────────────────────────────────────────────────
 [ -n "${DEMO_UNATTENDED:-}" ] || clear
-printf '%s\n' "${bold}Tecpan: a private 2-of-2 vault on Aztec${reset}"
+printf '%s\n' "${bold}Clave: a private 2-of-2 vault on Aztec${reset}"
 printf '%s\n' "${dim}Alice's window is on the left, Bob's on the right. Every command runs for real against the local network.${reset}"
 
 say "Alice creates her wallet" \
   "Her signing key is generated and sealed under a passphrase only she knows." \
   "Her daemon (PXE) and keeper start. → type a passphrase twice in Alice's window."
 pause
-run alice "tecpan init --name Alice$yes_flag"
+run alice "clave init --name Alice$yes_flag"
 
 say "Bob creates his wallet" \
   "Same on Bob's machine: his own keys, his own keeper. → type a passphrase in Bob's window."
 pause
-run bob "tecpan init --name Bob$yes_flag"
+run bob "clave init --name Bob$yes_flag"
 
 say "Alice opens a 2-of-2 vault" \
   "k = 2: both must approve every spend. t_v = 2: both keepers are needed to read it." \
   "She gets an invite to send to Bob."
 pause
-cue alice "tecpan lobby open --name Treasury -k 2 --tv 2 --members 2 --alias treasury"
+cue alice "clave lobby open --name Treasury -k 2 --tv 2 --members 2 --alias treasury"
 wait_for "Alice's invite" '[ -n "$(t -P alice --json lobby list 2>/dev/null | field .0.invite 2>/dev/null)" ]'
 invite="$(t -P alice --json lobby list | field .0.invite)"
 printf '    %s\n' "${dim}invite: $(short "$invite")${reset}"
@@ -196,7 +196,7 @@ say "Bob joins with the invite" \
   "He checks the plan (name, host, thresholds, network) and confirms. → type y in Bob's window." \
   "Then both machines run the founding: key generation (DKG), deriving the vault address, deploying it."
 pause
-cue bob "tecpan lobby join $(short "$invite") --alias treasury$yes_flag" "tecpan lobby join '$invite' --alias treasury$yes_flag"
+cue bob "clave lobby join $(short "$invite") --alias treasury$yes_flag" "clave lobby join '$invite' --alias treasury$yes_flag"
 wait_done alice
 wait_done bob
 vault="$(t -P alice --json vault list | field .0.address)"
@@ -205,28 +205,28 @@ printf '    %s\n' "${dim}vault: $vault${reset}"
 say "Both see the same vault" \
   "Same address, same members, same on-chain config, verified independently on each machine."
 pause
-run alice "tecpan vault show"
-run bob "tecpan vault show"
+run alice "clave vault show"
+run bob "clave vault show"
 
 say "Fund the vault" \
   "On the local network: deploy a test token (TTT) and mint 10,000 privately to the vault."
 pause
-run alice "tecpan token deploy-test"
-run alice "tecpan balance"
+run alice "clave token deploy-test"
+run alice "clave balance"
 token="$(t -P alice --json token list | field .0.address)"
 
 say "Bob reads the balance too" \
   "The vault's notes decrypt only with both keepers (threshold ECDH). Neither member can read it alone."
 pause
-run bob "tecpan token add $(short "$token")" "tecpan token add $token"
-run bob "tecpan balance"
+run bob "clave token add $(short "$token")" "clave token add $token"
+run bob "clave balance"
 
 say "Alice proposes paying Bob 100 TTT" \
   "She saves Bob's account as a contact, then proposes. The proposal is replicated to Bob's keeper."
 pause
 bob_account="$(t -P bob --json status | field .profile.account)"
-run alice "tecpan contacts add $(short "$bob_account") bob" "tecpan contacts add $bob_account bob"
-run alice "tecpan propose transfer 100 ttt --to bob --memo 'Invoice 42'"
+run alice "clave contacts add $(short "$bob_account") bob" "clave contacts add $bob_account bob"
+run alice "clave propose transfer 100 ttt --to bob --memo 'Invoice 42'"
 id="$(t -P alice --json proposals | field .0.id)"
 id="${id:2:6}"
 
@@ -234,26 +234,26 @@ say "Alice approves" \
   "Her daemon rebuilds the transaction itself and shows exactly what she signs." \
   "→ in Alice's window: y, then her passphrase."
 pause
-run alice "tecpan approve $id$yes_flag"
+run alice "clave approve $id$yes_flag"
 
 say "Bob sees it and approves" \
   "Bob's daemon rebuilds the same transaction independently: if anything differed, it would refuse." \
   "→ in Bob's window: y, then his passphrase."
 pause
-run bob "tecpan proposals"
-run bob "tecpan approve $id$yes_flag"
+run bob "clave proposals"
+run bob "clave approve $id$yes_flag"
 
 say "Bob executes" \
   "2 of 2 approvals: Bob's daemon builds the witness, proves and sends the transaction."
 pause
-run bob "tecpan execute $id"
+run bob "clave execute $id"
 
 say "Both verify" \
   "Each machine reads the result on its own: proposal executed, balance down by 100."
 pause
-run alice "tecpan proposal show $id"
-run alice "tecpan balance"
-run bob "tecpan balance"
-run bob "tecpan activity"
+run alice "clave proposal show $id"
+run alice "clave balance"
+run bob "clave balance"
+run bob "clave activity"
 
 printf '\n%s\n' "${bold}${green}Done.${reset} ${dim}Both windows now have a shell for questions.${reset}"

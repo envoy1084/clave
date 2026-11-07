@@ -7,8 +7,8 @@
     clippy::too_many_lines
 )]
 
-use tecpan_crypto::{Point, Scalar, SecretScalar};
-use tecpan_wire::{
+use clave_crypto::{Point, Scalar, SecretScalar};
+use clave_wire::{
     Header, KeeperIdentity, Message, SignedMessage,
     lobby::{
         Invite, KeeperContact, LobbyJoin, LobbyLeave, LobbyMember, LobbyPlan, LobbyState,

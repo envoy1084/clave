@@ -1,6 +1,6 @@
-# Tecpan
+# Clave
 
-Tecpan is a private k-of-n multisig vault on Aztec with threshold viewing.
+Clave is a private k-of-n multisig vault on Aztec with threshold viewing.
 
 - **Spending** is enforced on-chain: the vault is an Aztec account contract whose `entrypoint` runs a payload only when
   the auth witness carries valid signatures from at least `k` registered signers.
@@ -16,33 +16,33 @@ existing once they are in the tree.
 
 ```text
 contracts/            Nargo workspace (Aztec.nr v6, Noir 1.0)
-  vault_contract/       the vault account contract (TecpanVault)
+  vault_contract/       the vault account contract (ClaveVault)
   vault_test/           TestEnvironment tests
   test_signer_contract/ test-only helper exposing TXE signatures; never deploy
 crates/               Cargo workspace
-  crypto/               tecpan-crypto: Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH
-  wire/                 tecpan-wire: wire types and canonical encoding shared by keeper, relay and app
-  keeper/               tecpan-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
-  relay/                tecpan-relay: optional untrusted store-and-forward relay (ciphertext only)
-  napi/                 @tecpan/napi: Node bindings of tecpan-crypto and tecpan-wire (secret helpers only in /testing)
-  cli/                  tecpan-cli: the `tecpan` command line, a client of the member's daemon
+  crypto/               clave-crypto: Grumpkin, Aztec key-derivation compatibility, DKG, resharing, threshold ECDH
+  wire/                 clave-wire: wire types and canonical encoding shared by keeper, relay and app
+  keeper/               clave-keeper: member daemon (viewing share, ECDH responder, DKG/reshare, p2p, proposals)
+  relay/                clave-relay: optional untrusted store-and-forward relay (ciphertext only)
+  napi/                 @clave/napi: Node bindings of clave-crypto and clave-wire (secret helpers only in /testing)
+  cli/                  clave-cli: the `clave` command line, a client of the member's daemon
 packages/             TypeScript, only where Aztec requires it
   vault-wallet/         PXE host: vault account contract class, witness encoder, threshold key store
-  engine/               @tecpan/engine: `tecpand`, the member's daemon (PXE, signer, founding, proposals, keeper)
+  engine/               @clave/engine: `claved`, the member's daemon (PXE, signer, founding, proposals, keeper)
 apps/
-  web/                  the Tecpan site (Vite, React, TanStack Router): pages and isometric figures
+  web/                  the Clave site (Vite, React, TanStack Router): pages and isometric figures
 patches/              minimal pnpm patch of @aztec-labs/pxe for the threshold key store
 architecture/         maintained design docs (verified decisions only)
 research/             gitignored plans and investigation; never a build or doc input
 ```
 
-Members use the `tecpan` CLI, a client of `tecpand`, a per-profile daemon that hosts the PXE and the passphrase-sealed
+Members use the `clave` CLI, a client of `claved`, a per-profile daemon that hosts the PXE and the passphrase-sealed
 signer and supervises the member's keeper (`architecture/cli.md`). The Electron desktop app was removed after Phase 12
 and can be restored from git (`3eb2d7e`). Signing keys never leave the member's device. Viewing shares live only in
-`tecpan-keeper`, which may run locally or on the member's own server.
+`clave-keeper`, which may run locally or on the member's own server.
 
-Folders inside `contracts/` and `crates/` carry no `tecpan` prefix; Rust package names keep it
-(`crates/keeper` builds `tecpan-keeper`).
+Folders inside `contracts/` and `crates/` carry no `clave` prefix; Rust package names keep it
+(`crates/keeper` builds `clave-keeper`).
 
 ## Toolchain
 
@@ -81,14 +81,14 @@ Do not add overlapping tools (Prettier, ESLint, Husky, lint-staged, Tauri) or a 
   would lock members out). Signer notes are discovery-only and may use unconstrained delivery.
 - Config changes are `#[only_self]` functions that bump the config version; membership and the viewing committee change
   together in `rotate_membership`, which removes at most `t_v - 1` members.
-- The PXE patch (`patches/`) stays minimal: each patch site is marked `// tecpan:` and guarded so a stock key store
+- The PXE patch (`patches/`) stays minimal: each patch site is marked `// clave:` and guarded so a stock key store
   behaves as stock. Port it on every Aztec upgrade following `architecture/pxe-integration.md`.
 - Wire formats shared across Noir, Rust and TypeScript (witness layout, approval message, committee commitment) change
   only together with their `architecture/` page and every encoder.
 
 ## Cryptography rules
 
-- All threshold code lives in `tecpan-crypto`: constant-time arithmetic, `zeroize` on secrets, no secret in logs.
+- All threshold code lives in `clave-crypto`: constant-time arithmetic, `zeroize` on secrets, no secret in logs.
 - Every threshold ECDH partial carries a DLEQ proof and is verified before use.
 - Byte-for-byte compatibility with Aztec (point encoding, address-secret derivation and its negation rule, ECDH-to-AES
   derivation, tag derivation) is proven by golden tests against real Aztec 6.0.0 output, and those tests run on every
@@ -120,17 +120,17 @@ pnpm format         # oxfmt, rustfmt, nargo fmt
 Narrow lanes:
 
 ```sh
-pnpm --filter @tecpan/contracts build|test|profile   # aztec compile / aztec test / gate counts
-pnpm --filter @tecpan/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
-cargo test --manifest-path crates/Cargo.toml -p tecpan-keeper   # keeper: custody, ceremonies, multi-keeper, rpc, p2p
-cargo test --manifest-path crates/Cargo.toml -p tecpan-relay    # relay: mailbox store
-pnpm --filter @tecpan/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
-pnpm --filter @tecpan/vault-wallet typecheck|test|build
-pnpm --filter @tecpan/engine build|test|typecheck    # tecpand: contract, signer, socket server
-cargo test --manifest-path crates/Cargo.toml -p tecpan-cli      # CLI: parsing, references, renderers, fake daemon
-pnpm cli:install    # tecpan, tecpan-keeper and tecpand into ~/.tecpan (TECPAN_HOME); prints the PATH line
-pnpm test:cli       # three members through tecpan only, against `aztec start --local-network` (not part of pnpm test)
-pnpm --filter @tecpan/web dev|build|preview|typecheck|lint   # the site on http://localhost:3000
+pnpm --filter @clave/contracts build|test|profile   # aztec compile / aztec test / gate counts
+pnpm --filter @clave/crates lint|test|deny          # cargo clippy / cargo test / cargo deny
+cargo test --manifest-path crates/Cargo.toml -p clave-keeper   # keeper: custody, ceremonies, multi-keeper, rpc, p2p
+cargo test --manifest-path crates/Cargo.toml -p clave-relay    # relay: mailbox store
+pnpm --filter @clave/napi build|test                # napi build (+ testing binary) / Vitest vs live Aztec
+pnpm --filter @clave/vault-wallet typecheck|test|build
+pnpm --filter @clave/engine build|test|typecheck    # claved: contract, signer, socket server
+cargo test --manifest-path crates/Cargo.toml -p clave-cli      # CLI: parsing, references, renderers, fake daemon
+pnpm cli:install    # clave, clave-keeper and claved into ~/.clave (CLAVE_HOME); prints the PATH line
+pnpm test:cli       # three members through clave only, against `aztec start --local-network` (not part of pnpm test)
+pnpm --filter @clave/web dev|build|preview|typecheck|lint   # the site on http://localhost:3000
 pnpm test:e2e       # vault wallet against `aztec start --local-network` (not part of pnpm test)
 pnpm test:network   # Docker: relay + 3 keepers on separate networks (not part of pnpm test)
 ```

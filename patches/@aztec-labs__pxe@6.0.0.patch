@@ -7,7 +7,7 @@ index 9d67c0a57e1f33d544273de70bff5308dc804436..d03b18d6c58078838a90615e0b4308c9
      }
      /** Whether this is an unconstrained delivery to one of the wallet's own accounts (a self-send). */ #isUnconstrainedSelfSend(recipient, deliveryMode) {
 -        return deliveryMode === AppTaggingSecretKind.UNCONSTRAINED ? this.keyStore.hasAccount(recipient) : Promise.resolve(false);
-+        // tecpan: for threshold accounts the wallet hook chooses the self-send strategy (per-epoch tagging secrets).
++        // clave: for threshold accounts the wallet hook chooses the self-send strategy (per-epoch tagging secrets).
 +        return deliveryMode === AppTaggingSecretKind.UNCONSTRAINED ? this.keyStore.hasAccount(recipient).then(async (own)=>own && !await this.keyStore.isThresholdAccount?.(recipient)) : Promise.resolve(false);
      }
      /** Resolves a wallet-provided {@link TaggingSecretStrategy} into the app-siloed secret handed to the contract. */ async #resolveTaggingSecretStrategy(strategy, sender, recipient) {
@@ -18,7 +18,7 @@ index 9d67c0a57e1f33d544273de70bff5308dc804436..d03b18d6c58078838a90615e0b4308c9
          const senderCompleteAddress = await this.getCompleteAddressOrFail(sender);
 -        const senderIvsk = await this.keyStore.getMasterIncomingViewingSecretKey(sender);
 -        const extendedSecret = await AppTaggingSecret.computeViaEcdh(senderCompleteAddress, senderIvsk, recipient, this.contractAddress, recipient);
-+        // tecpan: a threshold sender's key store computes `address_secret · recipient_address_point`.
++        // clave: a threshold sender's key store computes `address_secret · recipient_address_point`.
 +        const extendedSecret = await this.keyStore.isThresholdAccount?.(sender) ? await recipient.isValid() ? await AppTaggingSecret.computeDirectional((await this.keyStore.addressSecretMul(sender, [
 +                await recipient.toAddressPoint()
 +            ], {
@@ -44,7 +44,7 @@ index a38a3e4e280cb6691ffa317a69c36c16a6e1a454..9d68113bb50dc6c54628231f692afd1b
              });
              return EphemeralArray.fromValues(this.ephemeralArrayService, []);
          }
-+        // tecpan: a threshold account's key store computes `address_secret · P` for the whole batch.
++        // clave: a threshold account's key store computes `address_secret · P` for the whole batch.
 +        if (await this.keyStore.isThresholdAccount?.(address)) {
 +            const shared = await this.keyStore.addressSecretMul(address, ephPks.readAll(this.ephemeralArrayService).map(({ x, y })=>new Point(x, y)));
 +            return EphemeralArray.fromValues(this.ephemeralArrayService, await allToCompletion(shared.map((point)=>appSiloEcdhSharedSecretPoint(point, this.contractAddress))));
@@ -68,7 +68,7 @@ index 85b97cf0a021eec27744edf3774f5dbedd1659e4..f95f931ad0108f92c0ecbce0bb8c366d
      /** Contracts to preload on startup. Replaces the default when set. */
      preloadedContractsProvider?: PreloadedContractsProvider;
 +    /**
-+     * tecpan: builds the key store over the PXE's store instead of the default `KeyStore`. A key store that implements
++     * clave: builds the key store over the PXE's store instead of the default `KeyStore`. A key store that implements
 +     * `isThresholdAccount(account)` and `addressSecretMul(account, points, { cache })` serves `address_secret · P` for
 +     * accounts whose incoming viewing secret it does not hold.
 +     */
@@ -99,7 +99,7 @@ index ffcaabcd46fb45f5eb7946e6eba018057f8c267a..4d92cd47514ada6fd2b8d9eb39cea207
              return [];
          }
 -        const recipientIvsk = await this.keyStore.getMasterIncomingViewingSecretKey(recipient);
-+        // tecpan: threshold accounts have no ivsk; their tagging secrets come from the key store below.
++        // clave: threshold accounts have no ivsk; their tagging secrets come from the key store below.
 +        const recipientIvsk = await this.keyStore.isThresholdAccount?.(recipient) ? undefined : await this.keyStore.getMasterIncomingViewingSecretKey(recipient);
          const [senderPoints, registeredSecrets] = await allToCompletion([
              this.#getSecretsForSenders(recipientCompleteAddress, recipientIvsk),
@@ -146,7 +146,7 @@ index b4c3cd5337020ddef6a930058e66636d78d3f435..89af366a7399ef6c46a7ebed69093561
 -        const ivskM = await this.keyStore.getMasterIncomingViewingSecretKey(recipient);
 -        const addressSecret = await computeAddressSecret(await completeAddress.getPreaddress(), ivskM);
 -        const rawSecret = await deriveEcdhSharedSecretPoint(addressSecret, ephPkPoint);
-+        // tecpan: a threshold account's key store computes `address_secret · ephPk` without holding ivsk.
++        // clave: a threshold account's key store computes `address_secret · ephPk` without holding ivsk.
 +        const rawSecret = await this.keyStore.isThresholdAccount?.(recipient) ? (await this.keyStore.addressSecretMul(recipient, [
 +            ephPkPoint
 +        ]))[0] : await deriveEcdhSharedSecretPoint(await computeAddressSecret(await completeAddress.getPreaddress(), await this.keyStore.getMasterIncomingViewingSecretKey(recipient)), ephPkPoint);
@@ -171,7 +171,7 @@ index 9a8b0f8a8618f48985fcccf4f9da680c4368b296..4daaec146b9282bcc57bc88446e64ad0
          recipientTaggingStore: new RecipientTaggingStore(store),
          capsuleStore: new CapsuleStore(store),
 -        keyStore: new KeyStore(store),
-+        // tecpan: injectable key store (threshold viewing accounts).
++        // clave: injectable key store (threshold viewing accounts).
 +        keyStore: createKeyStore ? createKeyStore(store) : new KeyStore(store),
          l2TipsStore: new L2TipsKVStore(store, 'pxe', initialBlockHash),
          factStore: new FactStore(store)

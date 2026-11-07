@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use tecpan_crypto::{
+use clave_crypto::{
     envelope::TransportPublic,
     mailbox::{self, mailbox_id},
 };
-use tecpan_wire::{mailbox::MAX_FETCH_MAILBOXES, messages::RelayEnvelope};
+use clave_wire::{mailbox::MAX_FETCH_MAILBOXES, messages::RelayEnvelope};
 
 use super::Keeper;
 use crate::{

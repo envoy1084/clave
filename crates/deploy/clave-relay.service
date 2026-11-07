@@ -1,15 +1,15 @@
-# systemd unit for a Tecpan relay. Install the binary at /usr/local/bin/tecpan-relay.
+# systemd unit for a Clave relay. Install the binary at /usr/local/bin/clave-relay.
 [Unit]
-Description=Tecpan relay (circuit relay and ciphertext mailbox)
+Description=Clave relay (circuit relay and ciphertext mailbox)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 DynamicUser=yes
-StateDirectory=tecpan-relay
-Environment=TECPAN_RELAY_DATA=/var/lib/tecpan-relay
-ExecStart=/usr/local/bin/tecpan-relay run --health 127.0.0.1:9090 --log-format json
+StateDirectory=clave-relay
+Environment=CLAVE_RELAY_DATA=/var/lib/clave-relay
+ExecStart=/usr/local/bin/clave-relay run --health 127.0.0.1:9090 --log-format json
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes

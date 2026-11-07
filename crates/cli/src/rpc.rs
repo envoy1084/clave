@@ -37,7 +37,7 @@ impl Client {
                 Kind::Daemon,
                 format!("Daemon for profile \"{}\" is not running.", profile.name),
             )
-            .hint(format!("Start it: tecpan {}daemon start", profile.flag()))
+            .hint(format!("Start it: clave {}daemon start", profile.flag()))
         };
         let token = std::fs::read_to_string(profile.token()).map_err(|_| not_running())?;
         Self::connect_at(&profile.socket(), &Zeroizing::new(token)).map_err(|e| {
@@ -183,7 +183,7 @@ fn daemon_error(error: &Value) -> Error {
         .to_owned();
     let mut out = Error::new(Kind::from_daemon(kind.as_deref()), message);
     out.hint = match kind.as_deref() {
-        Some("locked") => Some("Unlock the signer (tecpan unlock) or pass the passphrase".into()),
+        Some("locked") => Some("Unlock the signer (clave unlock) or pass the passphrase".into()),
         Some("auth") => Some("Check the passphrase and try again".into()),
         _ => None,
     };
@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(error.exit_code(), 3);
         assert_eq!(
             error.hint.as_deref(),
-            Some("Start it: tecpan -P bea daemon start")
+            Some("Start it: clave -P bea daemon start")
         );
     }
 

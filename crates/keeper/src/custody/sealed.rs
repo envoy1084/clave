@@ -18,11 +18,11 @@ use super::MasterKey;
 use crate::{Error, Result, random::random_bytes};
 
 const VERSION: u8 = 0;
-const AAD_DOMAIN: &[u8] = b"tecpan.keeper.sealed.v0:";
+const AAD_DOMAIN: &[u8] = b"clave.keeper.sealed.v0:";
 const NONCE_LEN: usize = 24;
 /// Sealed under every master key so a wrong key is detected before any real secret is touched.
 const CHECK: &str = "check";
-const CHECK_PLAINTEXT: &[u8] = b"tecpan keeper master key check";
+const CHECK_PLAINTEXT: &[u8] = b"clave keeper master key check";
 
 /// Sealed secret files of one keeper.
 pub struct SecretStore {

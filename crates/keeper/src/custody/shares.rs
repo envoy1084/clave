@@ -1,6 +1,6 @@
+use clave_crypto::{SecretScalar, curve, dkg::KeyShare, shamir::Commitments};
+use clave_wire::types::{Bytes64, WirePoint, parse_points};
 use serde::{Deserialize, Serialize};
-use tecpan_crypto::{SecretScalar, curve, dkg::KeyShare, shamir::Commitments};
-use tecpan_wire::types::{Bytes64, WirePoint, parse_points};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use super::SecretStore;

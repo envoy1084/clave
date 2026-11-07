@@ -14,7 +14,7 @@ mod test {
         let set = SignerSet { keys: points(3, 1), count: 3 };
         assert_eq(
             set.commitment(),
-            0x1814a2b2e68b9355116626143fe5d6549a64c5618c702464c1ccc982b659fe40,
+            0x2da3848d05fa8a416557d6cbde36dff16699731c6115d91f412b5356bd7e0418,
         );
     }
 
@@ -24,13 +24,13 @@ mod test {
             Committee { viewing_threshold: 2, shares: points(3, 1000), member_count: 3 };
         assert_eq(
             committee.commitment(),
-            0x2bafa2a18e587afb28f4f7a6b48a24e94e39ca2b1d7c9caf151a03afe750f1a8,
+            0x1322cdffa6bbec966aaa4b630b180459c06d4f2f0f59d507f4ddc9f2fce3d80b,
         );
     }
 
     #[test]
     fn approval_message_matches_rust() {
         let message = approval_message(AztecAddress::from_field(0x1234), 0x5678, 3, 1700000000);
-        assert_eq(message, 0x1705887c43c37444a89a18523d5dd6729415b781cc5946946c9983f5a7371251);
+        assert_eq(message, 0x1e76704d76265cda2e0fdf4073e61c88e9a7526b5a2a9b0068186a02f09841e1);
     }
 }

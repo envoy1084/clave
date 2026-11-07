@@ -1,4 +1,4 @@
-use tecpan_wire::IdentityPublic;
+use clave_wire::IdentityPublic;
 
 /// Keeper errors. Messages never contain secret material.
 #[derive(Debug, thiserror::Error)]
@@ -57,10 +57,10 @@ pub enum Error {
     Transport(String),
     /// Cryptographic failure.
     #[error(transparent)]
-    Crypto(#[from] tecpan_crypto::Error),
+    Crypto(#[from] clave_crypto::Error),
     /// Wire-format failure.
     #[error(transparent)]
-    Wire(#[from] tecpan_wire::Error),
+    Wire(#[from] clave_wire::Error),
     /// Filesystem failure.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),

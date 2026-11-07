@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use clave_crypto::ecdh::AddressSecretShare;
+use clave_wire::{messages::Manifest, types::WirePoint};
 use serde::Serialize;
-use tecpan_crypto::ecdh::AddressSecretShare;
-use tecpan_wire::{messages::Manifest, types::WirePoint};
 
 use super::{Keeper, State, VaultState, ceremonies::ReshareResult};
 use crate::{
@@ -77,7 +77,7 @@ impl Keeper {
         let share = StoredShare::load(&self.0.secrets, slot)?;
         if share.index() != member.index
             || share.group_public_key()
-                != &tecpan_crypto::Point::try_from(&committee.manifest.group_key)?
+                != &clave_crypto::Point::try_from(&committee.manifest.group_key)?
         {
             return Err(Error::Invalid(
                 "stored share does not belong to this committee".into(),
@@ -286,11 +286,7 @@ impl Keeper {
             .collect()
     }
 
-    fn info(
-        state: &State,
-        vault: &[u8; 32],
-        me: &tecpan_wire::IdentityPublic,
-    ) -> Option<VaultInfo> {
+    fn info(state: &State, vault: &[u8; 32], me: &clave_wire::IdentityPublic) -> Option<VaultInfo> {
         let v = state.vaults.get(vault)?;
         Some(VaultInfo {
             manifest: v.committee.manifest.clone(),

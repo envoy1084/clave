@@ -3,11 +3,11 @@
 
 use std::{path::Path, sync::Mutex};
 
-use rusqlite::{Connection, params};
-use tecpan_wire::{
+use clave_wire::{
     mailbox::{MAX_ENVELOPE_BYTES, Rejection, StoredEnvelope, envelope_id},
     messages::RelayEnvelope,
 };
+use rusqlite::{Connection, params};
 
 use crate::{Error, Limits, Result};
 

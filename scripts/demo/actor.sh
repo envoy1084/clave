@@ -10,7 +10,7 @@ demo="$2"
 run_id="$3"
 queue="$demo/q/$member"
 source "$demo/env"
-export TECPAN_PROFILE="$member"
+export CLAVE_PROFILE="$member"
 name="$(printf '%s' "$member" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')"
 
 bold=$'\033[1m' dim=$'\033[2m' red=$'\033[31m' cyan=$'\033[36m' reset=$'\033[0m'
@@ -43,7 +43,7 @@ while true; do
   done
   { IFS= read -r shown; IFS= read -r run; } <"$cue"
   if [ "$run" = "__end__" ]; then
-    printf '\n%s\n' "${dim}Demo finished. This is $name's shell: try tecpan status, tecpan proposals, tecpan balance.${reset}"
+    printf '\n%s\n' "${dim}Demo finished. This is $name's shell: try clave status, clave proposals, clave balance.${reset}"
     [ -n "${DEMO_UNATTENDED:-}" ] && exit 0
     BASH_SILENCE_DEPRECATION_WARNING=1 PS1="${cyan}${member} \$${reset} " exec bash --norc -i
   fi

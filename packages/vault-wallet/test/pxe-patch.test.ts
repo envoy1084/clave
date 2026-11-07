@@ -20,7 +20,7 @@ const sites: [string, number][] = [
 describe("@aztec-labs/pxe patch", () => {
   it.each(sites)("patches %s", async (path, markers) => {
     const source = await read(path);
-    expect(source.match(/\/\/ tecpan:/g)?.length).toBe(markers);
+    expect(source.match(/\/\/ clave:/g)?.length).toBe(markers);
   });
 
   it("passes the key store factory from createPXE to PXE.create", async () => {

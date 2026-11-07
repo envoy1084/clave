@@ -78,7 +78,7 @@ const relay = z
 const invite = z
   .string()
   .trim()
-  .startsWith("tecpan-invite-v0:", "This is not a Tecpan invite")
+  .startsWith("clave-invite-v0:", "This is not a Clave invite")
   .max(4096);
 const passphrase = z.string().min(8, "Use a passphrase of at least 8 characters").max(1024);
 const secret = z.union([

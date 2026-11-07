@@ -28,7 +28,7 @@ impl SignerSet {
         assert_ordered_points(self.keys, self.count, "signer");
     }
 
-    /// `Poseidon2("tecpan.signers.v0", x_0, y_0, ..., x_{MAX-1}, y_{MAX-1})`.
+    /// `Poseidon2("clave.signers.v0", x_0, y_0, ..., x_{MAX-1}, y_{MAX-1})`.
     pub fn commitment(self) -> Field {
         let mut fields = [0; MAX_SIGNERS * POINT_LEN];
         for i in 0..MAX_SIGNERS {

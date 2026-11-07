@@ -4,11 +4,11 @@
 
 mod common;
 
-use common::{Harness, TestKeeper, eventually, point};
-use tecpan_keeper::{
+use clave_keeper::{
     Keeper, KeeperConfig, LobbyInfo, LobbyOpen, LobbyRole, LobbyStatus, events::Event,
 };
-use tecpan_wire::lobby::Invite;
+use clave_wire::lobby::Invite;
+use common::{Harness, TestKeeper, eventually, point};
 use zeroize::Zeroizing;
 
 const SECRETS: &[u8] = b"engine protocol secrets: signer seeds, deployment salt, contract class";

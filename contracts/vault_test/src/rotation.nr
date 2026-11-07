@@ -1,11 +1,11 @@
 use crate::utils::{create_signers, first, OUTER_HASH, setup};
 use aztec::protocol::address::AztecAddress;
 use vault_contract::{
+    ClaveVault,
     committee::Committee,
     constants::MAX_SIGNERS,
     point::Point,
     signer_set::{SignerSet, test_utils::points},
-    TecpanVault,
 };
 
 #[test]
@@ -19,7 +19,7 @@ unconstrained fn adds_a_member() {
 
     let rotated = fixture.rotate(accounts, keys, 4, 3, 3);
 
-    let config = rotated.view(TecpanVault::at(rotated.vault).get_config());
+    let config = rotated.view(ClaveVault::at(rotated.vault).get_config());
     assert_eq(config.version, 1);
     assert_eq(config.signer_count, 4);
     assert_eq(config.threshold, 3);
@@ -31,7 +31,7 @@ unconstrained fn adds_a_member() {
             .commitment(),
     );
     assert_eq(
-        rotated.view(TecpanVault::at(rotated.vault).get_signer_set()),
+        rotated.view(ClaveVault::at(rotated.vault).get_signer_set()),
         SignerSet { keys, count: 4 },
     );
 
@@ -54,7 +54,7 @@ unconstrained fn removes_a_member() {
     let rotated = fixture.rotate(accounts, keys, 2, 2, 2);
 
     assert_eq(
-        rotated.view(TecpanVault::at(rotated.vault).get_signer_set()),
+        rotated.view(ClaveVault::at(rotated.vault).get_signer_set()),
         SignerSet { keys, count: 2 },
     );
     assert(rotated.authorize(OUTER_HASH, rotated.approved(1, first(2))));
@@ -117,7 +117,7 @@ unconstrained fn rewrites_a_full_vault_within_call_limits() {
 
     let rotated = fixture.rotate(accounts, keys, MAX_SIGNERS, 5, 3);
     assert_eq(
-        rotated.view(TecpanVault::at(rotated.vault).get_signer_set()),
+        rotated.view(ClaveVault::at(rotated.vault).get_signer_set()),
         SignerSet { keys, count: MAX_SIGNERS },
     );
     assert(rotated.authorize(OUTER_HASH, rotated.approved(1, first(5))));
@@ -129,7 +129,7 @@ unconstrained fn successive_rotations_advance_the_version() {
     let once = fixture.rotate(fixture.accounts, fixture.keys, 3, 3, 2);
     let twice = once.rotate(once.accounts, once.keys, 3, 2, 3);
 
-    let config = twice.view(TecpanVault::at(twice.vault).get_config());
+    let config = twice.view(ClaveVault::at(twice.vault).get_config());
     assert_eq(config.version, 2);
     assert_eq(config.threshold, 2);
     assert_eq(config.viewing_threshold, 3);
@@ -159,7 +159,7 @@ unconstrained fn rejects_removing_viewing_threshold_members() {
 #[test(should_fail_with = "current signer set mismatch")]
 unconstrained fn rejects_stale_current_signer_set() {
     let fixture = setup(3, 2, 2);
-    fixture.self_call(TecpanVault::at(fixture.vault).rotate_membership(
+    fixture.self_call(ClaveVault::at(fixture.vault).rotate_membership(
         points(3, 5),
         fixture.keys,
         3,
@@ -194,7 +194,7 @@ unconstrained fn rejects_outside_caller() {
     let fixture = setup(3, 2, 2);
     fixture.env.call_private(
         fixture.accounts[0],
-        TecpanVault::at(fixture.vault).rotate_membership(
+        ClaveVault::at(fixture.vault).rotate_membership(
             fixture.keys,
             fixture.keys,
             3,

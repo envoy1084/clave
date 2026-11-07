@@ -1,6 +1,6 @@
 # Brand
 
-Tecpan sits in the Aztec ecosystem and looks like it belongs there: warm paper and olive ink, a light editorial serif,
+Clave sits in the Aztec ecosystem and looks like it belongs there: warm paper and olive ink, a light editorial serif,
 nature imagery gradient-mapped and partly resolved into pixels (privacy, rendered). The tokens are close siblings of
 Aztec's own, not copies.
 

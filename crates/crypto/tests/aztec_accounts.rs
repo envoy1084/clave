@@ -2,8 +2,8 @@
 
 mod common;
 
+use clave_crypto::{Point, SecretScalar, aztec};
 use common::{assert_point, base, point, scalar, vectors};
-use tecpan_crypto::{Point, SecretScalar, aztec};
 
 #[test]
 fn account_derivation_matches_aztec_for_both_signs() {
@@ -29,7 +29,7 @@ fn account_derivation_matches_aztec_for_both_signs() {
         assert_eq!(context.address(), base(&a["address"]));
         assert_point(&context.address_point, &a["addressPoint"]);
         let negated = a["addressSecretNegated"].as_bool().unwrap();
-        assert_eq!(context.sign == -tecpan_crypto::Scalar::from(1u64), negated);
+        assert_eq!(context.sign == -clave_crypto::Scalar::from(1u64), negated);
 
         let address_secret = aztec::single_key_address_secret(preaddress, &ivsk).unwrap();
         assert_eq!(*address_secret.expose(), scalar(&a["addressSecret"]));

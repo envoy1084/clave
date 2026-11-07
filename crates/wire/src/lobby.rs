@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Prefix of an invite's string form.
-pub const INVITE_PREFIX: &str = "tecpan-invite-v0:";
+pub const INVITE_PREFIX: &str = "clave-invite-v0:";
 /// Longest accepted invite string.
 pub const MAX_INVITE_CHARS: usize = 4096;
 /// Longest lobby, member or network name, in bytes.
@@ -173,7 +173,7 @@ impl Invite {
         Ok(invite)
     }
 
-    /// The string form: `tecpan-invite-v0:` followed by base64url (no padding) of the canonical bytes.
+    /// The string form: `clave-invite-v0:` followed by base64url (no padding) of the canonical bytes.
     ///
     /// # Errors
     /// Bounds errors.
@@ -200,8 +200,8 @@ impl Invite {
     }
 }
 
-/// A guest asks to join. `proof = HMAC-SHA256(secret, "tecpan.lobby.join.v0" ‖ lobby ‖ identity ‖ transport)` of
-/// the joiner's keeper (`tecpan_crypto::lobby::join_proof`).
+/// A guest asks to join. `proof = HMAC-SHA256(secret, "clave.lobby.join.v0" ‖ lobby ‖ identity ‖ transport)` of
+/// the joiner's keeper (`clave_crypto::lobby::join_proof`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LobbyJoin {
     /// Lobby id.
@@ -244,7 +244,7 @@ impl LobbyState {
     }
 }
 
-/// The protocol secrets sealed for one member (`tecpan_crypto::lobby::seal_secrets`).
+/// The protocol secrets sealed for one member (`clave_crypto::lobby::seal_secrets`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SealedSecrets {
     /// Recipient's 1-based index in the plan.

@@ -6,7 +6,7 @@ import { KeeperClient } from "./client.ts";
 
 /** How to launch a keeper. */
 export interface KeeperLaunchOptions {
-  /** Path to the `tecpan-keeper` binary. */
+  /** Path to the `clave-keeper` binary. */
   readonly binary: string;
   /** Keeper data directory. */
   readonly dataDir: string;
@@ -44,7 +44,7 @@ export interface LaunchedKeeper {
 }
 
 /**
- * Starts `tecpan-keeper run`, hands it the master key and a fresh RPC token on stdin (never on the command line or in
+ * Starts `clave-keeper run`, hands it the master key and a fresh RPC token on stdin (never on the command line or in
  * the environment), waits for its ready line and connects an authenticated client.
  */
 export async function launchKeeper(options: KeeperLaunchOptions): Promise<LaunchedKeeper> {
@@ -78,7 +78,7 @@ export async function launchKeeper(options: KeeperLaunchOptions): Promise<Launch
       }
     });
     child.once("exit", (code) =>
-      reject(new Error(`tecpan-keeper exited with ${code} before it was ready`)),
+      reject(new Error(`clave-keeper exited with ${code} before it was ready`)),
     );
   });
   const client = await KeeperClient.connect(ready.rpcSocket, token);

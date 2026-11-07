@@ -29,7 +29,7 @@ const LIFECYCLE = [
   },
 ] as const;
 
-const APPROVAL = `approval = Poseidon2("tecpan.approval.v0",
+const APPROVAL = `approval = Poseidon2("clave.approval.v0",
   [vault_address, outer_hash, config_version, expires_at])`;
 
 const WITNESS = [
@@ -62,8 +62,8 @@ export function SpendingPage() {
             Spending is <em className="serif-em">k of n,</em> proven.
           </>
         }
-        lede="A Tecpan vault is an Aztec account contract. It runs a payment only if the proof shows enough valid signatures from its members. There is no admin key and no server that can approve on anyone's behalf."
-        meta="TecpanVault · entrypoint and verify_private_authwit · MAX_SIGNERS 8"
+        lede="A Clave vault is an Aztec account contract. It runs a payment only if the proof shows enough valid signatures from its members. There is no admin key and no server that can approve on anyone's behalf."
+        meta="ClaveVault · entrypoint and verify_private_authwit · MAX_SIGNERS 8"
       />
       <Container>
         <LockFigure fig="Fig. 1" />

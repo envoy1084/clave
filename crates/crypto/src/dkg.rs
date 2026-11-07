@@ -16,9 +16,9 @@ use crate::{
 };
 
 /// Domain tag of the proof-of-knowledge challenge.
-pub const POK_DOMAIN: &[u8] = b"tecpan.dkg.pok.v0";
+pub const POK_DOMAIN: &[u8] = b"clave.dkg.pok.v0";
 /// Domain tag of the transcript hash.
-pub const TRANSCRIPT_DOMAIN: &[u8] = b"tecpan.dkg.transcript.v0";
+pub const TRANSCRIPT_DOMAIN: &[u8] = b"clave.dkg.transcript.v0";
 
 /// Ceremony parameters every participant must agree on.
 #[derive(Clone, Debug, PartialEq, Eq)]

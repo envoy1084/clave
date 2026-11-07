@@ -1,4 +1,4 @@
-import { generateEpochTaggingSecret, generateVaultProtocolSecrets } from "@tecpan/vault-wallet";
+import { generateEpochTaggingSecret, generateVaultProtocolSecrets } from "@clave/vault-wallet";
 import { describe, expect, it } from "vitest";
 
 import { decodeSecrets, encodeSecrets } from "../src/engine/secrets.ts";

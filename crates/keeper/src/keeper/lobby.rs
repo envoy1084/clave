@@ -5,13 +5,12 @@
 
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use tecpan_crypto::{
+use clave_crypto::{
     Point,
     envelope::{Envelope, TransportPublic},
     lobby::{join_proof, open_secrets, seal_secrets, verify_join_proof},
 };
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic, Message, SignedMessage,
     lobby::{
         Invite, KeeperContact, LobbyJoin, LobbyLeave, LobbyMember, LobbyPlan, LobbyState,
@@ -19,6 +18,7 @@ use tecpan_wire::{
     },
     types::{WireField, WirePoint, parse_field},
 };
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use super::{Keeper, State};

@@ -2,7 +2,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point, curve,
     ecdh::{DleqProof, EcdhContext, Partial, verify_partial},
 };

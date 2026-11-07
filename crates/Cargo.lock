@@ -751,6 +751,133 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
+name = "clave-cli"
+version = "0.0.0"
+dependencies = [
+ "block2",
+ "clap",
+ "clap_complete",
+ "objc2",
+ "objc2-foundation",
+ "objc2-local-authentication",
+ "qrcode",
+ "rpassword",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
+name = "clave-crypto"
+version = "0.0.0"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-grumpkin",
+ "criterion",
+ "hex",
+ "hmac",
+ "hpke",
+ "proptest",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "subtle",
+ "taceo-poseidon2",
+ "thiserror 2.0.21",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
+name = "clave-keeper"
+version = "0.0.0"
+dependencies = [
+ "argon2",
+ "chacha20poly1305 0.11.0",
+ "clap",
+ "clave-crypto",
+ "clave-relay",
+ "clave-wire",
+ "futures",
+ "getrandom 0.4.3",
+ "hex",
+ "libp2p",
+ "postcard",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "zeroize",
+]
+
+[[package]]
+name = "clave-napi"
+version = "0.0.0"
+dependencies = [
+ "clave-crypto",
+ "clave-wire",
+ "hex",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
+]
+
+[[package]]
+name = "clave-relay"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "clave-wire",
+ "futures",
+ "getrandom 0.4.3",
+ "hex",
+ "libp2p",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "clave-wire"
+version = "0.0.0"
+dependencies = [
+ "base64",
+ "clave-crypto",
+ "ed25519-dalek",
+ "futures",
+ "hex",
+ "libp2p",
+ "postcard",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3997,133 +4124,6 @@ name = "tagptr"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
-
-[[package]]
-name = "tecpan-cli"
-version = "0.0.0"
-dependencies = [
- "block2",
- "clap",
- "clap_complete",
- "objc2",
- "objc2-foundation",
- "objc2-local-authentication",
- "qrcode",
- "rpassword",
- "security-framework",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "zeroize",
-]
-
-[[package]]
-name = "tecpan-crypto"
-version = "0.0.0"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-grumpkin",
- "criterion",
- "hex",
- "hmac",
- "hpke",
- "proptest",
- "rand_chacha 0.10.0",
- "rand_core 0.10.1",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "subtle",
- "taceo-poseidon2",
- "thiserror 2.0.21",
- "x25519-dalek",
- "zeroize",
-]
-
-[[package]]
-name = "tecpan-keeper"
-version = "0.0.0"
-dependencies = [
- "argon2",
- "chacha20poly1305 0.11.0",
- "clap",
- "futures",
- "getrandom 0.4.3",
- "hex",
- "libp2p",
- "postcard",
- "rand_chacha 0.10.0",
- "rand_core 0.10.1",
- "rusqlite",
- "serde",
- "serde_json",
- "subtle",
- "tecpan-crypto",
- "tecpan-relay",
- "tecpan-wire",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
- "zeroize",
-]
-
-[[package]]
-name = "tecpan-napi"
-version = "0.0.0"
-dependencies = [
- "hex",
- "napi",
- "napi-build",
- "napi-derive",
- "rand_chacha 0.10.0",
- "rand_core 0.10.1",
- "tecpan-crypto",
- "tecpan-wire",
-]
-
-[[package]]
-name = "tecpan-relay"
-version = "0.0.0"
-dependencies = [
- "clap",
- "futures",
- "getrandom 0.4.3",
- "hex",
- "libp2p",
- "rusqlite",
- "serde_json",
- "tecpan-wire",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tecpan-wire"
-version = "0.0.0"
-dependencies = [
- "base64",
- "ed25519-dalek",
- "futures",
- "hex",
- "libp2p",
- "postcard",
- "rand_chacha 0.10.0",
- "rand_core 0.10.1",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tecpan-crypto",
- "thiserror 2.0.21",
- "zeroize",
-]
 
 [[package]]
 name = "tempfile"

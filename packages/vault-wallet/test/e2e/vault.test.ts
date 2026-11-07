@@ -1,5 +1,5 @@
 // A 2-of-3 vault with a 2-of-3 viewing committee on a local network, operated by two members' wallets. The suite runs
-// once with in-process shares and once with real `tecpan-keeper` processes that ran the DKG and the reshare; no wallet
+// once with in-process shares and once with real `clave-keeper` processes that ran the DKG and the reshare; no wallet
 // ever holds the vault's incoming viewing secret (the key store throws if asked).
 import { lookupValidity } from "@aztec-labs/aztec.js/authorization";
 import { Contract } from "@aztec-labs/aztec.js/contracts";
@@ -36,7 +36,7 @@ import {
 const available = await networkAvailable();
 const schnorr = new Schnorr();
 
-/** ECDH traffic one engine generated (`TECPAN_E2E_STATS=1`, in-process backend). */
+/** ECDH traffic one engine generated (`CLAVE_E2E_STATS=1`, in-process backend). */
 const stats = (source: InProcessPartialsSource) => ({
   requests: source.requests.length,
   points: source.requests.reduce((n, r) => n + r.points.length, 0),
@@ -51,7 +51,7 @@ const pad = (points: readonly Point[]) =>
 
 const backends: [string, () => Promise<ViewingBackend>][] = [
   ["in-process shares", inProcessBackend],
-  ["tecpan-keeper processes", keeperBackend],
+  ["clave-keeper processes", keeperBackend],
 ];
 
 describe.skipIf(!available).each(backends)(
@@ -127,7 +127,7 @@ describe.skipIf(!available).each(backends)(
       ({ contract: token } = await TokenContract.deploy(
         alice.wallet,
         alice.account,
-        "Tecpan",
+        "Clave",
         "TEC",
         18,
       ).send({
@@ -146,7 +146,7 @@ describe.skipIf(!available).each(backends)(
       await Promise.all([alice?.wallet.stop(), bob?.wallet.stop()]);
       const [aliceSource, bobSource] = [backend?.source(1), backend?.source(2)];
       if (
-        process.env.TECPAN_E2E_STATS === "1" &&
+        process.env.CLAVE_E2E_STATS === "1" &&
         aliceSource instanceof InProcessPartialsSource &&
         bobSource instanceof InProcessPartialsSource
       ) {

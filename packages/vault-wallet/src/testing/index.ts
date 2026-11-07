@@ -1,11 +1,11 @@
 import { Fr } from "@aztec-labs/foundation/curves/bn254";
 /**
- * Test helpers that deal and use viewing shares in-process (through `@tecpan/napi/testing`). Never used by the app:
+ * Test helpers that deal and use viewing shares in-process (through `@clave/napi/testing`). Never used by the app:
  * in production, shares exist only in members' keepers.
  */
 import { GrumpkinScalar, type Point } from "@aztec-labs/foundation/curves/grumpkin";
-import type { MemberPartials } from "@tecpan/napi";
-import { type DealtCommittee, testingDealShares, testingPartials } from "@tecpan/napi/testing";
+import type { MemberPartials } from "@clave/napi";
+import { type DealtCommittee, testingDealShares, testingPartials } from "@clave/napi/testing";
 
 import { fromNapiPoint } from "../keys/points.ts";
 import type { PartialsRequest, PartialsSource } from "../keys/threshold-ecdh.ts";

@@ -29,7 +29,7 @@ export function Hero() {
             {...rise(0.08)}
             className="mt-6 max-w-[50ch] text-[1.05rem] leading-relaxed text-ink-soft sm:text-[1.12rem]"
           >
-            Tecpan is a multisig account on Aztec. Moving funds takes{" "}
+            Clave is a multisig account on Aztec. Moving funds takes{" "}
             <strong className="font-medium text-ink">k of n</strong> signatures. Reading the vault
             takes <strong className="font-medium text-ink">t of n</strong> members&rsquo; keepers,
             so no member, server or relay ever holds the key that decrypts it.

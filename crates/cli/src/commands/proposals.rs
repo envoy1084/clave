@@ -190,8 +190,8 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
     ctx.emit(&result, || {
         let (have, k) = (proposal.valid_approvals(), proposal.threshold);
         let next = match proposal.status.as_str() {
-            "ready" => format!("ready to execute (tecpan execute {short})"),
-            "blocked" => format!("blocked by rejections; cancel it: tecpan cancel {short}"),
+            "ready" => format!("ready to execute (clave execute {short})"),
+            "blocked" => format!("blocked by rejections; cancel it: clave cancel {short}"),
             other => other.to_owned(),
         };
         let what = if matches!(vote, Vote::Approve) {
@@ -311,7 +311,7 @@ pub(crate) fn cancel(ctx: &Ctx, prefix: &str) -> Result<()> {
     ctx.emit(&raw, || {
         let short = short_id(&proposal.id);
         format!(
-            "{} Proposed cancel {short} of {}. It needs {} approvals: tecpan approve {short}\n",
+            "{} Proposed cancel {short} of {}. It needs {} approvals: clave approve {short}\n",
             ctx.style.ok(),
             short_id(&id),
             proposal.threshold

@@ -4,9 +4,7 @@
 mod common;
 
 use ark_ff::One;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Error, Point, Scalar, SecretScalar,
     aztec::AddressContext,
     dkg::KeyShare,
@@ -15,6 +13,8 @@ use tecpan_crypto::{
     shamir::{MemberIndex, random_scalar},
     vault,
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 fn parameters(dealers: Vec<MemberIndex>, old_t: usize, new_n: u32, new_t: usize) -> Parameters {
     Parameters {

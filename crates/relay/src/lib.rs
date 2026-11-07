@@ -1,4 +1,4 @@
-//! Tecpan relay: untrusted infrastructure that helps keepers reach each other and holds ciphertext for members who are
+//! Clave relay: untrusted infrastructure that helps keepers reach each other and holds ciphertext for members who are
 //! offline. It runs a libp2p circuit relay v2 server (and the rendezvous for hole punching) and a mailbox of sealed
 //! envelopes under opaque ids. It never sees a plaintext, an identity tied to a vault, or a vault address; it does see
 //! which peers connect and when. See `architecture/networking.md`.

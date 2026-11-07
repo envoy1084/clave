@@ -1,6 +1,6 @@
 [package]
-name = "tecpan-relay"
-description = "Untrusted Tecpan relay: libp2p circuit relay and ciphertext mailbox"
+name = "clave-relay"
+description = "Untrusted Clave relay: libp2p circuit relay and ciphertext mailbox"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,7 +10,7 @@ publish.workspace = true
 path = "src/lib.rs"
 
 [[bin]]
-name = "tecpan-relay"
+name = "clave-relay"
 path = "src/main.rs"
 
 [lints]
@@ -37,7 +37,7 @@ libp2p = { version = "0.57", features = [
 ] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 serde_json = "1"
-tecpan-wire = { workspace = true, features = ["p2p"] }
+clave-wire = { workspace = true, features = ["p2p"] }
 thiserror = "2"
 tokio = { version = "1.54", features = [
   "rt-multi-thread",

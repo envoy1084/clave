@@ -15,14 +15,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde_json::{Value, json};
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point,
     aztec::AddressContext,
     curve,
     ecdh::{DleqProof, Partial, combine},
     shamir::random_scalar,
 };
+use serde_json::{Value, json};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::UnixStream,
@@ -240,8 +240,8 @@ async fn main() {
     println!("ecdh agreed ({ecdh_ms} ms for the first batch)");
 
     // Proposal sync.
-    let proposal = tecpan_wire::encode_body(&tecpan_wire::Message::Proposal(
-        tecpan_wire::messages::Proposal {
+    let proposal = clave_wire::encode_body(&clave_wire::Message::Proposal(
+        clave_wire::messages::Proposal {
             config_version: 0,
             outer_hash: [3; 32],
             expires_at: 1_900_000_000,

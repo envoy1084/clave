@@ -1,6 +1,6 @@
+use clave_wire::messages::EcdhPurpose;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tecpan_wire::messages::EcdhPurpose;
 
 use super::json::{
     JsonCeremony, JsonDkgResult, JsonManifest, JsonMemberPartials, JsonNewMember, JsonParticipant,

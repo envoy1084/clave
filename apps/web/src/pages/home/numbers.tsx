@@ -10,7 +10,7 @@ const FIGURES = [
   { value: TIMINGS[3].value, label: "for a 2-of-3 private transfer, proving included" },
   { value: TIMINGS[1].value, label: "for three keepers to answer a decryption, through a relay" },
   { value: TIMINGS[0].value, label: "to generate a vault's viewing key across three keepers" },
-  { value: entry.tecpan.toLocaleString("en-US"), label: "gates in the 8-slot entrypoint circuit" },
+  { value: entry.clave.toLocaleString("en-US"), label: "gates in the 8-slot entrypoint circuit" },
 ] as const;
 
 export function Numbers() {

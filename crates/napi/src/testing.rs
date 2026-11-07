@@ -1,15 +1,15 @@
 //! Test-only helpers that create or use secret shares (enabled by the `testing` feature, never in the app build).
 
-use napi::{Result, bindgen_prelude::Buffer};
-use napi_derive::napi;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     SecretScalar, aztec,
     ecdh::{AddressSecretShare, EcdhContext},
     schnorr,
     shamir::{Polynomial, random_scalar},
 };
+use napi::{Result, bindgen_prelude::Buffer};
+use napi_derive::napi;
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 use crate::{
     convert::{Point, base, base_hex, invalid, point, point_out, points, scalar, scalar_hex},
@@ -125,6 +125,6 @@ pub fn testing_sign(secret_key: String, message: String, seed: Buffer) -> Result
 pub fn testing_public_key(secret_key: String) -> Result<Point> {
     let key = SecretScalar::new(scalar(&secret_key)?);
     Ok(point_out(
-        &tecpan_crypto::Point::generator_mul_secret(&key).map_err(invalid)?,
+        &clave_crypto::Point::generator_mul_secret(&key).map_err(invalid)?,
     ))
 }

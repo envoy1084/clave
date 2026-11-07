@@ -1,7 +1,7 @@
 //! Cross-language vectors: the same inputs and expected values are asserted in
 //! `contracts/vault_contract/src/wire_vectors.nr`.
 
-use tecpan_crypto::{Base, Point, Scalar, vault};
+use clave_crypto::{Base, Point, Scalar, vault};
 
 /// `count` points `(seed + i) · G`, matching the Noir `points(count, seed)` test helper.
 fn points(count: u64, seed: u64) -> Vec<Point> {
@@ -18,7 +18,7 @@ fn signer_set_commitment_matches_noir() {
     let commitment = vault::signer_set_commitment(&points(3, 1)).unwrap();
     assert_eq!(
         vault::field_hex(&commitment),
-        "0x1814a2b2e68b9355116626143fe5d6549a64c5618c702464c1ccc982b659fe40"
+        "0x2da3848d05fa8a416557d6cbde36dff16699731c6115d91f412b5356bd7e0418"
     );
 }
 
@@ -27,7 +27,7 @@ fn committee_commitment_matches_noir() {
     let commitment = vault::committee_commitment(2, &points(3, 1000)).unwrap();
     assert_eq!(
         vault::field_hex(&commitment),
-        "0x2bafa2a18e587afb28f4f7a6b48a24e94e39ca2b1d7c9caf151a03afe750f1a8"
+        "0x1322cdffa6bbec966aaa4b630b180459c06d4f2f0f59d507f4ddc9f2fce3d80b"
     );
 }
 
@@ -41,7 +41,7 @@ fn approval_message_matches_noir() {
     );
     assert_eq!(
         vault::field_hex(&message),
-        "0x1705887c43c37444a89a18523d5dd6729415b781cc5946946c9983f5a7371251"
+        "0x1e76704d76265cda2e0fdf4073e61c88e9a7526b5a2a9b0068186a02f09841e1"
     );
 }
 
@@ -49,15 +49,15 @@ fn approval_message_matches_noir() {
 fn domain_separators_match_the_contract_constants() {
     assert_eq!(
         vault::field_hex(&vault::domain_separator(vault::DOM_SEP_APPROVAL)),
-        "0x000000000000000000000000000074656370616e2e617070726f76616c2e7630"
+        "0x000000000000000000000000000000636c6176652e617070726f76616c2e7630"
     );
     assert_eq!(
         vault::field_hex(&vault::domain_separator(vault::DOM_SEP_SIGNER_SET)),
-        "0x00000000000000000000000000000074656370616e2e7369676e6572732e7630"
+        "0x00000000000000000000000000000000636c6176652e7369676e6572732e7630"
     );
     assert_eq!(
         vault::field_hex(&vault::domain_separator(vault::DOM_SEP_COMMITTEE)),
-        "0x0000000000000000000000000074656370616e2e636f6d6d69747465652e7630"
+        "0x0000000000000000000000000000636c6176652e636f6d6d69747465652e7630"
     );
 }
 
@@ -84,6 +84,6 @@ fn witness_layout_places_keys_signatures_and_deadline() {
 fn rejects_more_than_max_members() {
     assert!(matches!(
         vault::signer_set_commitment(&points(9, 1)),
-        Err(tecpan_crypto::Error::TooManyMembers { max: 8, actual: 9 })
+        Err(clave_crypto::Error::TooManyMembers { max: 8, actual: 9 })
     ));
 }

@@ -36,7 +36,7 @@ export class VaultWitnessProvider implements AuthWitnessProvider {
   }
 }
 
-/** The Tecpan vault as an Aztec account contract (default entrypoint, k-of-n witness). */
+/** The Clave vault as an Aztec account contract (default entrypoint, k-of-n witness). */
 export class VaultAccountContract implements AccountContract {
   readonly #deployment: VaultDeployment;
   readonly witnesses = new VaultWitnessProvider();

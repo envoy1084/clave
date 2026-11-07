@@ -1,4 +1,4 @@
-use tecpan_wire::{
+use clave_wire::{
     Header, IdentityPublic, Message, decode_body, encode_body,
     messages::{Approval, ExecutionReceipt, Proposal, Rejection},
     types::parse_field,
@@ -251,7 +251,7 @@ impl Keeper {
     }
 
     /// The signer key of `slot` in `vault`'s committee.
-    async fn signer_key(&self, vault: [u8; 32], slot: u32) -> Result<tecpan_crypto::Point> {
+    async fn signer_key(&self, vault: [u8; 32], slot: u32) -> Result<clave_crypto::Point> {
         let state = self.0.state.lock().await;
         let committee = &state
             .vaults
@@ -264,7 +264,7 @@ impl Keeper {
             .members
             .get(slot)
             .ok_or_else(|| Error::Invalid("vote for an empty slot".into()))?;
-        Ok(tecpan_crypto::Point::try_from(&member.signer_key)?)
+        Ok(clave_crypto::Point::try_from(&member.signer_key)?)
     }
 
     async fn store_rejection(&self, vault: [u8; 32], rejection: &Rejection) -> Result<()> {

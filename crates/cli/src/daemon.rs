@@ -1,4 +1,4 @@
-//! Finding, starting and stopping `tecpand` (`architecture/cli.md`, Daemon).
+//! Finding, starting and stopping `claved` (`architecture/cli.md`, Daemon).
 
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::{
@@ -28,35 +28,35 @@ fn repo_root() -> PathBuf {
     root.canonicalize().unwrap_or(root)
 }
 
-/// `TECPAN_ENGINE`, else `$TECPAN_HOME/lib/engine/tecpand.js`, else the repository build.
+/// `CLAVE_ENGINE`, else `$CLAVE_HOME/lib/engine/claved.js`, else the repository build.
 pub(crate) fn engine_path(home: &Path) -> Result<PathBuf> {
-    if let Some(path) = std::env::var_os("TECPAN_ENGINE").filter(|v| !v.is_empty()) {
+    if let Some(path) = std::env::var_os("CLAVE_ENGINE").filter(|v| !v.is_empty()) {
         return Ok(PathBuf::from(path));
     }
-    let installed = home.join("lib/engine/tecpand.js");
+    let installed = home.join("lib/engine/claved.js");
     let candidates = [
         installed.clone(),
-        repo_root().join("packages/engine/dist/tecpand.js"),
+        repo_root().join("packages/engine/dist/claved.js"),
     ];
     candidates.into_iter().find(|p| p.is_file()).ok_or_else(|| {
         Error::failed(format!(
-            "The engine (tecpand.js) was not found at {}.",
+            "The engine (claved.js) was not found at {}.",
             installed.display()
         ))
-        .hint("Build it: pnpm --filter @tecpan/engine build, or set TECPAN_ENGINE")
+        .hint("Build it: pnpm --filter @clave/engine build, or set CLAVE_ENGINE")
     })
 }
 
-/// `TECPAN_KEEPER_BIN`, else `$TECPAN_HOME/bin/tecpan-keeper`, else `crates/target/{release,debug}/tecpan-keeper`.
+/// `CLAVE_KEEPER_BIN`, else `$CLAVE_HOME/bin/clave-keeper`, else `crates/target/{release,debug}/clave-keeper`.
 pub(crate) fn keeper_path(home: &Path) -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("TECPAN_KEEPER_BIN").filter(|v| !v.is_empty()) {
+    if let Some(path) = std::env::var_os("CLAVE_KEEPER_BIN").filter(|v| !v.is_empty()) {
         return Some(PathBuf::from(path));
     }
     let target = repo_root().join("crates/target");
     [
-        home.join("bin/tecpan-keeper"),
-        target.join("release/tecpan-keeper"),
-        target.join("debug/tecpan-keeper"),
+        home.join("bin/clave-keeper"),
+        target.join("release/clave-keeper"),
+        target.join("debug/clave-keeper"),
     ]
     .into_iter()
     .find(|p| p.is_file())
@@ -98,7 +98,7 @@ pub(crate) fn start(home: &Path, profile: &Profile) -> Result<DaemonInfo> {
         .spawn()
         .map_err(|e| {
             Error::failed(format!("could not run node: {e}"))
-                .hint("Install Node 24 and check it is on PATH: tecpan doctor")
+                .hint("Install Node 24 and check it is on PATH: clave doctor")
         })?;
     let deadline = Instant::now() + START_TIMEOUT;
     loop {
@@ -110,7 +110,7 @@ pub(crate) fn start(home: &Path, profile: &Profile) -> Result<DaemonInfo> {
                 "The daemon exited during start ({status}).{}",
                 log_tail(&profile.daemon_log(), 5)
             ))
-            .hint(format!("Full log: tecpan {}daemon logs", profile.flag())));
+            .hint(format!("Full log: clave {}daemon logs", profile.flag())));
         }
         if Instant::now() > deadline {
             return Err(Error::failed(format!(
@@ -119,7 +119,7 @@ pub(crate) fn start(home: &Path, profile: &Profile) -> Result<DaemonInfo> {
                 child.id()
             ))
             .hint(format!(
-                "Check its log: tecpan {}daemon logs",
+                "Check its log: clave {}daemon logs",
                 profile.flag()
             )));
         }

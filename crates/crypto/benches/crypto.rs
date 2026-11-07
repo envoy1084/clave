@@ -1,11 +1,7 @@
 //! Benchmarks for the operations keepers and engines run: partials, verify + combine per sync batch, ceremonies.
 #![allow(missing_docs, clippy::unwrap_used)]
 
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use std::hint::black_box;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point,
     aztec::AddressContext,
     dkg::{self, KeyShare, Parameters},
@@ -13,6 +9,10 @@ use tecpan_crypto::{
     reshare,
     shamir::{MemberIndex, random_scalar},
 };
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
+use std::hint::black_box;
 
 fn run_dkg(t: usize, n: u32, rng: &mut ChaCha20Rng) -> Vec<KeyShare> {
     let params = Parameters {

@@ -9,10 +9,10 @@ mod relay_mailbox;
 
 use std::{future::Future, pin::Pin};
 
+use clave_wire::{IdentityPublic, messages::Member};
 pub use memory::{MemoryNetwork, MemoryTransport};
 pub use p2p::{P2pConfig, P2pTransport, peer_id};
 pub use relay_mailbox::RelayMailbox;
-use tecpan_wire::{IdentityPublic, messages::Member};
 
 use crate::Result;
 

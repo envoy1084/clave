@@ -1,10 +1,8 @@
 //! Message catalogue. Variants of [`Message`] are only ever appended (their order is the encoding); every body has
-//! structural bounds checked on decode and conversions to `tecpan-crypto` types that validate the cryptographic
+//! structural bounds checked on decode and conversions to `clave-crypto` types that validate the cryptographic
 //! content.
 
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point,
     aztec::AddressContext,
     dkg::{ProofOfKnowledge, Round1Package},
@@ -15,6 +13,8 @@ use tecpan_crypto::{
     shamir::{Commitments, MemberIndex},
     vault::{self, MAX_SIGNERS},
 };
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     Error, IdentityPublic,
@@ -47,7 +47,7 @@ pub const MAX_REASON_BYTES: usize = 280;
 /// Most records of each kind in one [`SyncRequest`].
 pub const MAX_SYNC_ITEMS: usize = 4096;
 /// Domain tag of proposal ids.
-pub const PROPOSAL_DOMAIN: &[u8] = b"tecpan.proposal.v0";
+pub const PROPOSAL_DOMAIN: &[u8] = b"clave.proposal.v0";
 
 /// Every message kind. Append new variants at the end only.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -381,7 +381,7 @@ impl SealedShare {
         }
     }
 
-    /// The envelope to open with `tecpan_crypto::envelope::open_scalar`.
+    /// The envelope to open with `clave_crypto::envelope::open_scalar`.
     #[must_use]
     pub fn envelope(&self) -> Envelope {
         Envelope {
@@ -459,7 +459,7 @@ impl Justification {
     /// # Errors
     /// [`Error::Crypto`] for a non-canonical share.
     pub fn holds(&self, accused_commitments: &Commitments) -> Result<bool, Error> {
-        let share = tecpan_crypto::SecretScalar::new(parse_scalar(&self.share)?);
+        let share = clave_crypto::SecretScalar::new(parse_scalar(&self.share)?);
         Ok(accused_commitments.verify_share(self.complainant, &share))
     }
 }
@@ -599,7 +599,7 @@ pub struct Proposal {
 }
 
 impl Proposal {
-    /// `SHA-256("tecpan.proposal.v0" ‖ canonical(proposal))`.
+    /// `SHA-256("clave.proposal.v0" ‖ canonical(proposal))`.
     ///
     /// # Errors
     /// [`Error::Malformed`] if the proposal cannot be encoded.

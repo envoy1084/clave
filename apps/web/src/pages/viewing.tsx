@@ -57,8 +57,8 @@ export function ViewingPage() {
             Viewing needs a quorum. <em className="serif-em">The key never exists.</em>
           </>
         }
-        lede="Every Aztec account has a secret that decrypts its incoming funds. In a Tecpan vault that secret is split across the members' keepers from the start. Reading a note takes any t of them, and no one, including the members, ever holds the whole thing."
-        meta="tecpan-crypto · threshold ECDH · patched @aztec-labs/pxe key store"
+        lede="Every Aztec account has a secret that decrypts its incoming funds. In a Clave vault that secret is split across the members' keepers from the start. Reading a note takes any t of them, and no one, including the members, ever holds the whole thing."
+        meta="clave-crypto · threshold ECDH · patched @aztec-labs/pxe key store"
       />
       <Container>
         <ViewingFigure />

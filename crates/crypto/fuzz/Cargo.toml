@@ -1,5 +1,5 @@
 [package]
-name = "tecpan-crypto-fuzz"
+name = "clave-crypto-fuzz"
 version = "0.0.0"
 edition = "2024"
 publish = false
@@ -9,8 +9,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-tecpan-crypto = { path = ".." }
-tecpan-wire = { path = "../../wire" }
+clave-crypto = { path = ".." }
+clave-wire = { path = "../../wire" }
 
 [[bin]]
 name = "decode"

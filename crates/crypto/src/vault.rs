@@ -11,14 +11,14 @@ pub const SIGNATURE_LEN: usize = 4;
 /// Auth witness length: signer keys, signature slots, `expires_at`.
 pub const WITNESS_LEN: usize = MAX_SIGNERS * (2 + SIGNATURE_LEN) + 1;
 
-/// ASCII `tecpan.approval.v0`.
-pub const DOM_SEP_APPROVAL: &[u8] = b"tecpan.approval.v0";
-/// ASCII `tecpan.rejection.v0`. Rejections are off-chain votes; the contract never sees them.
-pub const DOM_SEP_REJECTION: &[u8] = b"tecpan.rejection.v0";
-/// ASCII `tecpan.signers.v0`.
-pub const DOM_SEP_SIGNER_SET: &[u8] = b"tecpan.signers.v0";
-/// ASCII `tecpan.committee.v0`.
-pub const DOM_SEP_COMMITTEE: &[u8] = b"tecpan.committee.v0";
+/// ASCII `clave.approval.v0`.
+pub const DOM_SEP_APPROVAL: &[u8] = b"clave.approval.v0";
+/// ASCII `clave.rejection.v0`. Rejections are off-chain votes; the contract never sees them.
+pub const DOM_SEP_REJECTION: &[u8] = b"clave.rejection.v0";
+/// ASCII `clave.signers.v0`.
+pub const DOM_SEP_SIGNER_SET: &[u8] = b"clave.signers.v0";
+/// ASCII `clave.committee.v0`.
+pub const DOM_SEP_COMMITTEE: &[u8] = b"clave.committee.v0";
 
 /// A domain tag as a field element: its ASCII bytes read big-endian.
 #[must_use]
@@ -42,7 +42,7 @@ fn padded_points(points: &[Point]) -> Result<[Base; 2 * MAX_SIGNERS], Error> {
     Ok(fields)
 }
 
-/// `Poseidon2(tecpan.signers.v0, [x_0, y_0, ..., x_7, y_7])` over the ordered signer keys.
+/// `Poseidon2(clave.signers.v0, [x_0, y_0, ..., x_7, y_7])` over the ordered signer keys.
 ///
 /// # Errors
 /// [`Error::TooManyMembers`] for more than [`MAX_SIGNERS`] keys.
@@ -53,7 +53,7 @@ pub fn signer_set_commitment(signer_keys: &[Point]) -> Result<Base, Error> {
     ))
 }
 
-/// `Poseidon2(tecpan.committee.v0, [t_v, Y_0.x, Y_0.y, ..., Y_7.y])` over the ordered verification shares.
+/// `Poseidon2(clave.committee.v0, [t_v, Y_0.x, Y_0.y, ..., Y_7.y])` over the ordered verification shares.
 ///
 /// # Errors
 /// [`Error::TooManyMembers`] for more than [`MAX_SIGNERS`] shares.
@@ -71,7 +71,7 @@ pub fn committee_commitment(
     ))
 }
 
-/// The message each signer signs: `Poseidon2(tecpan.approval.v0, [vault, outer_hash, version, expires_at])`.
+/// The message each signer signs: `Poseidon2(clave.approval.v0, [vault, outer_hash, version, expires_at])`.
 #[must_use]
 pub fn approval_message(
     vault: Base,
@@ -90,7 +90,7 @@ pub fn approval_message(
     )
 }
 
-/// The message a member signs to reject a proposal: `Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])`, where
+/// The message a member signs to reject a proposal: `Poseidon2(clave.rejection.v0, [vault, id_hi, id_lo])`, where
 /// `id_hi` and `id_lo` are the big-endian 128-bit halves of the 32-byte proposal id (which does not fit one field).
 #[must_use]
 pub fn rejection_message(vault: Base, proposal_id: &[u8; 32]) -> Base {

@@ -1,11 +1,9 @@
-//! Message validation and conversions to and from `tecpan-crypto` types, with real cryptography.
+//! Message validation and conversions to and from `clave-crypto` types, with real cryptography.
 #![allow(clippy::unwrap_used)]
 
 mod common;
 
-use common::{point, proposal, samples, wire_point};
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Point, Scalar, SecretScalar,
     aztec::AddressContext,
     dkg,
@@ -14,7 +12,7 @@ use tecpan_crypto::{
     shamir::Commitments,
     vault,
 };
-use tecpan_wire::{
+use clave_wire::{
     Error, Message,
     messages::{
         Approval, Ceremony, DkgRound1, EcdhResponse, Justification, MAX_REASON_BYTES, Manifest,
@@ -22,6 +20,8 @@ use tecpan_wire::{
     },
     types::{field, scalar},
 };
+use common::{point, proposal, samples, wire_point};
+use rand_core::SeedableRng;
 
 fn rng() -> rand_chacha::ChaCha20Rng {
     rand_chacha::ChaCha20Rng::seed_from_u64(42)
@@ -113,7 +113,7 @@ fn manifest_address_must_match_preaddress_and_group_key() {
         m.address_context(),
         Err(Error::OutOfBounds { field: "vault" })
     ));
-    let preaddress = tecpan_crypto::Base::from(77u64);
+    let preaddress = clave_crypto::Base::from(77u64);
     let context = AddressContext::new(preaddress, &point(1000)).unwrap();
     m.preaddress = field(&preaddress);
     m.vault = field(&context.address());
@@ -125,7 +125,7 @@ fn approvals_verify_against_their_proposal() {
     let mut rng = rng();
     let key = SecretScalar::new(Scalar::from(31u64));
     let public = Point::generator_mul_secret(&key).unwrap();
-    let vault = tecpan_crypto::Base::from(0x1234u64);
+    let vault = clave_crypto::Base::from(0x1234u64);
     let proposal = proposal();
     let id = proposal.id().unwrap();
     let signature =
@@ -136,7 +136,7 @@ fn approvals_verify_against_their_proposal() {
     // Other vault, other signer, other proposal.
     assert!(
         !approval
-            .verify(&proposal, tecpan_crypto::Base::from(1u64), &public)
+            .verify(&proposal, clave_crypto::Base::from(1u64), &public)
             .unwrap()
     );
     assert!(!approval.verify(&proposal, vault, &point(5)).unwrap());
@@ -150,7 +150,7 @@ fn rejections_verify_against_their_proposal_and_vault() {
     let mut rng = rng();
     let key = SecretScalar::new(Scalar::from(31u64));
     let public = Point::generator_mul_secret(&key).unwrap();
-    let vault = tecpan_crypto::Base::from(0x1234u64);
+    let vault = clave_crypto::Base::from(0x1234u64);
     let id = proposal().id().unwrap();
     let signature = schnorr::sign(&key, vault::rejection_message(vault, &id), &mut rng).unwrap();
     let limbs = signature.to_limbs();
@@ -170,7 +170,7 @@ fn rejections_verify_against_their_proposal_and_vault() {
     // Other vault, other signer, other proposal.
     assert!(
         !rejection
-            .verify(tecpan_crypto::Base::from(1u64), &public)
+            .verify(clave_crypto::Base::from(1u64), &public)
             .unwrap()
     );
     assert!(!rejection.verify(vault, &point(5)).unwrap());
@@ -249,12 +249,12 @@ fn dkg_packages_survive_the_wire() {
 #[test]
 fn reshare_deals_survive_the_wire() {
     let commitments = Commitments::new(vec![point(3), point(4)]).unwrap();
-    let package = tecpan_crypto::reshare::DealerPackage {
+    let package = clave_crypto::reshare::DealerPackage {
         dealer: 2,
         commitments,
     };
     let decoded =
-        tecpan_crypto::reshare::DealerPackage::try_from(&ReshareDeal::from(&package)).unwrap();
+        clave_crypto::reshare::DealerPackage::try_from(&ReshareDeal::from(&package)).unwrap();
     assert_eq!(decoded.dealer, 2);
     assert_eq!(decoded.commitments.points(), package.commitments.points());
 }
@@ -302,11 +302,8 @@ fn ecdh_partials_verify_after_the_wire() {
             .map(|s| dkg::finalize(&parameters, s, &round1, &round2).unwrap())
             .collect::<Vec<_>>()
     };
-    let context = AddressContext::new(
-        tecpan_crypto::Base::from(5u64),
-        shares[0].group_public_key(),
-    )
-    .unwrap();
+    let context =
+        AddressContext::new(clave_crypto::Base::from(5u64), shares[0].group_public_key()).unwrap();
     let ecdh_context = EcdhContext {
         vault: context.address(),
         epoch: 3,

@@ -13,7 +13,7 @@ use zeroize::Zeroizing;
 
 use crate::error::{Error, Result};
 
-const SERVICE: &str = "tecpan.signer";
+const SERVICE: &str = "clave.signer";
 /// `errSecItemNotFound`.
 const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
@@ -75,7 +75,7 @@ pub(crate) fn read(account: &str, reason: &str) -> Result<Zeroizing<String>> {
     String::from_utf8(bytes.to_vec())
         .map(Zeroizing::new)
         .map_err(|_| {
-            Error::failed("the keychain item is corrupt; run tecpan signer enable-touch-id again")
+            Error::failed("the keychain item is corrupt; run clave signer enable-touch-id again")
         })
 }
 
@@ -92,7 +92,7 @@ pub(crate) fn remove(account: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    /// Run by hand on a Mac (`cargo test -p tecpan-cli -- --ignored`): the policy check never prompts.
+    /// Run by hand on a Mac (`cargo test -p clave-cli -- --ignored`): the policy check never prompts.
     #[test]
     #[ignore = "needs a Mac with a login session"]
     fn policy_can_be_evaluated() {

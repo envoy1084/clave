@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Domain tag of the reshare transcript hash.
-pub const TRANSCRIPT_DOMAIN: &[u8] = b"tecpan.reshare.transcript.v0";
+pub const TRANSCRIPT_DOMAIN: &[u8] = b"clave.reshare.transcript.v0";
 
 /// Reshare parameters every participant must agree on.
 #[derive(Clone, Debug, PartialEq, Eq)]

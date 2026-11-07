@@ -1,8 +1,8 @@
 //! Aztec address derivation for a vault whose incoming viewing key is shared.
 
+use clave_crypto::{Scalar, aztec};
 use napi::Result;
 use napi_derive::napi;
-use tecpan_crypto::{Scalar, aztec};
 
 use crate::convert::{Point, base, base_hex, invalid, point, point_out};
 

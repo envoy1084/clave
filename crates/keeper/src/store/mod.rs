@@ -5,9 +5,9 @@ mod migrations;
 
 use std::{path::Path, sync::Mutex};
 
+use clave_wire::{Message, decode_body, encode_body, messages::Manifest};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Serialize, de::DeserializeOwned};
-use tecpan_wire::{Message, decode_body, encode_body, messages::Manifest};
 
 use crate::{Error, Result};
 

@@ -36,7 +36,7 @@ interface RawSignerSet {
 /** A `get_*` utility of the vault, called through `wallet`. */
 async function utility(wallet: Wallet, address: AztecAddress, name: string): Promise<unknown> {
   const method = Contract.at(address, vaultArtifact(), wallet).methods[name];
-  if (!method) throw new Error(`TecpanVault has no ${name}`);
+  if (!method) throw new Error(`ClaveVault has no ${name}`);
   const { result } = await method().simulate({ from: address });
   return result;
 }

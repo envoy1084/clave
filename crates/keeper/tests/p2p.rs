@@ -11,9 +11,7 @@ mod common;
 
 use std::{path::Path, sync::Arc, time::Duration};
 
-use common::{ecdh, eventually, manifest_of, point, run_dkg_among};
-use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
-use tecpan_keeper::{
+use clave_keeper::{
     Clock, Keeper, KeeperConfig, KeeperParts, LobbyOpen, LobbyStatus, NewMember, ReshareRequest,
     SystemClock,
     custody::{KeeperKeys, MasterKey, SecretStore},
@@ -21,11 +19,13 @@ use tecpan_keeper::{
     store::Store,
     transport::{P2pConfig, P2pTransport, Peer, RelayMailbox, Transport},
 };
-use tecpan_relay::{Limits, Relay, RelayConfig, store::MailboxStore};
-use tecpan_wire::{
+use clave_relay::{Limits, Relay, RelayConfig, store::MailboxStore};
+use clave_wire::{
     Header, Message, SignedMessage, encode, encode_body,
     messages::{Manifest, Proposal},
 };
+use common::{ecdh, eventually, manifest_of, point, run_dkg_among};
+use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
 use tempfile::TempDir;
 
 struct Node {
@@ -353,12 +353,12 @@ fn lobby_frame(node: &Node, lobby: [u8; 16]) -> Vec<u8> {
     .unwrap();
     let keys = KeeperKeys::load_or_create(&secrets).unwrap();
     let header = Header {
-        scope: tecpan_wire::lobby::scope(&lobby),
+        scope: clave_wire::lobby::scope(&lobby),
         epoch: 0,
         id: [9; 16],
         created_at: SystemClock.now(),
     };
-    let body = Message::LobbyLeave(tecpan_wire::lobby::LobbyLeave { lobby });
+    let body = Message::LobbyLeave(clave_wire::lobby::LobbyLeave { lobby });
     encode(&SignedMessage::sign(&keys.identity, header, body).unwrap()).unwrap()
 }
 

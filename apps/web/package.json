@@ -1,8 +1,8 @@
 {
-  "name": "@tecpan/web",
+  "name": "@clave/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Tecpan landing page",
+  "description": "Clave landing page",
   "type": "module",
   "scripts": {
     "build": "vite build",

@@ -1,7 +1,7 @@
 import defineConfig from "klarity/tsdown/node";
 
 export default defineConfig({
-  entry: { tecpand: "src/tecpand.ts" },
+  entry: { claved: "src/claved.ts" },
   // A program, not a library: no declarations. See packages/vault-wallet for the TS 7.0 notices.
   dts: false,
   suppressWarnings: [

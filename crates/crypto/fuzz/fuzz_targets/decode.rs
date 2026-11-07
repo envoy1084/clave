@@ -2,7 +2,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_crypto::{Point, curve};
+use clave_crypto::{Point, curve};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(bytes) = <[u8; 64]>::try_from(data) {

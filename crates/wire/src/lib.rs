@@ -1,4 +1,4 @@
-//! Canonical, versioned, signed wire format for messages exchanged between Tecpan engines, keepers and relays.
+//! Canonical, versioned, signed wire format for messages exchanged between Clave engines, keepers and relays.
 //!
 //! Every message travels as a [`SignedMessage`]: a [`Header`] (scope, epoch, id, timestamp) and a [`Message`] body,
 //! signed by the sending keeper's Ed25519 identity over its canonical `postcard` encoding. Decoding enforces size

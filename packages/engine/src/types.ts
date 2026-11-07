@@ -13,7 +13,7 @@ export interface Settings {
   readonly relays: readonly string[];
   /** Prove transactions on this device (off for a local network, which accepts fake proofs). */
   readonly proverEnabled: boolean;
-  /** Longest signer unlock window `tecpan unlock` may ask for. */
+  /** Longest signer unlock window `clave unlock` may ask for. */
   readonly unlockTimeoutSecs: number;
 }
 
@@ -328,7 +328,7 @@ export interface ProposalView {
   readonly cancelledBy?: string;
 }
 
-/** What `tecpan approve` shows before the member signs: everything rebuilt and checked on this device. */
+/** What `clave approve` shows before the member signs: everything rebuilt and checked on this device. */
 export interface Review {
   readonly proposal: ProposalView;
   readonly vaultName: string;

@@ -8,64 +8,64 @@ import { GateChart } from "./gate-chart";
 const PREREQUISITES = ["Node 24", "pnpm 12", "Rust 1.96.0", "Aztec 6.0.0", "cargo-deny"] as const;
 
 const COMMANDS = `git clone ${LINKS.repo}
-cd tecpan && pnpm install
+cd clave && pnpm install
 pnpm test                    # aztec test, cargo test, vitest
 
 aztec start --local-network  # in a second terminal
-pnpm cli:install             # tecpan, tecpand and the keeper into ~/.tecpan
-pnpm test:cli                # three members found a vault and run proposals with tecpan
+pnpm cli:install             # clave, claved and the keeper into ~/.clave
+pnpm test:cli                # three members found a vault and run proposals with clave
 pnpm test:network            # Docker: a relay and 3 keepers on separate networks`;
 
 const REPO = [
   {
     path: "contracts/vault_contract",
-    what: "TecpanVault, the account contract (Noir, Aztec.nr v6)",
+    what: "ClaveVault, the account contract (Noir, Aztec.nr v6)",
   },
   { path: "contracts/vault_test", what: "TestEnvironment tests for authorization and governance" },
   {
     path: "crates/crypto",
-    what: "tecpan-crypto: Grumpkin, DKG, resharing, threshold ECDH, Aztec golden tests",
+    what: "clave-crypto: Grumpkin, DKG, resharing, threshold ECDH, Aztec golden tests",
   },
-  { path: "crates/wire", what: "tecpan-wire: message types and canonical encoding" },
+  { path: "crates/wire", what: "clave-wire: message types and canonical encoding" },
   {
     path: "crates/keeper",
-    what: "tecpan-keeper: share custody, ceremonies, libp2p mesh, proposals",
+    what: "clave-keeper: share custody, ceremonies, libp2p mesh, proposals",
   },
-  { path: "crates/relay", what: "tecpan-relay: untrusted circuit relay and ciphertext mailboxes" },
-  { path: "crates/napi", what: "@tecpan/napi: Node bindings for the crypto and wire crates" },
-  { path: "crates/cli", what: "tecpan-cli: the tecpan command line" },
+  { path: "crates/relay", what: "clave-relay: untrusted circuit relay and ciphertext mailboxes" },
+  { path: "crates/napi", what: "@clave/napi: Node bindings for the crypto and wire crates" },
+  { path: "crates/cli", what: "clave-cli: the clave command line" },
   {
     path: "packages/vault-wallet",
     what: "PXE host: vault account class, witness encoder, threshold key store",
   },
-  { path: "patches/", what: "the minimal @aztec-labs/pxe patch, every site marked tecpan:" },
+  { path: "patches/", what: "the minimal @aztec-labs/pxe patch, every site marked clave:" },
   { path: "architecture/", what: "design documents for every verified decision" },
 ] as const;
 
 const CLI = [
   {
-    cmd: "tecpan init",
+    cmd: "clave init",
     what: "a profile: passphrase-sealed signing key, keeper identity, account; starts the daemon",
   },
   {
-    cmd: "tecpan lobby open --name Ops -k 2 --tv 2 --members 3",
+    cmd: "clave lobby open --name Ops -k 2 --tv 2 --members 3",
     what: "found a vault; prints the invite",
   },
-  { cmd: "tecpan lobby join <invite>", what: "join, confirm the plan, run DKG and deployment" },
-  { cmd: "tecpan balance", what: "private balances, read through t keepers" },
+  { cmd: "clave lobby join <invite>", what: "join, confirm the plan, run DKG and deployment" },
+  { cmd: "clave balance", what: "private balances, read through t keepers" },
   {
-    cmd: "tecpan propose transfer 25 ttt --to bea",
+    cmd: "clave propose transfer 25 ttt --to bea",
     what: "propose a private transfer (--dry-run simulates)",
   },
   {
-    cmd: "tecpan approve <id>",
+    cmd: "clave approve <id>",
     what: "review the rebuilt transaction and what is signed, then sign",
   },
   {
-    cmd: "tecpan reject <id> --reason <text>",
+    cmd: "clave reject <id> --reason <text>",
     what: "a signed vote; enough of them block the proposal",
   },
-  { cmd: "tecpan execute <id>", what: "prove and send once k approvals are in" },
+  { cmd: "clave execute <id>", what: "prove and send once k approvals are in" },
 ] as const;
 
 const DOCS = [
@@ -106,7 +106,7 @@ export function DevelopersPage() {
             Everything here <em className="serif-em">runs on your machine.</em>
           </>
         }
-        lede="Tecpan is open source and pinned to Aztec 6.0.0. The suites below deploy vaults, run key generation between keepers and send private transfers on a local network; they are where every number on this site comes from."
+        lede="Clave is open source and pinned to Aztec 6.0.0. The suites below deploy vaults, run key generation between keepers and send private transfers on a local network; they are where every number on this site comes from."
         meta="v0 · local network · testnet release next"
       />
 
@@ -163,8 +163,8 @@ export function DevelopersPage() {
 
       <Section
         id="cli"
-        title="The tecpan CLI."
-        lede="The way to use a vault: a Rust command line talking to tecpand, a per-profile daemon that hosts your PXE, keeps your signing key sealed under your passphrase and supervises your keeper. Every approval shows the rebuilt transaction and the exact message signed first."
+        title="The clave CLI."
+        lede="The way to use a vault: a Rust command line talking to claved, a per-profile daemon that hosts your PXE, keeps your signing key sealed under your passphrase and supervises your keeper. Every approval shows the rebuilt transaction and the exact message signed first."
       >
         <ul className="divide-y divide-line border-y border-line">
           {CLI.map((c) => (

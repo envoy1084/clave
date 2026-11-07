@@ -1,4 +1,4 @@
-import type { MemberPartials } from "@tecpan/napi";
+import type { MemberPartials } from "@clave/napi";
 
 import type { PartialsRequest, PartialsSource } from "../keys/threshold-ecdh.ts";
 import type { KeeperClient } from "./client.ts";

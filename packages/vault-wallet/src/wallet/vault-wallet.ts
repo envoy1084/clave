@@ -129,7 +129,7 @@ interface VaultRecord {
 }
 
 /**
- * Aztec wallet hosting a patched PXE whose {@link ThresholdKeyStore} operates Tecpan vaults without their incoming
+ * Aztec wallet hosting a patched PXE whose {@link ThresholdKeyStore} operates Clave vaults without their incoming
  * viewing secret. Holds ordinary accounts (a member's own fee-paying account) and vaults; vault transactions go through
  * {@link prepareVaultTx} → approvals → {@link executeVaultTx}.
  */
@@ -155,7 +155,7 @@ export class VaultWallet extends BaseWallet {
 
   /** Creates the PXE with the threshold key store and the vault tagging hook. */
   static async create(node: AztecNode, options: VaultWalletOptions = {}): Promise<VaultWallet> {
-    const log = options.logger ?? createLogger("tecpan:vault-wallet");
+    const log = options.logger ?? createLogger("clave:vault-wallet");
     const holder: { wallet?: VaultWallet } = {};
     let keyStore: ThresholdKeyStore | undefined;
     const pxe = await createPXE(

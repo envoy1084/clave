@@ -1,8 +1,8 @@
 //! Mailbox storage: limits, expiry and what is (not) recorded.
 #![allow(clippy::unwrap_used)]
 
-use tecpan_relay::{Limits, store::MailboxStore};
-use tecpan_wire::{
+use clave_relay::{Limits, store::MailboxStore};
+use clave_wire::{
     mailbox::{MAX_ENVELOPE_BYTES, Rejection},
     messages::RelayEnvelope,
 };
@@ -27,7 +27,10 @@ fn envelopes_are_stored_fetched_by_mailbox_and_deleted() {
     assert_eq!(store.deposit(&envelope(1, 1, 40), NOW).unwrap().unwrap(), a);
 
     let found = store.fetch(&[[1; 32]], NOW).unwrap();
-    assert_eq!(found.iter().map(|e| e.id).collect::<Vec<_>>(), vec![a, b]);
+    // Same `stored_at`, so the store's `ORDER BY stored_at, id` returns them by id.
+    let mut expected = vec![a, b];
+    expected.sort_unstable();
+    assert_eq!(found.iter().map(|e| e.id).collect::<Vec<_>>(), expected);
     assert_eq!(store.delete(&[a, b, [9; 32]]).unwrap(), 2);
     assert!(store.fetch(&[[1; 32]], NOW).unwrap().is_empty());
     assert_eq!(store.usage().unwrap().envelopes, 1);

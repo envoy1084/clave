@@ -47,18 +47,18 @@ impl Metrics {
         for (name, value) in counters {
             let _ = writeln!(
                 out,
-                "# TYPE tecpan_relay_{name} counter\ntecpan_relay_{name} {}",
+                "# TYPE clave_relay_{name} counter\nclave_relay_{name} {}",
                 value.load(Ordering::Relaxed)
             );
         }
         let _ = writeln!(
             out,
-            "# TYPE tecpan_relay_envelopes gauge\ntecpan_relay_envelopes {}",
+            "# TYPE clave_relay_envelopes gauge\nclave_relay_envelopes {}",
             usage.envelopes
         );
         let _ = writeln!(
             out,
-            "# TYPE tecpan_relay_bytes gauge\ntecpan_relay_bytes {}",
+            "# TYPE clave_relay_bytes gauge\nclave_relay_bytes {}",
             usage.bytes
         );
         out

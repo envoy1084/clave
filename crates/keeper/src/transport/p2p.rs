@@ -4,6 +4,10 @@ use std::{
     time::Duration,
 };
 
+use clave_wire::{
+    IdentityPublic, Message, decode,
+    p2p::{CEREMONY, ECDH, FrameCodec, IDENTIFY_VERSION, LOBBY, MAILBOX, SYNC},
+};
 use futures::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, Swarm, dcutr, identify, identity,
@@ -12,10 +16,6 @@ use libp2p::{
     request_response::{self, OutboundRequestId, ProtocolSupport},
     swarm::{ConnectionId, NetworkBehaviour, SwarmEvent},
     tcp, yamux,
-};
-use tecpan_wire::{
-    IdentityPublic, Message, decode,
-    p2p::{CEREMONY, ECDH, FrameCodec, IDENTIFY_VERSION, LOBBY, MAILBOX, SYNC},
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -759,7 +759,7 @@ fn transport_error(error: impl std::fmt::Display) -> Error {
 
 #[cfg(test)]
 mod tests {
-    use tecpan_wire::KeeperIdentity;
+    use clave_wire::KeeperIdentity;
 
     use super::*;
 

@@ -6,7 +6,7 @@ import {
   approvalMessage as napiApprovalMessage,
   encodeWitness,
   verifySignature,
-} from "@tecpan/napi";
+} from "@clave/napi";
 
 import { toNapiPoint } from "../keys/points.ts";
 
@@ -16,7 +16,7 @@ export interface VaultApproval {
   readonly signature: readonly Fr[];
 }
 
-/** What signers sign: `Poseidon2("tecpan.approval.v0", [vault, outerHash, configVersion, expiresAt])`. */
+/** What signers sign: `Poseidon2("clave.approval.v0", [vault, outerHash, configVersion, expiresAt])`. */
 export function approvalMessage(
   vault: AztecAddress,
   outerHash: Fr,

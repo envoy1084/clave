@@ -4,15 +4,15 @@
 mod common;
 
 use ark_ff::One;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Error, Point, Scalar, SecretScalar,
     aztec::AddressContext,
     dkg::{self, KeyShare, Parameters, Round1Package, Round2Package, complaint_is_valid},
     ecdh::{AddressSecretShare, EcdhContext, combine},
     shamir::{MemberIndex, lagrange_coefficient, random_scalar},
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 fn parameters(t: usize, n: u32) -> Parameters {
     Parameters {
@@ -89,7 +89,7 @@ fn dkg_shares_drive_threshold_ecdh_end_to_end() {
 
     // Reference: the secret the committee holds (test-only reconstruction).
     let ivsk = SecretScalar::new(interpolate(&[&shares[0], &shares[2]]));
-    let reference = tecpan_crypto::aztec::single_key_address_secret(preaddress, &ivsk).unwrap();
+    let reference = clave_crypto::aztec::single_key_address_secret(preaddress, &ivsk).unwrap();
     let expected = input.mul_secret(&reference).unwrap();
 
     let members: Vec<AddressSecretShare> = shares
@@ -189,7 +189,7 @@ fn stored_shares_restore_and_wrong_shares_are_refused() {
     let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(91);
     let shares = common::run_dkg(2, 3, &mut rng);
     let share = &shares[1];
-    let restored = tecpan_crypto::dkg::KeyShare::restore(
+    let restored = clave_crypto::dkg::KeyShare::restore(
         share.index(),
         share.threshold(),
         share.participants().to_vec(),
@@ -200,7 +200,7 @@ fn stored_shares_restore_and_wrong_shares_are_refused() {
     .unwrap();
     assert_eq!(restored.group_public_key(), share.group_public_key());
 
-    let wrong = tecpan_crypto::dkg::KeyShare::restore(
+    let wrong = clave_crypto::dkg::KeyShare::restore(
         share.index(),
         share.threshold(),
         share.participants().to_vec(),
@@ -208,7 +208,7 @@ fn stored_shares_restore_and_wrong_shares_are_refused() {
         share.group_commitments().clone(),
         *share.transcript(),
     );
-    assert!(matches!(wrong, Err(tecpan_crypto::Error::InvalidShare(2))));
+    assert!(matches!(wrong, Err(clave_crypto::Error::InvalidShare(2))));
 
     // A manifest's verification shares rebuild the group commitments.
     let evaluations: Vec<_> = share
@@ -217,7 +217,7 @@ fn stored_shares_restore_and_wrong_shares_are_refused() {
         .map(|&i| (i, share.verification_share(i).unwrap()))
         .collect();
     assert_eq!(
-        &tecpan_crypto::shamir::Commitments::interpolate(2, &evaluations).unwrap(),
+        &clave_crypto::shamir::Commitments::interpolate(2, &evaluations).unwrap(),
         share.group_commitments()
     );
 }

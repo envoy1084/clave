@@ -1,5 +1,5 @@
 {
-  "name": "tecpan",
+  "name": "clave",
   "private": true,
   "description": "Private k-of-n multisig on Aztec",
   "type": "module",

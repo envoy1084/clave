@@ -5,7 +5,7 @@ import {
   deriveVault,
   fromNapiPoint,
   keeperManifest,
-} from "@tecpan/vault-wallet";
+} from "@clave/vault-wallet";
 
 import type { FoundingState, FoundingStep, FoundingStepId } from "../types.ts";
 import type { Engine } from "./engine.ts";

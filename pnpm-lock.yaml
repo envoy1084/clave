@@ -241,7 +241,7 @@ catalogs:
       version: 5.1.0
 
 patchedDependencies:
-  '@aztec-labs/pxe@6.0.0': 959ac558dff01eb493fdce413a63de7012591a9de7c57a8942013481713b400e
+  '@aztec-labs/pxe@6.0.0': 99814bb604f739c049e737871e337bbb718a0976b6f336f3690296fc6408f400
 
 importers:
 
@@ -374,10 +374,10 @@ importers:
       '@aztec-labs/stdlib':
         specifier: 'catalog:'
         version: 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
-      '@tecpan/napi':
+      '@clave/napi':
         specifier: workspace:*
         version: link:../../crates/napi
-      '@tecpan/vault-wallet':
+      '@clave/vault-wallet':
         specifier: workspace:*
         version: link:../vault-wallet
       zod:
@@ -425,24 +425,24 @@ importers:
         version: 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
       '@aztec-labs/pxe':
         specifier: 'catalog:'
-        version: 6.0.0(patch_hash=959ac558dff01eb493fdce413a63de7012591a9de7c57a8942013481713b400e)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)
+        version: 6.0.0(patch_hash=99814bb604f739c049e737871e337bbb718a0976b6f336f3690296fc6408f400)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)
       '@aztec-labs/stdlib':
         specifier: 'catalog:'
         version: 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
       '@aztec-labs/wallet-sdk':
         specifier: 'catalog:'
         version: 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)
-      '@tecpan/napi':
+      '@clave/napi':
         specifier: workspace:*
         version: link:../../crates/napi
     devDependencies:
       '@aztec-labs/noir-contracts.js':
         specifier: 'catalog:'
         version: 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
-      '@tecpan/contracts':
+      '@clave/contracts':
         specifier: workspace:*
         version: link:../../contracts
-      '@tecpan/crates':
+      '@clave/crates':
         specifier: workspace:*
         version: link:../../crates
       '@types/node':
@@ -4998,7 +4998,7 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@aztec-labs/pxe@6.0.0(patch_hash=959ac558dff01eb493fdce413a63de7012591a9de7c57a8942013481713b400e)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)':
+  '@aztec-labs/pxe@6.0.0(patch_hash=99814bb604f739c049e737871e337bbb718a0976b6f336f3690296fc6408f400)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)':
     dependencies:
       '@aztec-foundation/bb.js': 6.0.0
       '@aztec-foundation/noir-acvm_js': 6.0.0
@@ -5141,7 +5141,7 @@ snapshots:
       '@aztec-labs/constants': 6.0.0(supports-color@7.2.0)
       '@aztec-labs/entrypoints': 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
       '@aztec-labs/foundation': 6.0.0(supports-color@7.2.0)
-      '@aztec-labs/pxe': 6.0.0(patch_hash=959ac558dff01eb493fdce413a63de7012591a9de7c57a8942013481713b400e)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)
+      '@aztec-labs/pxe': 6.0.0(patch_hash=99814bb604f739c049e737871e337bbb718a0976b6f336f3690296fc6408f400)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(zod@4.4.3)
       '@aztec-labs/stdlib': 6.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)
       buffer: 6.0.3
     transitivePeerDependencies:

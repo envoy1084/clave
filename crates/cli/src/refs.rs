@@ -32,7 +32,7 @@ pub(crate) fn resolve_vault<'a>(
     if vaults.is_empty() {
         return Err(
             Error::new(Kind::NotReady, "This profile has no vaults yet.")
-                .hint("Found one: tecpan lobby open, or join one: tecpan lobby join <invite>"),
+                .hint("Found one: clave lobby open, or join one: clave lobby join <invite>"),
         );
     }
     let Some(reference) = reference else {
@@ -43,7 +43,7 @@ pub(crate) fn resolve_vault<'a>(
             return Ok(only);
         }
         return Err(Error::usage("This profile has several vaults; pick one.")
-            .hint("tecpan -V <alias|address> …, or select a default: tecpan vault use <ref>"));
+            .hint("clave -V <alias|address> …, or select a default: clave vault use <ref>"));
     };
     let name = in_namespace(reference, "vaults")?;
     if name.starts_with("0x") {
@@ -82,7 +82,7 @@ pub(crate) fn resolve_token<'a>(tokens: &'a [TokenInfo], reference: &str) -> Res
     };
     one(reference, "token", &matches, |t| short_hex(&t.address)).map_err(|e| {
         if e.message.starts_with("Unknown") {
-            e.hint("Track it first: tecpan token add <address>, or list them: tecpan token list")
+            e.hint("Track it first: clave token add <address>, or list them: clave token list")
         } else {
             e
         }
@@ -118,7 +118,7 @@ pub(crate) fn resolve_recipient(
         }
     }
     Err(Error::usage(format!("Unknown recipient \"{reference}\"."))
-        .hint("Use a 0x address, or add a label first: tecpan contacts add <address> <label>"))
+        .hint("Use a 0x address, or add a label first: clave contacts add <address> <label>"))
 }
 
 /// A contact by label or address.
@@ -147,7 +147,7 @@ pub(crate) fn resolve_proposal<'a>(ids: &[&'a str], prefix: &str) -> Result<&'a 
         .collect();
     match matches.as_slice() {
         [] => Err(Error::usage(format!("Unknown proposal \"{prefix}\"."))
-            .hint("List them: tecpan proposals --status all")),
+            .hint("List them: clave proposals --status all")),
         [one] => Ok(one),
         many => Err(Error::usage(format!(
             "Ambiguous proposal \"{prefix}\": {}. Use more characters.",
@@ -164,14 +164,14 @@ pub(crate) fn resolve_lobby<'a>(ids: &[&'a str], prefix: Option<&str>) -> Result
     match prefix {
         Some(prefix) => resolve_proposal(ids, prefix).map_err(|e| Error {
             message: e.message.replace("proposal", "lobby"),
-            hint: Some("List them: tecpan lobby list".into()),
+            hint: Some("List them: clave lobby list".into()),
             ..e
         }),
         None => match ids {
             [only] => Ok(only),
             [] => Err(Error::usage("No open lobby.")
-                .hint("Open one: tecpan lobby open --name <n> -k <k> --tv <t_v>")),
-            _ => Err(Error::usage("Several lobbies are open; name one.").hint("tecpan lobby list")),
+                .hint("Open one: clave lobby open --name <n> -k <k> --tv <t_v>")),
+            _ => Err(Error::usage("Several lobbies are open; name one.").hint("clave lobby list")),
         },
     }
 }

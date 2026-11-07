@@ -1,7 +1,7 @@
 //! Pairwise mailboxes for store-and-forward through an untrusted relay.
 //!
 //! The mailbox where keeper `A` leaves messages for keeper `B` on day `d` has the id
-//! `SHA-256("tecpan.mailbox.v0" ‖ X25519(A, B) ‖ A_pub ‖ B_pub ‖ d)`. Only `A` and `B` can compute it, so the relay
+//! `SHA-256("clave.mailbox.v0" ‖ X25519(A, B) ‖ A_pub ‖ B_pub ‖ d)`. Only `A` and `B` can compute it, so the relay
 //! cannot link a mailbox to a keeper, a vault, the reverse direction or another day. Payloads are HPKE envelopes
 //! (Auth mode) bound to the mailbox id and day, so the relay holds ciphertext only and the recipient learns which keeper
 //! sealed each one.
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// Domain tag of mailbox ids.
-pub const MAILBOX_DOMAIN: &[u8] = b"tecpan.mailbox.v0";
+pub const MAILBOX_DOMAIN: &[u8] = b"clave.mailbox.v0";
 /// Envelope kind of mailbox payloads.
 pub const KIND_MAILBOX: u16 = 3;
 

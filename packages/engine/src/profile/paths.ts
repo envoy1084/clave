@@ -52,7 +52,7 @@ export class ProfilePaths {
     const local = join(this.dir, "daemon.sock");
     if (Buffer.byteLength(local) <= 100) return local;
     const id = createHash("sha256").update(this.dir).digest("hex").slice(0, 12);
-    return join(tmpdir(), `tecpand-${id}.sock`);
+    return join(tmpdir(), `claved-${id}.sock`);
   }
 
   get addr(): string {
@@ -74,20 +74,18 @@ export class ProfilePaths {
   /** The keeper socket lives in the temp dir: macOS limits socket paths to 104 bytes. */
   get keeperSocket(): string {
     const id = createHash("sha256").update(this.dir).digest("hex").slice(0, 12);
-    return join(tmpdir(), `tecpan-${id}.sock`);
+    return join(tmpdir(), `clave-${id}.sock`);
   }
 }
 
-/** `TECPAN_KEEPER_BIN`, else `$TECPAN_HOME/bin/tecpan-keeper`, else the repository's release or debug build. */
+/** `CLAVE_KEEPER_BIN`, else `$CLAVE_HOME/bin/clave-keeper`, else the repository's release or debug build. */
 export function keeperBinary(): string {
-  if (process.env.TECPAN_KEEPER_BIN) return process.env.TECPAN_KEEPER_BIN;
-  const home = process.env.TECPAN_HOME ?? join(homedir(), ".tecpan");
-  const installed = join(home, "bin", "tecpan-keeper");
+  if (process.env.CLAVE_KEEPER_BIN) return process.env.CLAVE_KEEPER_BIN;
+  const home = process.env.CLAVE_HOME ?? join(homedir(), ".clave");
+  const installed = join(home, "bin", "clave-keeper");
   if (existsSync(installed)) return installed;
-  // dist/tecpand.js → packages/engine → repository root.
+  // dist/claved.js → packages/engine → repository root.
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-  const builds = ["release", "debug"].map((p) =>
-    join(root, "crates", "target", p, "tecpan-keeper"),
-  );
+  const builds = ["release", "debug"].map((p) => join(root, "crates", "target", p, "clave-keeper"));
   return builds.find((path) => existsSync(path)) ?? installed;
 }

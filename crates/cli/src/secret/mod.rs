@@ -1,5 +1,5 @@
 //! Producing the signer secret: an unlocked signer needs none; otherwise Touch ID (macOS, interactive), the
-//! passphrase file (`TECPAN_PASSPHRASE_FILE`) or a no-echo prompt. Never argv or plain environment variables.
+//! passphrase file (`CLAVE_PASSPHRASE_FILE`) or a no-echo prompt. Never argv or plain environment variables.
 //! `--yes` is not an input here: it skips confirmations, never authentication.
 
 #[cfg(target_os = "macos")]
@@ -71,13 +71,13 @@ pub(crate) fn source(s: &Situation) -> Result<Source> {
         Kind::Failed,
         "The signer is locked and no passphrase source is available.",
     )
-    .hint("Set TECPAN_PASSPHRASE_FILE, or unlock first: tecpan unlock --for 15m");
+    .hint("Set CLAVE_PASSPHRASE_FILE, or unlock first: clave unlock --for 15m");
     error.daemon_kind = Some("locked".into());
     Err(error)
 }
 
 fn passphrase_file() -> Option<PathBuf> {
-    std::env::var_os("TECPAN_PASSPHRASE_FILE")
+    std::env::var_os("CLAVE_PASSPHRASE_FILE")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
 }
@@ -86,7 +86,7 @@ fn passphrase_file() -> Option<PathBuf> {
 fn read_file(path: &PathBuf) -> Result<Zeroizing<String>> {
     let mut text =
         Zeroizing::new(std::fs::read_to_string(path).map_err(|e| {
-            Error::failed(format!("TECPAN_PASSPHRASE_FILE {}: {e}", path.display()))
+            Error::failed(format!("CLAVE_PASSPHRASE_FILE {}: {e}", path.display()))
         })?);
     if text.ends_with('\n') {
         text.pop();
@@ -96,7 +96,7 @@ fn read_file(path: &PathBuf) -> Result<Zeroizing<String>> {
     }
     if text.is_empty() {
         return Err(Error::failed(format!(
-            "TECPAN_PASSPHRASE_FILE {} is empty",
+            "CLAVE_PASSPHRASE_FILE {} is empty",
             path.display()
         )));
     }
@@ -115,7 +115,7 @@ pub(crate) fn passphrase(ctx: &Ctx) -> Result<Zeroizing<String>> {
         Some(file) => read_file(&file),
         None if ctx.interactive => prompt("Passphrase: "),
         None => Err(Error::usage(
-            "A passphrase is needed: set TECPAN_PASSPHRASE_FILE (prompts are off)",
+            "A passphrase is needed: set CLAVE_PASSPHRASE_FILE (prompts are off)",
         )),
     }
 }
@@ -134,7 +134,7 @@ pub(crate) fn new_passphrase(ctx: &Ctx) -> Result<Zeroizing<String>> {
         }
         None => {
             return Err(Error::usage(
-                "A passphrase is needed: set TECPAN_PASSPHRASE_FILE (prompts are off)",
+                "A passphrase is needed: set CLAVE_PASSPHRASE_FILE (prompts are off)",
             ));
         }
     };
@@ -196,7 +196,7 @@ fn keychain_account(profile: &Profile) -> String {
 fn read_touch_id(ctx: &Ctx) -> Result<Zeroizing<String>> {
     touch_id::read(
         &keychain_account(&ctx.profile),
-        &format!("sign as Tecpan profile {}", ctx.profile.name),
+        &format!("sign as Clave profile {}", ctx.profile.name),
     )
 }
 
@@ -205,7 +205,7 @@ fn read_touch_id(_: &Ctx) -> Result<Zeroizing<String>> {
     Err(Error::failed("Touch ID is only available on macOS"))
 }
 
-/// `tecpan signer enable-touch-id`: passphrase → `signer.sealingKey` → keychain, after one Touch ID check.
+/// `clave signer enable-touch-id`: passphrase → `signer.sealingKey` → keychain, after one Touch ID check.
 #[cfg(target_os = "macos")]
 pub(crate) fn enable_touch_id(ctx: &Ctx, client: &mut Client, known: Option<&str>) -> Result<()> {
     #[derive(serde::Deserialize)]
@@ -215,7 +215,7 @@ pub(crate) fn enable_touch_id(ctx: &Ctx, client: &mut Client, known: Option<&str
     if !ctx.interactive {
         return Err(Error::usage("Touch ID needs an interactive terminal."));
     }
-    touch_id::authenticate("enable Touch ID for Tecpan")?;
+    touch_id::authenticate("enable Touch ID for Clave")?;
     let passphrase = match known {
         Some(p) => Zeroizing::new(p.to_owned()),
         None => passphrase(ctx)?,
@@ -236,7 +236,7 @@ pub(crate) fn enable_touch_id(_: &Ctx, _: &mut Client, _: Option<&str>) -> Resul
     ))
 }
 
-/// `tecpan signer disable-touch-id`: removes the keychain item and the marker.
+/// `clave signer disable-touch-id`: removes the keychain item and the marker.
 pub(crate) fn disable_touch_id(profile: &Profile) -> Result<()> {
     #[cfg(target_os = "macos")]
     touch_id::remove(&keychain_account(profile))?;

@@ -11,10 +11,10 @@ use std::test::OracleMock;
 use test_signer_contract::TestSigner;
 use vault_contract::{
     authorization::{approval_message, is_authorized},
+    ClaveVault,
     constants::{MAX_SIGNERS, POINT_LEN, SIGNATURE_LEN, WITNESS_LEN},
     point::Point,
     signer_set::test_utils::points,
-    TecpanVault,
 };
 
 /// Outer hash approved in authorization tests (any field works: the vault only signs over it).
@@ -67,8 +67,8 @@ pub unconstrained fn deploy_vault(
     committee_shares: [Point; MAX_SIGNERS],
 ) -> AztecAddress {
     let deployer = env.create_light_account();
-    let deployment = env.deploy("@vault_contract/TecpanVault");
-    let constructor = TecpanVault::interface().constructor(
+    let deployment = env.deploy("@vault_contract/ClaveVault");
+    let constructor = ClaveVault::interface().constructor(
         keys,
         signer_count,
         threshold,
@@ -127,7 +127,7 @@ pub unconstrained fn setup(signer_count: u32, threshold: u32, viewing_threshold:
     };
     // A PXE discovers the vault's notes before simulating a transaction. Inline private contexts skip that step, so
     // run a utility call once to sync them.
-    let _ = fixture.view(TecpanVault::at(vault).get_config());
+    let _ = fixture.view(ClaveVault::at(vault).get_config());
     fixture
 }
 
@@ -151,7 +151,7 @@ impl Fixture {
         viewing_threshold: u32,
     ) -> Fixture {
         let committee_shares = points(new_count, COMMITTEE_SEED + 100);
-        self.self_call(TecpanVault::at(self.vault).rotate_membership(
+        self.self_call(ClaveVault::at(self.vault).rotate_membership(
             self.keys,
             new_keys,
             new_count,
@@ -175,7 +175,7 @@ impl Fixture {
     /// Calls a vault function as the vault itself (as its `entrypoint` would after approval), then syncs its notes.
     pub unconstrained fn self_call<let M: u32, let N: u32>(self, call: PrivateCall<M, N, ()>) {
         self.env.call_private(self.vault, call);
-        let _ = self.view(TecpanVault::at(self.vault).get_config());
+        let _ = self.view(ClaveVault::at(self.vault).get_config());
     }
 
     /// Runs the vault's authorization check for `outer_hash` in a private context at the vault, serving `witness` as
@@ -184,7 +184,7 @@ impl Fixture {
         // One answer per check: an earlier mock would otherwise keep answering later checks in the same test.
         let _ = OracleMock::mock("aztec_utl_getAuthWitness").returns(witness).times(1);
         self.env.private_context_at(self.vault, |context| {
-            let config_slot = TecpanVault::storage_layout().config.slot;
+            let config_slot = ClaveVault::storage_layout().config.slot;
             is_authorized(context, config_slot, outer_hash)
         })
     }

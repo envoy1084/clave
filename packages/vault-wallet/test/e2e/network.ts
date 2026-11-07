@@ -12,8 +12,8 @@ import { VaultWallet } from "../../src/index.ts";
 
 export const NODE_URL = process.env.AZTEC_NODE_URL ?? "http://localhost:8080";
 
-/** `TECPAN_E2E_PROVE=1` proves every transaction client-side (the local network accepts fake proofs otherwise). */
-const PROVE = process.env.TECPAN_E2E_PROVE === "1";
+/** `CLAVE_E2E_PROVE=1` proves every transaction client-side (the local network accepts fake proofs otherwise). */
+const PROVE = process.env.CLAVE_E2E_PROVE === "1";
 
 /** The genesis-funded SponsoredFPC (salt `SPONSORED_FPC_SALT` = 0). */
 const sponsoredFpc = () =>

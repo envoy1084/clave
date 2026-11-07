@@ -1,4 +1,4 @@
-//! The clear-signing screen (`tecpan approve` / `tecpan reject`), built from the member's own rebuild.
+//! The clear-signing screen (`clave approve` / `clave reject`), built from the member's own rebuild.
 
 use std::fmt::Write as _;
 
@@ -192,12 +192,11 @@ mod tests {
             },
             signs: Signs {
                 message: "0x00e28886".into(),
-                formula: "Poseidon2(tecpan.approval.v0, [vault, outer hash, v0, expires_at])"
-                    .into(),
+                formula: "Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])".into(),
             },
             rejects: Signs {
                 message: "0x0bad5eed".into(),
-                formula: "Poseidon2(tecpan.rejection.v0, [vault, id_hi, id_lo])".into(),
+                formula: "Poseidon2(clave.rejection.v0, [vault, id_hi, id_lo])".into(),
             },
         }
     }
@@ -212,7 +211,7 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
 
   Action        transfer 25 TTT (25000000000000000000 base units)
   To            bea  0x3029…3029  (address book)
-  Token         TTT  0x0f9d…0f9d  (Tecpan Test Token, 18 decimals)
+  Token         TTT  0x0f9d…0f9d  (Clave Test Token, 18 decimals)
   Calls         0  SponsoredFPC.sponsor_unconditionally()
                 1  Token.transfer(to, amount)
   Fee           Sponsored FPC
@@ -222,7 +221,7 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
   Simulation    ok · gas l2 41,203 · da 1,536
 
   Checks        ✓ payload rebuilt, outer hash matches   ✓ config version current   ✓ not expired
-  Signs         Poseidon2(tecpan.approval.v0, [vault, outer hash, v0, expires_at])
+  Signs         Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])
                 = 0x00e28886
 "
         );
@@ -248,7 +247,7 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
         assert!(screen.contains("config version changed"));
         assert!(screen.contains("(not in address book)"));
         // A rejection shows the rejection message it signs, never the approval message.
-        assert!(screen.contains("tecpan.rejection.v0"));
-        assert!(!screen.contains("tecpan.approval.v0"));
+        assert!(screen.contains("clave.rejection.v0"));
+        assert!(!screen.contains("clave.approval.v0"));
     }
 }

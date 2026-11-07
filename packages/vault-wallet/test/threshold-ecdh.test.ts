@@ -3,7 +3,7 @@ import { GrumpkinScalar } from "@aztec-labs/foundation/curves/grumpkin";
 import { AztecAddress } from "@aztec-labs/stdlib/aztec-address";
 import { computeAddressSecret, derivePublicKeyFromSecretKey } from "@aztec-labs/stdlib/keys";
 import { deriveEcdhSharedSecretPoint } from "@aztec-labs/stdlib/logs";
-import { addressContext } from "@tecpan/napi";
+import { addressContext } from "@clave/napi";
 import { describe, expect, it } from "vitest";
 
 import { ThresholdEcdhProvider, toNapiPoint } from "../src/index.ts";

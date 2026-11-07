@@ -1,7 +1,7 @@
 //! Vault-founding lobbies: the join proof a co-founder presents with an invite, and the envelope that carries the
 //! engine's protocol secrets from the founder (host) to each member.
 //!
-//! - `proof = HMAC-SHA256(invite secret, "tecpan.lobby.join.v0" ‖ lobby ‖ joiner identity ‖ joiner transport)`,
+//! - `proof = HMAC-SHA256(invite secret, "clave.lobby.join.v0" ‖ lobby ‖ joiner identity ‖ joiner transport)`,
 //!   checked in constant time.
 //! - Secrets are sealed with the HPKE Auth envelope ([`crate::envelope`]), kind [`KIND_LOBBY_SECRETS`], bound to the
 //!   plan's session, epoch 0, sender 1 (the host) and the recipient's 1-based roster index.
@@ -19,7 +19,7 @@ use crate::{
 };
 
 /// Domain tag of join proofs.
-pub const JOIN_DOMAIN: &[u8] = b"tecpan.lobby.join.v0";
+pub const JOIN_DOMAIN: &[u8] = b"clave.lobby.join.v0";
 /// Envelope kind of lobby protocol secrets (after DKG share 1, reshare sub-share 2 and mailbox 3).
 pub const KIND_LOBBY_SECRETS: u16 = 4;
 /// The host's member index in every lobby plan.

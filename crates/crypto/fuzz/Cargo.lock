@@ -803,7 +803,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tecpan-crypto"
+name = "clave-crypto"
 version = "0.0.0"
 dependencies = [
  "ark-ec",
@@ -821,16 +821,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "tecpan-crypto-fuzz"
+name = "clave-crypto-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
- "tecpan-crypto",
- "tecpan-wire",
+ "clave-crypto",
+ "clave-wire",
 ]
 
 [[package]]
-name = "tecpan-wire"
+name = "clave-wire"
 version = "0.0.0"
 dependencies = [
  "base64",
@@ -839,7 +839,7 @@ dependencies = [
  "rand_core 0.10.1",
  "serde",
  "sha2",
- "tecpan-crypto",
+ "clave-crypto",
  "thiserror",
  "zeroize",
 ]

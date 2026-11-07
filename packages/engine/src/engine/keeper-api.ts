@@ -5,7 +5,7 @@ import type {
   KeeperManifest,
   KeeperParticipant,
   KeeperVault,
-} from "@tecpan/vault-wallet";
+} from "@clave/vault-wallet";
 
 // Typed wrappers over the keeper's lobby, ceremony and vault RPC (see architecture/keeper.md). Every keeper JSON
 // shape the app depends on is named here, so a keeper change touches one file.

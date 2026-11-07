@@ -15,15 +15,13 @@ use std::{
     time::Duration,
 };
 
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point, SecretScalar,
     aztec::AddressContext,
     ecdh::{Partial, combine},
     shamir::random_scalar,
 };
-use tecpan_keeper::{
+use clave_keeper::{
     Clock, DkgResult, Keeper, KeeperConfig, KeeperParts,
     ceremony::{Participant, dkg::DkgParams},
     custody::{KeeperKeys, MasterKey, SecretStore},
@@ -31,10 +29,12 @@ use tecpan_keeper::{
     store::Store,
     transport::MemoryNetwork,
 };
-use tecpan_wire::{
+use clave_wire::{
     messages::{EcdhPurpose, Manifest, Member},
     types::{WirePoint, field},
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 use tempfile::TempDir;
 
 /// A clock tests move by hand.

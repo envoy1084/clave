@@ -3,19 +3,19 @@
 
 use std::collections::BTreeMap;
 
-use rand_core::CryptoRng;
-use serde::{Deserialize, Serialize};
-use tecpan_crypto::{
+use clave_crypto::{
     SecretScalar,
     dkg::{self, KeyShare, Parameters, Round1Package, Round1Secret, Round2Package},
     envelope::{self, Context, TransportPublic, TransportSecret},
     shamir::MemberIndex,
 };
-use tecpan_wire::{
+use clave_wire::{
     IdentityPublic, Message,
     messages::{AbortReason, Ceremony, Complaint, Confirm, DkgRound1, Justification, SealedShare},
     types::{Bytes64, parse_scalar, scalar},
 };
+use rand_core::CryptoRng;
+use serde::{Deserialize, Serialize};
 
 use super::{
     Failure, KIND_DKG_SHARE, Outbox, Participant, Status, Target, abort_message, hex_identity,
@@ -84,7 +84,7 @@ impl Dkg {
                 .map_err(|_| Error::Invalid("threshold".into()))?,
             participants: (1..=n).collect(),
         };
-        if crypto.threshold < 2 || n as usize > tecpan_crypto::vault::MAX_SIGNERS {
+        if crypto.threshold < 2 || n as usize > clave_crypto::vault::MAX_SIGNERS {
             return Err(Error::Invalid(
                 "a viewing committee has 2 <= t_v <= n <= 8".into(),
             ));
@@ -257,7 +257,7 @@ impl Dkg {
         let packages: Vec<Round1Package> = self.round1.values().cloned().collect();
         let shares = match dkg::round2(&self.crypto, secret, &packages) {
             Ok(shares) => shares,
-            Err(tecpan_crypto::Error::InvalidProof(dealer)) => {
+            Err(clave_crypto::Error::InvalidProof(dealer)) => {
                 self.fail_and_announce(
                     format!("member {dealer} sent an invalid proof of knowledge"),
                     &[dealer],
@@ -354,7 +354,7 @@ impl Dkg {
                 );
                 self.check_confirms();
             }
-            Err(tecpan_crypto::Error::InvalidShare(dealer)) if dealer != self.me => {
+            Err(clave_crypto::Error::InvalidShare(dealer)) if dealer != self.me => {
                 self.complain(dealer, now, outbox);
             }
             Err(error) => {

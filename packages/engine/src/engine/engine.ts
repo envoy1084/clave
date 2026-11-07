@@ -9,7 +9,7 @@ import { SponsoredFPCContract } from "@aztec-labs/noir-contracts.js/SponsoredFPC
 import type { AztecAddress } from "@aztec-labs/stdlib/aztec-address";
 import { getContractInstanceFromInstantiationParams } from "@aztec-labs/stdlib/contract";
 import type { AztecNode } from "@aztec-labs/stdlib/interfaces/client";
-import type { MemberPartials } from "@tecpan/napi";
+import type { MemberPartials } from "@clave/napi";
 import {
   KeeperClient,
   type KeeperEvent,
@@ -22,7 +22,7 @@ import {
   generateEpochTaggingSecret,
   generateVaultProtocolSecrets,
   initBarretenberg,
-} from "@tecpan/vault-wallet";
+} from "@clave/vault-wallet";
 
 import { peerIdOf } from "../peer-id.ts";
 import type { Params } from "../rpc/contract.ts";
@@ -138,7 +138,7 @@ export class Engine {
 
   get profile() {
     if (!this.#init.profile)
-      throw new DaemonError("not-ready", "Create your profile first: tecpan init");
+      throw new DaemonError("not-ready", "Create your profile first: clave init");
     return this.#init.profile;
   }
 

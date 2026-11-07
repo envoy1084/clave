@@ -1,13 +1,13 @@
 //! Vault formats shared with the Noir contract: commitments, the approval message, the auth witness and Schnorr
 //! signature limbs.
 
+use clave_crypto::{schnorr, vault};
 use napi::{Result, bindgen_prelude::Buffer};
 use napi_derive::napi;
-use tecpan_crypto::{schnorr, vault};
 
 use crate::convert::{Point, base, base_hex, invalid, limbs, point, points, unix_seconds};
 
-/// `Poseidon2("tecpan.approval.v0", [vault, outerHash, configVersion, expiresAt])`: the message every signer signs.
+/// `Poseidon2("clave.approval.v0", [vault, outerHash, configVersion, expiresAt])`: the message every signer signs.
 #[napi]
 pub fn approval_message(
     vault: String,

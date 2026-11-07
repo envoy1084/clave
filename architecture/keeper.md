@@ -1,6 +1,6 @@
 # Keeper
 
-`crates/keeper` (`tecpan-keeper`) is the daemon each member runs, on their own machine (supervised by the member's
+`crates/keeper` (`clave-keeper`) is the daemon each member runs, on their own machine (supervised by the member's
 app) or on their own server. It is the only place a viewing share exists. It serves threshold ECDH to its owner's engine and
 to the other members' keepers, runs the DKG and reshare ceremonies, keeps the proposal store, and activates or destroys
 shares as the vault's on-chain committee changes.
@@ -42,10 +42,10 @@ honestly. Other members' keepers are not trusted beyond their signatures and pro
   salt              Argon2id salt (passphrase mode)
 ```
 
-`tecpan-keeper run` prints one JSON line `{"ready": {identity, transport, peerId, addresses, rpcSocket}}` on stdout when
+`clave-keeper run` prints one JSON line `{"ready": {identity, transport, peerId, addresses, rpcSocket}}` on stdout when
 the socket is listening; logs go to stderr (`--log-format json` for structured logs). SIGTERM or Ctrl-C shuts it down.
 Network flags (all repeatable): `--listen <multiaddr>` (default loopback QUIC and TCP on random ports), `--relay
-<multiaddr>/p2p/<id>`, `--external <multiaddr>`. `tecpan-keeper rpc --socket --token-file <method> [params]` calls one
+<multiaddr>/p2p/<id>`, `--external <multiaddr>`. `clave-keeper rpc --socket --token-file <method> [params]` calls one
 RPC method (for operators of server keepers and for scripted tests).
 
 `keeper.toml` may set `listen`, `external`, `relays`, `rpc_socket`, `round_timeout_secs` (120), `ecdh_timeout_ms`
@@ -55,7 +55,7 @@ and `mailbox_ttl_days` (7); command-line flags take precedence.
 ## Custody
 
 - **Master key.** Seals every secret. Either supplied by the supervising app on stdin
-  (`--secrets-stdin`, one JSON line `{"masterKey", "rpcToken"}`; the app keeps the key in the OS keychain), or derived from `TECPAN_KEEPER_PASSPHRASE` with Argon2id (64 MiB, 3 passes) over a per-keeper
+  (`--secrets-stdin`, one JSON line `{"masterKey", "rpcToken"}`; the app keeps the key in the OS keychain), or derived from `CLAVE_KEEPER_PASSPHRASE` with Argon2id (64 MiB, 3 passes) over a per-keeper
   salt. A sealed check value detects a wrong key before any secret is touched. The keeper itself has no keychain
   dependency.
 - **Sealed files.** XChaCha20-Poly1305 with a random 24-byte nonce; the secret's name is authenticated as associated
@@ -136,7 +136,7 @@ messages are missing.
 
 Founding a vault needs every member's keeper identity, transport key, addresses and signing key before the DKG. A
 lobby collects them without a coordinator: the founder's keeper hosts it, co-founders' keepers join it with an invite,
-and the founder's engine fixes the plan. Wire types are in `wire.md` (`tecpan_wire::lobby`).
+and the founder's engine fixes the plan. Wire types are in `wire.md` (`clave_wire::lobby`).
 
 ```text
 founder engine ── lobby.open ──▶ host keeper            invite (out of band: chat, QR) ──▶ co-founder engine
@@ -152,7 +152,7 @@ every engine:  lobby.status → plan → ceremony.dkg { session = plan.session, 
   sealed in custody (`lobby-<id>`); the record (roster, plan) is in `lobbies`.
 - **Join** (host side). A `LobbyJoin` is accepted only if the lobby is open, the frame is signed by the joiner's keeper
   identity on a channel bound to it (libp2p peer id, or the claimed transport key), the HMAC proof verifies in constant
-  time (`tecpan_crypto::lobby`), the signing key is a valid point, and the roster stays at ≤ 8 members with distinct
+  time (`clave_crypto::lobby`), the signing key is a valid point, and the roster stays at ≤ 8 members with distinct
   identities, signing keys and transport keys. A re-join from the same identity replaces its entry. Each change bumps
   the revision and is sent as a signed `LobbyState` to every guest (retried for 30 s, then the relay mailbox).
 - **Guest.** Accepts `LobbyState` / `LobbyPlan` / closing `LobbyLeave` only when signed by the host identity from the
@@ -238,7 +238,7 @@ The entry with `you: true` is always `connected` with the other fields `false` /
 
 Errors: `-32001` unauthenticated, `-32601` unknown method, `-32700` parse error, `-32000` keeper error with its message.
 
-`@tecpan/vault-wallet` provides `launchKeeper` (spawn with the master key and a fresh token on stdin), `KeeperClient`,
+`@clave/vault-wallet` provides `launchKeeper` (spawn with the master key and a fresh token on stdin), `KeeperClient`,
 `KeeperPartialsSource` and `keeperManifest`.
 
 ## Peer transport

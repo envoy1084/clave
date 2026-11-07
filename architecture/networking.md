@@ -32,21 +32,21 @@ Status: Phase 9.
 
 ## Transport
 
-libp2p 0.57: QUIC v1 and TCP (Noise XX + yamux), DNS, identify (`/tecpan/0`), ping, relay client, DCUtR,
+libp2p 0.57: QUIC v1 and TCP (Noise XX + yamux), DNS, identify (`/clave/0`), ping, relay client, DCUtR,
 request-response, and an allow list. The keeper's libp2p key is its Ed25519 identity, so its peer id is derived from
 the identity in the manifest (`transport::peer_id`) and Noise authenticates it. Idle connections close after 2 minutes.
 
-| Protocol             | Carries                                                                          | Limits                                            |
-| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `/tecpan/ecdh/0`     | `EcdhRequest`, `EcdhResponse`                                                    | request ≤ 1 MiB, empty ack                        |
-| `/tecpan/ceremony/0` | DKG and reshare messages, complaints, justifications, aborts, `Echo`             | request ≤ 1 MiB, empty ack                        |
-| `/tecpan/sync/0`     | `Proposal`, `Approval`, `ExecutionReceipt`, `SyncRequest`                        | request ≤ 1 MiB, empty ack                        |
-| `/tecpan/lobby/0`    | `LobbyJoin`, `LobbyState`, `LobbyPlan`, `LobbyLeave`                             | request ≤ 1 MiB, empty ack; 10/min per non-member |
-| `/tecpan/mailbox/0`  | `MailboxRequest` / `MailboxResponse` (keeper → relay only; keepers never accept) | 4 MiB per message, 256 KiB envelopes              |
+| Protocol            | Carries                                                                          | Limits                                            |
+| ------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `/clave/ecdh/0`     | `EcdhRequest`, `EcdhResponse`                                                    | request ≤ 1 MiB, empty ack                        |
+| `/clave/ceremony/0` | DKG and reshare messages, complaints, justifications, aborts, `Echo`             | request ≤ 1 MiB, empty ack                        |
+| `/clave/sync/0`     | `Proposal`, `Approval`, `ExecutionReceipt`, `SyncRequest`                        | request ≤ 1 MiB, empty ack                        |
+| `/clave/lobby/0`    | `LobbyJoin`, `LobbyState`, `LobbyPlan`, `LobbyLeave`                             | request ≤ 1 MiB, empty ack; 10/min per non-member |
+| `/clave/mailbox/0`  | `MailboxRequest` / `MailboxResponse` (keeper → relay only; keepers never accept) | 4 MiB per message, 256 KiB envelopes              |
 
 Every keeper frame is a `SignedMessage`; the lane is chosen by its body. Requests are one-way: the receiver
 acknowledges with an empty response and answers, if at all, with its own request (an `EcdhResponse` is a request back
-to the gatherer). Frames use a u32 length prefix (`tecpan_wire::p2p::FrameCodec`); request timeout 10 s, 30 s for
+to the gatherer). Frames use a u32 length prefix (`clave_wire::p2p::FrameCodec`); request timeout 10 s, 30 s for
 mailbox calls.
 
 ### Reachability
@@ -67,7 +67,7 @@ connected while it is joined and the test filter passes frames both ways.
   change, plus the configured relays. Any other peer's connection is closed before a protocol runs, so outsiders
   cannot even probe which protocols a keeper speaks.
 - **Open lobbies.** While a keeper hosts at least one open lobby, the gate admits connections from anyone so that
-  co-founders it does not know yet can join. A non-member's request is delivered only on `/tecpan/lobby/0`, only if
+  co-founders it does not know yet can join. A non-member's request is delivered only on `/clave/lobby/0`, only if
   its body is a lobby message, and at most 10 per minute per peer (4096 peers tracked); requests on every other lane are
   dropped unanswered. The sender is delivered as `Channel::Peer(identity)` with the identity derived from its peer id
   (the inlined Ed25519 key), and the keeper checks the join proof. When the last open lobby starts or closes, the gate
@@ -101,7 +101,7 @@ window, since a record may legitimately be days old.
 **Mailboxes.** For each ordered pair of members (sender `S`, recipient `R`, transport keys) and each UTC day:
 
 ```text
-mailbox_id = SHA-256("tecpan.mailbox.v0" ‖ X25519(s, R) ‖ S_pub ‖ R_pub ‖ be32(day))   (day = unix time / 86400)
+mailbox_id = SHA-256("clave.mailbox.v0" ‖ X25519(s, R) ‖ S_pub ‖ R_pub ‖ be32(day))   (day = unix time / 86400)
 sealed     = HPKE Auth (X25519, HKDF-SHA256, ChaCha20-Poly1305), kind 3, session = mailbox_id, epoch = day
 ```
 
@@ -110,7 +110,7 @@ stored it). Every `mailbox_interval_secs` (30 s) and on `mailbox.poll`, a keeper
 peer over the last `mailbox_ttl_days` (7), fetches in chunks of 128 ids, opens each envelope with the sender's key,
 processes the frame as direct traffic and deletes it at the relays.
 
-## Relay (`tecpan-relay`)
+## Relay (`clave-relay`)
 
 One binary, two services on one libp2p identity:
 
@@ -120,7 +120,7 @@ One binary, two services on one libp2p identity:
   envelopes and 32 MiB per mailbox, 1 GiB in total, 3600 deposits per peer per hour, fetches up to 3 MiB. Expired
   envelopes are purged every minute. The depositor's peer id is never stored.
 
-`tecpan-relay run --data-dir --listen --external --health --allow-peer`; `/health` and `/metrics` (Prometheus: reservations,
+`clave-relay run --data-dir --listen --external --health --allow-peer`; `/health` and `/metrics` (Prometheus: reservations,
 circuits, deposits, fetches, rejections, stored bytes) on the health address. `--allow-peer` (repeatable) turns it into a
 private relay. Deployment files: `crates/deploy/Dockerfile` (relay and keeper image) and systemd units with sandboxing.
 

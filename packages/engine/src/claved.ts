@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tecpand: one member profile's daemon. `tecpan daemon start` runs it detached with its output in daemon.log; it serves
+// claved: one member profile's daemon. `clave daemon start` runs it detached with its output in daemon.log; it serves
 // the contract in architecture/cli.md on <profile-dir>/daemon.sock until `daemon.stop` or SIGTERM.
 import { randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -33,11 +33,11 @@ async function main(): Promise<void> {
     },
   });
   if (values.version) {
-    process.stdout.write(`tecpand ${VERSION}\n`);
+    process.stdout.write(`claved ${VERSION}\n`);
     return;
   }
   const dir = values["profile-dir"];
-  if (!dir) throw new Error("usage: tecpand --profile-dir <dir>");
+  if (!dir) throw new Error("usage: claved --profile-dir <dir>");
   const paths = new ProfilePaths(dir);
   await mkdir(paths.dir, { recursive: true, mode: 0o700 });
   await chmod(paths.dir, 0o700);
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const server = await RpcServer.listen(paths.socket, token, (method, params) =>
     daemon.handle(method, params),
   );
-  log(`tecpand ${VERSION} serving profile ${paths.name} on ${paths.socket}`);
+  log(`claved ${VERSION} serving profile ${paths.name} on ${paths.socket}`);
 
   let stopping = false;
   const shutdown = async (reason: string) => {
@@ -78,6 +78,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`tecpand: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`claved: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exit(1);
 });

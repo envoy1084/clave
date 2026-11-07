@@ -3,12 +3,12 @@ use std::{
     sync::{Arc, PoisonError},
 };
 
-use tecpan_crypto::{
+use clave_crypto::{
     Point,
     ecdh::{self, AddressSecretShare, EcdhContext, Partial},
     shamir::MemberIndex,
 };
-use tecpan_wire::{
+use clave_wire::{
     Header, IdentityPublic, Message,
     messages::{EcdhPurpose, EcdhRequest, EcdhResponse},
     types::{WirePoint, parse_points},
@@ -188,7 +188,7 @@ impl Keeper {
         points: Vec<WirePoint>,
     ) -> Result<Vec<MemberPartials>> {
         let count = points.len();
-        if count == 0 || count > tecpan_wire::messages::MAX_ECDH_POINTS {
+        if count == 0 || count > clave_wire::messages::MAX_ECDH_POINTS {
             return Err(Error::Invalid("1..=4096 points per batch".into()));
         }
         let inputs = parse_points(&points)?;

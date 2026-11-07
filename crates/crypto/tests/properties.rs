@@ -8,10 +8,7 @@
 mod common;
 
 use ark_ff::PrimeField;
-use proptest::prelude::*;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
-use tecpan_crypto::{
+use clave_crypto::{
     Base, Point, Scalar, SecretScalar,
     aztec::{AddressContext, single_key_address_secret},
     curve,
@@ -20,6 +17,9 @@ use tecpan_crypto::{
     reshare::{self, Parameters, SubShare},
     shamir::{MemberIndex, Polynomial, lagrange_coefficient, random_scalar},
 };
+use proptest::prelude::*;
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 
 /// Picks `k` distinct members of `1..=n` using `seed`.
 fn subset(n: u32, k: usize, seed: u64) -> Vec<MemberIndex> {

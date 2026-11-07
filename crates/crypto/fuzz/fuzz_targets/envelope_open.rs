@@ -2,7 +2,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tecpan_crypto::envelope::{self, Context, Envelope, TransportPublic, TransportSecret};
+use clave_crypto::envelope::{self, Context, Envelope, TransportPublic, TransportSecret};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 32 {

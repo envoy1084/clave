@@ -23,7 +23,7 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
-      # @tecpan/napi compiles the Rust crates into a Node addon.
+      # @clave/napi compiles the Rust crates into a Node addon.
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-workspaces: crates
@@ -134,4 +134,4 @@ jobs:
           done
           cat network.log
           exit 1
-      - run: pnpm exec turbo run test:e2e --filter=@tecpan/vault-wallet
+      - run: pnpm exec turbo run test:e2e --filter=@clave/vault-wallet

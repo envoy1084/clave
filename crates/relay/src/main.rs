@@ -1,4 +1,4 @@
-//! `tecpan-relay`: run an untrusted Tecpan relay.
+//! `clave-relay`: run an untrusted Clave relay.
 //!
 //! `run` prints one JSON line `{"ready": {"peerId", "addresses"}}` on stdout once listening; logs go to stderr.
 
@@ -11,15 +11,15 @@ use std::{
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
+use clave_relay::{Error, Limits, Relay, RelayConfig, Result, health, store::MailboxStore};
 use libp2p::{Multiaddr, PeerId, identity};
 use serde_json::json;
-use tecpan_relay::{Error, Limits, Relay, RelayConfig, Result, health, store::MailboxStore};
 
 #[derive(Parser)]
 #[command(
-    name = "tecpan-relay",
+    name = "clave-relay",
     version,
-    about = "Untrusted Tecpan relay: circuits and ciphertext mailboxes"
+    about = "Untrusted Clave relay: circuits and ciphertext mailboxes"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -33,7 +33,7 @@ enum Command {
     /// Prints the relay's peer id (creating its identity if needed).
     PeerId {
         /// Data directory.
-        #[arg(long, env = "TECPAN_RELAY_DATA")]
+        #[arg(long, env = "CLAVE_RELAY_DATA")]
         data_dir: PathBuf,
     },
 }
@@ -41,7 +41,7 @@ enum Command {
 #[derive(clap::Args)]
 struct Run {
     /// Data directory (identity and mailbox database).
-    #[arg(long, env = "TECPAN_RELAY_DATA")]
+    #[arg(long, env = "CLAVE_RELAY_DATA")]
     data_dir: PathBuf,
     /// Listen address (repeatable).
     #[arg(long, default_values_t = ["/ip4/0.0.0.0/udp/4001/quic-v1".to_owned(), "/ip4/0.0.0.0/tcp/4001".to_owned()])]
@@ -199,7 +199,7 @@ fn main() -> std::process::ExitCode {
     match result {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
-            tracing::error!(%error, "tecpan-relay failed");
+            tracing::error!(%error, "clave-relay failed");
             std::process::ExitCode::FAILURE
         }
     }

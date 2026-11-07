@@ -8,14 +8,14 @@ use std::{
 
 use crate::error::{Error, Result};
 
-/// `TECPAN_HOME`, else `~/.tecpan`.
+/// `CLAVE_HOME`, else `~/.clave`.
 pub(crate) fn home() -> Result<PathBuf> {
-    if let Some(home) = std::env::var_os("TECPAN_HOME").filter(|v| !v.is_empty()) {
+    if let Some(home) = std::env::var_os("CLAVE_HOME").filter(|v| !v.is_empty()) {
         return Ok(PathBuf::from(home));
     }
     std::env::var_os("HOME")
-        .map(|home| PathBuf::from(home).join(".tecpan"))
-        .ok_or_else(|| Error::failed("HOME is not set; set TECPAN_HOME"))
+        .map(|home| PathBuf::from(home).join(".clave"))
+        .ok_or_else(|| Error::failed("HOME is not set; set CLAVE_HOME"))
 }
 
 /// Profile names match `^[a-z0-9][a-z0-9_-]{0,31}$`.

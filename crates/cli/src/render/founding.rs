@@ -72,7 +72,7 @@ pub(crate) fn outcome(state: &FoundingState, style: Style) -> String {
     }
     match (&state.vault, state.done) {
         (Some(vault), true) => format!(
-            "{} Vault founded at {vault}\n  Next: tecpan receive · tecpan balance · tecpan token deploy-test\n",
+            "{} Vault founded at {vault}\n  Next: clave receive · clave balance · clave token deploy-test\n",
             style.ok()
         ),
         _ => String::new(),

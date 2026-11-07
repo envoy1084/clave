@@ -1,7 +1,7 @@
 # Wire format and Node bindings
 
-`crates/wire` (`tecpan-wire`) is the single definition of every message exchanged between engines, keepers and relays.
-`crates/napi` (`@tecpan/napi`) exposes it and the public parts of `tecpan-crypto` to TypeScript, so the vault wallet
+`crates/wire` (`clave-wire`) is the single definition of every message exchanged between engines, keepers and relays.
+`crates/napi` (`@clave/napi`) exposes it and the public parts of `clave-crypto` to TypeScript, so the vault wallet
 and its hosts never reimplement cryptography or encoding.
 
 Status: Phase 6 (library and bindings). Keepers send these messages from Phase 8 (over libp2p from Phase 9); the vault wallet uses the bindings
@@ -16,7 +16,7 @@ from Phase 7.
   are sound.
 - Decode rejects: input over `MAX_MESSAGE_BYTES` (1 MiB), trailing bytes, unknown variants, other wire versions, and
   bodies outside their bounds (below). Cryptographic validity (points on the curve, canonical scalars, proofs) is
-  checked when a body is converted to `tecpan-crypto` types.
+  checked when a body is converted to `clave-crypto` types.
 
 | Value          | Encoding                                                      |
 | -------------- | ------------------------------------------------------------- |
@@ -30,7 +30,7 @@ from Phase 7.
 ```text
 SignedMessage { version: u16, header: Header, body: Message, signer: [u8; 32], signature: [u8; 64] }
 Header        { scope: [u8; 32], epoch: u32, id: [u8; 16], created_at: u64 }
-signature     = Ed25519(keeper, "tecpan.wire.v0" ‖ postcard(version, header, body, signer))
+signature     = Ed25519(keeper, "clave.wire.v0" ‖ postcard(version, header, body, signer))
 ```
 
 - **Keeper identity.** Each keeper has an Ed25519 identity (`KeeperIdentity`), which is also its libp2p peer
@@ -91,7 +91,7 @@ identities, `1 ≤ k ≤ n` and `2 ≤ t_v ≤ n`. A manifest is trusted only af
 `signer_set_commitment()` and `committee_commitment()` equal the vault's on-chain config and `address_context()`
 confirms the vault address from `preaddress` and `Ivpk`.
 
-### Lobbies (`tecpan_wire::lobby`)
+### Lobbies (`clave_wire::lobby`)
 
 A founder's keeper hosts a lobby that co-founders join before any committee exists (flow and checks in `keeper.md`).
 Lobby frames are ordinary `SignedMessage`s with `scope` = the 16-byte lobby id zero-padded to 32 bytes and epoch 0.
@@ -102,10 +102,10 @@ LobbyMember   { name: String, signer_key: WirePoint, participant: KeeperContact 
 Invite        { lobby: [u8; 16], secret: [u8; 32], host: KeeperContact, host_name: String, name: String,
                 threshold: u8, viewing_threshold: u8, network: String }                 names ≤ 64 bytes, 1 ≤ k ≤ 8, 2 ≤ t_v ≤ 8
 SealedSecrets { index: u8, enc: [u8; 32], ciphertext: Vec<u8> }                         1..=1040 bytes
-proof         = HMAC-SHA256(secret, "tecpan.lobby.join.v0" ‖ lobby ‖ joiner identity ‖ joiner transport)
+proof         = HMAC-SHA256(secret, "clave.lobby.join.v0" ‖ lobby ‖ joiner identity ‖ joiner transport)
 ```
 
-- **Invite string.** `tecpan-invite-v0:` followed by base64url without padding of the invite's canonical postcard bytes,
+- **Invite string.** `clave-invite-v0:` followed by base64url without padding of the invite's canonical postcard bytes,
   at most 4096 characters. Decoding accepts only the canonical bytes and the canonical base64 form (no padding, no
   non-zero trailing bits), applies the bounds above, and ignores surrounding whitespace. The secret is zeroized on drop
   and omitted from `Debug`. `network` is an opaque label set by the engine. Anyone holding the invite can join while the
@@ -128,20 +128,20 @@ Third parties cannot open another member's envelope, so a complaint is resolved 
 
 ### Proposals and approvals
 
-- `Proposal::id() = SHA-256("tecpan.proposal.v0" ‖ postcard(proposal))`, covering every field.
-- `Proposal::approval_message(vault)` is the contract's `Poseidon2("tecpan.approval.v0", [vault, outer_hash, version,
+- `Proposal::id() = SHA-256("clave.proposal.v0" ‖ postcard(proposal))`, covering every field.
+- `Proposal::approval_message(vault)` is the contract's `Poseidon2("clave.approval.v0", [vault, outer_hash, version,
   expires_at])` (see `contract.md`).
 - `Approval::verify(proposal, vault, signer_key)` requires the approval to name that proposal id and the signature to
   verify exactly as the contract checks it. Approvers recompute `outer_hash` from `payload` before signing.
 - `Rejection` is an off-chain vote, never seen by the contract: a Schnorr signature by the slot's signer over
-  `Poseidon2("tecpan.rejection.v0", [vault, id_hi, id_lo])`, where `id_hi` and `id_lo` are the big-endian 128-bit
+  `Poseidon2("clave.rejection.v0", [vault, id_hi, id_lo])`, where `id_hi` and `id_lo` are the big-endian 128-bit
   halves of the proposal id. The separate domain means an approval signature can never pass as a rejection or the
   reverse. When more than `n - k` members reject, `k` approvals are out of reach and engines show the proposal as
   blocked; cancelling it burns its nonce. An approval outranks a rejection from the same slot (it is already a usable
   signature), so engines refuse to reject after approving.
 - `SyncRequest.rejections` was appended in Phase 13 (v0 has no deployed peers to stay compatible with).
 
-### Relay mailbox protocol (`tecpan_wire::mailbox`)
+### Relay mailbox protocol (`clave_wire::mailbox`)
 
 Not signed (the relay must not learn who deposits or fetches); canonical postcard with the same rules.
 
@@ -149,7 +149,7 @@ Not signed (the relay must not learn who deposits or fetches); canonical postcar
 MailboxRequest  = Deposit(RelayEnvelope) | Fetch { mailboxes } | Delete { ids }
 MailboxResponse = Stored { id } | Rejected(TooLarge | BadExpiry | QuotaExceeded | NotAllowed | Malformed)
                 | Envelopes([{ id, envelope }]) | Deleted(count)
-envelope id     = SHA-256("tecpan.mailbox.envelope.v0" ‖ canonical envelope)
+envelope id     = SHA-256("clave.mailbox.envelope.v0" ‖ canonical envelope)
 ```
 
 Bounds: 128 mailboxes per fetch, 1024 ids per delete, envelopes ≤ 256 KiB, messages ≤ 4 MiB. Mailbox ids and the
@@ -159,14 +159,14 @@ sealing of envelope contents are defined in `networking.md`.
 
 `FrameCodec` frames each request and response with a u32 big-endian length: keeper lanes accept requests up to 1 MiB
 and responses up to 64 bytes (an empty acknowledgement); the mailbox lane accepts 4 MiB. Protocol names are
-`/tecpan/{ecdh,ceremony,sync,lobby,mailbox}/0`.
+`/clave/{ecdh,ceremony,sync,lobby,mailbox}/0`.
 
 ### Unsigned bodies
 
 `encode_body` / `decode_body` carry a bare `Message` with the same canonical and bounds rules. They are used between an
 engine and its own keeper (local RPC), which signs and sends the message.
 
-## Node bindings (`@tecpan/napi`)
+## Node bindings (`@clave/napi`)
 
 napi-rs 3, Node-API 8. Field elements and scalars cross the boundary as `0x`-prefixed 32-byte hex, points as
 `{ x, y }`, byte strings as `Buffer`, timestamps as non-negative integers. Every function validates its input and
@@ -181,8 +181,8 @@ throws an `InvalidArg` error on failure.
 
 - **No secrets in the production addon.** Envelope sealing and opening stay in the keeper (which holds the transport
   key); signing keys stay in the member's signer. Helpers that deal or use viewing shares and a test Schnorr
-  signer exist only in the separate `@tecpan/napi/testing` binary, built with the `testing` feature.
-- `pnpm --filter @tecpan/napi build` writes `index.js`, `index.d.ts` and `tecpan.<platform>.node` to `dist/` (the
+  signer exist only in the separate `@clave/napi/testing` binary, built with the `testing` feature.
+- `pnpm --filter @clave/napi build` writes `index.js`, `index.d.ts` and `clave.<platform>.node` to `dist/` (the
   testing build to `dist/testing/`). `dist/` is build output and is not committed.
 - Node-API is ABI-stable: the same binary loads in Node 24 and in Electron 45 (verified with Node 24.22.2 and
   Electron 45.2.3, when the desktop app existed). Per-platform prebuilds are produced by the release pipeline.
@@ -199,4 +199,4 @@ throws an `InvalidArg` error on failure.
 | `crates/crypto/fuzz` `wire_decode` | Decoding signed messages, bare bodies and invites never panics; accepted input re-encodes identically                                                                                     |
 
 Regenerate golden bytes only for an intended format change:
-`UPDATE_WIRE_FIXTURES=1 cargo test -p tecpan-wire --test codec`.
+`UPDATE_WIRE_FIXTURES=1 cargo test -p clave-wire --test codec`.

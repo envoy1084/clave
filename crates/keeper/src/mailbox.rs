@@ -1,5 +1,5 @@
 //! Store-and-forward for members who are offline: replication records a peer could not receive directly are sealed into
-//! its pairwise mailbox at one or more untrusted relays (see `tecpan_crypto::mailbox`).
+//! its pairwise mailbox at one or more untrusted relays (see `clave_crypto::mailbox`).
 
 use std::{
     future::Future,
@@ -7,7 +7,7 @@ use std::{
     sync::{Mutex, PoisonError},
 };
 
-use tecpan_wire::{
+use clave_wire::{
     mailbox::{StoredEnvelope, envelope_id},
     messages::RelayEnvelope,
 };

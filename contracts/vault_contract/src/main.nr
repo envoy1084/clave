@@ -10,12 +10,12 @@ mod wire_vectors;
 
 use aztec::macros::aztec;
 
-/// Tecpan vault: private k-of-n account contract.
+/// Clave vault: private k-of-n account contract.
 ///
 /// Stores the spending policy (signer set, threshold `k`) and the viewing committee commitment (threshold `t_v`,
 /// verification shares) in private notes owned by the vault. See `architecture/contract.md`.
 #[aztec]
-pub contract TecpanVault {
+pub contract ClaveVault {
     use aztec::{
         authwit::{
             account::AccountActions,

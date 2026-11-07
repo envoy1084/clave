@@ -33,7 +33,7 @@ impl Committee {
         assert_ordered_points(self.shares, self.member_count, "committee");
     }
 
-    /// `Poseidon2("tecpan.committee.v0", t_v, Y_0.x, Y_0.y, ..., Y_{MAX-1}.y)`.
+    /// `Poseidon2("clave.committee.v0", t_v, Y_0.x, Y_0.y, ..., Y_{MAX-1}.y)`.
     pub fn commitment(self) -> Field {
         let mut fields = [0; MAX_SIGNERS * POINT_LEN + 1];
         fields[0] = self.viewing_threshold as Field;

@@ -4,14 +4,14 @@
 mod common;
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use common::{header, identity, invite, lobby_member};
-use tecpan_wire::{
+use clave_wire::{
     Error, Message, SignedMessage, decode, encode,
     lobby::{
         INVITE_PREFIX, Invite, LobbyPlan, LobbyState, MAX_INVITE_CHARS, MAX_SEALED_SECRETS_BYTES,
         SealedSecrets, scope,
     },
 };
+use common::{header, identity, invite, lobby_member};
 
 #[test]
 fn invites_round_trip_through_their_string_form() {
@@ -37,7 +37,7 @@ fn malformed_invites_are_rejected() {
     let bytes = URL_SAFE_NO_PAD.decode(body).unwrap();
 
     assert!(Invite::decode(body).is_err(), "missing prefix");
-    assert!(Invite::decode(&format!("tecpan-invite-v1:{body}")).is_err());
+    assert!(Invite::decode(&format!("clave-invite-v1:{body}")).is_err());
     assert!(Invite::decode(&format!("{text}=")).is_err(), "padding");
     assert!(Invite::decode(&format!("{text}!")).is_err(), "alphabet");
     for len in 0..bytes.len() {

@@ -1,4 +1,4 @@
-//! A minimal HTTP/1.1 JSON-RPC POST for `tecpan doctor` (`node_getNodeInfo`); plain `http://` only, which is what a
+//! A minimal HTTP/1.1 JSON-RPC POST for `clave doctor` (`node_getNodeInfo`); plain `http://` only, which is what a
 //! local Aztec node serves. Everything else goes through the daemon.
 
 use std::{

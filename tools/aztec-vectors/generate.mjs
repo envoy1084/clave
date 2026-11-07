@@ -1,4 +1,4 @@
-// Golden vectors from @aztec-labs/* for tecpan-crypto's byte-compatibility tests. Deterministic: same Aztec version,
+// Golden vectors from @aztec-labs/* for clave-crypto's byte-compatibility tests. Deterministic: same Aztec version,
 // same output. `--check` compares against the committed file instead of writing it.
 import { readFile, writeFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
@@ -171,7 +171,7 @@ if (process.argv.includes("--check")) {
   );
   if (schnorrOk.includes(false) || !isDeepStrictEqual(committed, vectors)) {
     process.stderr.write(
-      "crates/crypto/tests/vectors/aztec.json is stale: run `pnpm --filter @tecpan/aztec-vectors generate`\n",
+      "crates/crypto/tests/vectors/aztec.json is stale: run `pnpm --filter @clave/aztec-vectors generate`\n",
     );
     process.exit(1);
   }

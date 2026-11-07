@@ -6,7 +6,7 @@ use zeroize::Zeroizing;
 use crate::{Error, types::Bytes64};
 
 /// Domain tag prefixed to every signed payload.
-pub(crate) const SIGNING_DOMAIN: &[u8] = b"tecpan.wire.v0";
+pub(crate) const SIGNING_DOMAIN: &[u8] = b"clave.wire.v0";
 
 /// A keeper's Ed25519 identity: signs every message it sends (and becomes its peer id in the peer mesh).
 pub struct KeeperIdentity(SigningKey);
