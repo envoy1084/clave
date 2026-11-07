@@ -117,6 +117,7 @@ fn prompt(label: &str) -> Result<Zeroizing<String>> {
 }
 
 /// The existing passphrase: from the file, else a prompt.
+#[cfg(target_os = "macos")]
 pub(crate) fn passphrase(ctx: &Ctx) -> Result<Zeroizing<String>> {
     match passphrase_file() {
         Some(file) => read_file(&file),
@@ -195,6 +196,7 @@ pub(crate) fn touch_id_enabled(ctx: &Ctx) -> bool {
 }
 
 /// The keychain account of a profile: its directory, unique per profile and home.
+#[cfg(target_os = "macos")]
 fn keychain_account(profile: &Profile) -> String {
     profile.dir.display().to_string()
 }

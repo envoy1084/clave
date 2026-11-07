@@ -2,7 +2,7 @@
 
 use std::{
     fs,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::{Path, PathBuf},
 };
 
@@ -133,8 +133,9 @@ pub(crate) fn create_private_dir(dir: &Path) -> Result<()> {
 }
 
 /// Writes `bytes` to a new or truncated `0600` file.
+#[cfg(any(target_os = "macos", test))]
 pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
-    use std::io::Write;
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
