@@ -1,32 +1,151 @@
 # Clave
 
-**A shared wallet on [Aztec](https://aztec.network) that no single member can open alone, or even look inside alone.**
-
-Clave is a k-of-n multisig vault. Like any multisig, a payment needs `k` of the `n` members to sign it. Unlike other
-multisigs, the vault is also private _from its own members one at a time_: reading the balance or the history takes
-`t` of the members' keepers working together. Nobody holds the key that decrypts the vault: not a member, not a
-server, not me.
+**A private k-of-n multisig for [Aztec](https://aztec.network) with threshold viewing.** Spending a payment takes `k`
+of the `n` members. Reading the vault takes `t` of the members' keepers, because the key that decrypts it never exists
+in one place: not with a member, not on a server, not with me.
 
 I built this for a hackathon. It is **not production-ready**: it runs on a local Aztec network, it has not been audited,
 and a few pieces are unfinished (listed honestly [below](#whats-not-done-yet)). But the core is real and works end to
 end: founding a vault together, threshold viewing, proposing, reviewing, approving, rejecting and executing private
-payments, all without a server in the middle.
+payments, with no server in the middle.
 
-## Why it exists
+## The problem
 
-On a public chain, a multisig protects _who can spend_ and leaves everything else public. On Aztec, funds are encrypted
-notes, so a second question appears: _who can read them?_ The usual answer is "give everyone the viewing key", which
-means every member, including one you remove later, can watch the treasury forever.
+**A multisig on a public chain guards one thing.** A Safe keeps its owners and threshold in public storage, and
+`execTransaction` checks `k` ECDSA signatures on-chain against that list. The balance, every transfer, every signer
+and the threshold are public. The multisig only has to answer _who can spend_, because reading was never restricted.
 
-Clave puts a threshold on both:
+**Aztec inverts that model.** Private state is a set of encrypted UTXO notes; the chain stores only commitments in the
+note hash tree, and spending publishes nullifiers that can't be linked back to their notes. Transactions run and are
+proven on the user's device (the PXE). Accounts are contracts, and the entrypoint decides what authorizes a
+transaction. So a shared wallet on Aztec has a second question: _who can read it?_
 
-- **Spending: k of n.** The vault is an Aztec account contract. A payment only goes through if its proof carries valid
-  signatures from `k` members. The check happens inside the zero-knowledge proof, so the chain never sees who the
-  members are, how many there are, or who signed.
-- **Viewing: t of n.** The vault's viewing key is created by the members' keepers together and split between them from
-  the first moment. To read a note, a member's wallet asks the keepers; any `t` of them can help, fewer learn nothing.
-- **No server.** Each member runs their own small daemon and keeper. Keepers talk to each other directly; an optional
-  relay helps when members can't reach each other, and it only ever sees encrypted messages.
+**Spending is easy to share. Reading is not.** Authorization is code, so a k-of-n rule fits in the account contract.
+Reading is a key. Every Aztec account has an incoming viewing secret `ivsk`, and every incoming note is opened with it:
+
+```math
+S = \text{address\_secret} \cdot P, \qquad \text{address\_secret} = \sigma \cdot (\text{ivsk} + \text{preaddress})
+```
+
+where `P` is the note's ephemeral public key, `S` becomes the AES key, and the sign `σ` and the preaddress are public.
+And the address itself commits to the viewing public key:
+
+```math
+\text{address} = x\big(\text{preaddress} \cdot G + \text{Ivpk}\big), \qquad \text{Ivpk} = \text{ivsk} \cdot G
+```
+
+So the viewing key **can't be rotated**: a new key is a new address. A team sharing an Aztec account has to give
+`ivsk` to every member's wallet, and a member you remove keeps it. Removing their signing rights is one transaction.
+Removing their ability to read every future payment means migrating every fund to a new address.
+
+DeFi Wonderland reached the same conclusion in
+[_On an Aztec multisig_](https://forum.aztec.network/t/on-an-aztec-multisig/8280) (Aztec forum, January 2026). Their
+ways out were protocol-level key rotation (not available), a TEE or MPC network holding the key (moves the trust), or
+threshold-sharing the key, which without resharing survives at most `min(t, n − t)` removals in the vault's lifetime.
+That post is research; Clave builds the third option and adds resharing.
+
+## How Clave solves it
+
+Two thresholds, enforced in two different places.
+
+### Spending: k of n, inside the proof
+
+`ClaveVault` (`contracts/vault_contract`, Aztec.nr v6) is an account contract. Each member signs, with Schnorr on
+Grumpkin:
+
+```math
+m = \text{Poseidon2}\big(\texttt{"clave.approval.v0"},\ [\text{vault},\ \text{outer\_hash},\ \text{config\_version},\ \text{expires\_at}]\big)
+```
+
+The PXE passes a 49-field auth witness (8 signer keys, 8 signatures as 4 limbs each, a deadline). The private
+entrypoint checks that the keys hash to the signer-set commitment in a private config note, that the deadline hasn't
+passed, and that at least `k` signatures over `m` are valid. All 8 slots are always checked, so every vault size proves
+the same circuit. The config note is read without being nullified, so the same check works in static
+`verify_private_authwit` calls. Any config change bumps the version and voids pending approvals.
+
+We use explicit signatures rather than FROST: they're cheap to verify inside a proof, need no interactive signing
+rounds, and membership changes by ordinary consensus. Cost: **27,176 gates**, against 15,002 for Aztec's single-key
+Schnorr account.
+
+### Viewing: t of n, a key nobody ever holds
+
+**Distributed key generation** (`crates/crypto`). At founding the keepers run a Feldman DKG on Grumpkin (the shape of
+FROST's KeyGen). Each member `j` samples a polynomial of degree `t − 1`, publishes commitments to its coefficients with a
+proof of knowledge, and sends each member `i` a sealed evaluation that the receiver checks against the commitments:
+
+```math
+f_j(x) = a_{j,0} + a_{j,1}x + \dots + a_{j,t-1}x^{t-1}, \qquad C_{j,k} = a_{j,k} \cdot G
+```
+
+```math
+s_i = \sum_j f_j(i), \qquad \text{Ivpk} = \sum_j C_{j,0}, \qquad \text{ivsk} = \sum_j a_{j,0}\ \text{is never computed}
+```
+
+`Ivpk` goes into an ordinary Aztec address. Any `t` shares determine the secret; fewer reveal nothing.
+
+**Shares of the address secret.** Lagrange coefficients over any qualified set `S` sum to 1, so shifting every share by
+the public preaddress `h` shifts the secret by `h`. Each keeper derives its share of exactly the secret Aztec decrypts
+with, and publishes the matching point:
+
+```math
+x_i = \sigma \cdot (s_i + h), \qquad A_i = x_i \cdot G
+```
+
+**Threshold ECDH.** To open a note, each keeper returns a partial with a Chaum-Pedersen DLEQ proof that it used the
+share behind `A_i`. The proof's challenge binds the vault, epoch, member and `P`. The wallet verifies every proof,
+drops bad partials and names their member, and combines any `t`:
+
+```math
+D_i = x_i \cdot P, \qquad \log_G A_i = \log_P D_i, \qquad \sum_{i \in S} \lambda_i D_i = \text{address\_secret} \cdot P
+```
+
+That is byte for byte what Aztec's own key store would compute. Golden tests check it against real Aztec 6.0.0 output:
+point encoding, key derivation, the address secret for both signs, ECDH and app siloing. A minimal, marked patch to the
+PXE (`patches/`) routes every read of the viewing secret to the keepers, batched and cached.
+
+**Resharing when a member leaves.** `t` staying members deal their weighted shares onto fresh polynomials for the new
+committee. Every receiver checks each dealer's constant term against that dealer's public share, so nobody can slip in
+a different secret:
+
+```math
+g_i(0) = \lambda_i s_i, \qquad g_i(0) \cdot G \overset{?}{=} \lambda_i Y_i, \qquad s'_j = \sum_{i \in S} g_i(j), \qquad \sum_{i \in S} g_i(0) = \text{ivsk}
+```
+
+The secret, `Ivpk` and the address don't change. One `rotate_membership` transaction updates the signer set and the
+viewing committee together. The removed member's share lies on the old polynomial and combines with nothing new. This
+holds when fewer than `t` members leave per rotation and the staying members erase their old shares; rotations can
+repeat as often as needed.
+
+### What is split, and what isn't
+
+| Secret                              | In Clave                       | Why                                                 |
+| ----------------------------------- | ------------------------------ | --------------------------------------------------- |
+| Incoming viewing (`ivsk`)           | split `t` of `n`, never formed | it reads every incoming note                        |
+| Nullifier hiding, outgoing, tagging | shared among members           | fixed by the address; spending still needs `k` sigs |
+| Signing keys                        | each member's device only      | sealed under the member's passphrase                |
+
+Nobody can make a removed member forget notes they already decrypted. Clave protects what arrives after removal.
+
+## What each member runs
+
+There is no Clave server.
+
+| Component                        | Where            | What it does                                                                               |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `clave` (`crates/cli`)           | your terminal    | propose, review, approve, reject, execute                                                  |
+| `claved` (`packages/engine`)     | your device      | your PXE with the threshold key store, your sealed signer, the founding and payment flows  |
+| `clave-keeper` (`crates/keeper`) | always on, yours | your viewing share, DKG and resharing, DLEQ answers, libp2p sync (QUIC, or TCP with Noise) |
+| `clave-relay` (`crates/relay`)   | optional, anyone | circuit relay and HPKE-sealed mailboxes; can drop messages, can't read them                |
+| Aztec node                       | any node         | sync and proofs; never sees members, thresholds, amounts or signers                        |
+
+A payment: Alice proposes and her daemon builds, simulates and pins a nonce and expiry. The keepers replicate the
+proposal. Bob's daemon rebuilds the transaction from its calls, refuses unless the outer hash matches, and shows him
+exactly what he signs. Approvals travel keeper to keeper, so members don't need to be online together. Once `k`
+approvals are in, any member executes; fees go through Aztec's sponsored fee contract, so the vault never pays in
+public.
+
+**Measured on a laptop:** DKG across three keepers ≈ 0.4 s · threshold decryption across networks via a relay 7–12 ms
+· 2-of-3 private payment with real client-side proving 6.9 s.
 
 ## Try it
 
@@ -63,7 +182,8 @@ clave -P bob balance
 ```
 
 Every member is a separate profile with its own daemon, keeper and keys, so two terminals on one laptop behave like
-two people on two machines.
+two people on two machines. In a 2-of-2 vault, stop Bob's daemon and Alice can't read the balance: not because of a
+permission check, but because no single key exists that could.
 
 ## CROPS
 
@@ -80,7 +200,8 @@ when they come back. Getting transactions included is up to the Aztec network it
 
 - **The Aztec node** sees your IP address, the note tags your wallet asks about and the transactions you send. Tags are
   derived from secrets and transactions are proofs, so the node doesn't learn the members, the thresholds, the amounts
-  or who signed. Fees go through Aztec's sponsored fee contract, so the vault never pays in public.
+  or who signed. Signer identities, thresholds and the committee are never written to public storage or public
+  arguments.
 - **A relay** sees which keepers connect and when, and the size of the sealed messages it forwards. It cannot read
   them or tell which vault they belong to.
 - **Other members' keepers** see your IP address (you are in a vault together).
@@ -93,8 +214,8 @@ when they come back. Getting transactions included is up to the Aztec network it
 - Your share of the viewing key lives only in your keeper and is never exported or backed up.
 - Your account secrets and vault records are protected by file permissions on your machine, so the daemon can start
   without asking for a password; the signing key always needs it.
-- Every answer a keeper gives comes with a proof, so a dishonest member can't corrupt a decryption without being
-  caught.
+- Every decryption partial carries a DLEQ proof and every dealt share is checked against public commitments, so a
+  dishonest member can't corrupt a decryption or a ceremony without being caught and named.
 - Trust assumptions: fewer than `t` members collude to read the vault, and fewer than `k` collude to spend. Aztec and
   its node are trusted for liveness, not for secrecy.
 
@@ -113,38 +234,6 @@ when they come back. Getting transactions included is up to the Aztec network it
   outside has reviewed it.
 
 <details>
-<summary><b>How it works, for the technically curious</b></summary>
-
-**The vault contract** (`contracts/vault_contract`, Aztec.nr v6). `ClaveVault` is an account contract. Its private
-entrypoint reads a private config note (threshold, a commitment to the signer set, a commitment to the viewing
-committee, a version) without nullifying it, so the same check also works inside static `verify_private_authwit` calls.
-It takes a 49-field auth witness (up to eight signer keys, eight Schnorr signatures, a deadline) and requires `k` valid
-signatures over `Poseidon2("clave.approval.v0", [vault, outer hash, config version, expires_at])`. Every slot is
-checked, so all vault sizes share one circuit. Config changes bump the version, which voids old approvals.
-
-**Threshold viewing** (`crates/crypto`). A Feldman DKG on Grumpkin gives each keeper a share whose group key is the
-vault's incoming viewing public key, so the vault has an ordinary Aztec address. To decrypt a note with ephemeral key
-`P`, each keeper returns its share of the address secret times `P` with a Chaum-Pedersen DLEQ proof, and the wallet
-combines `t` of them with Lagrange coefficients into `address_secret · P`, exactly what Aztec's own key store would
-compute. Golden tests check point encoding, key derivation, the address secret and ECDH byte for byte against Aztec
-6.0.0.
-
-**The wallet** (`packages/vault-wallet`). A small, marked patch to Aztec's PXE swaps in a key store that never holds a
-vault's viewing secret and asks the keepers instead. The Rust crypto reaches TypeScript through napi-rs.
-
-**Keepers and the network** (`crates/keeper`, `crates/relay`). Keepers hold the sealed share, run the key generation
-and resharing ceremonies, answer decryption requests and replicate signed proposals, approvals, rejections and receipts
-over libp2p (QUIC, or TCP with Noise). Offline members catch up through sync and sealed relay mailboxes.
-
-**The daemon and CLI** (`packages/engine`, `crates/cli`). `claved` hosts the member's PXE, signer and workflows behind
-an owner-only unix socket; `clave` is a Rust CLI on top. Before you approve, your own machine rebuilds the transaction
-from its calls, checks it matches what was proposed, simulates it and shows you the exact message you are signing.
-
-The full design, with the decisions behind it, is in [`architecture/`](architecture/).
-
-</details>
-
-<details>
 <summary><b>Repository layout and development</b></summary>
 
 | Path                     | What it is                                                      |
@@ -155,7 +244,7 @@ The full design, with the decisions behind it, is in [`architecture/`](architect
 | `packages/engine/`       | `claved`, each member's daemon behind the CLI                   |
 | `patches/`               | The minimal PXE patch                                           |
 | `apps/web/`              | The project website                                             |
-| `architecture/`          | Design documents                                                |
+| `architecture/`          | Design documents, with the decisions behind them                |
 
 ```sh
 pnpm check       # formatting, lint, typecheck, build, dependency policy
