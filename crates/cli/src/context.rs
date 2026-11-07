@@ -11,7 +11,10 @@ use crate::{
     error::{Error, Kind, Result},
     profile::Profile,
     refs,
-    render::Style,
+    render::{
+        Style,
+        spinner::{Mode, Spinner},
+    },
     rpc::Client,
     types::VaultSummary,
 };
@@ -30,6 +33,8 @@ pub(crate) struct Ctx {
     pub(crate) yes: bool,
     pub(crate) quiet: bool,
     pub(crate) style: Style,
+    /// How progress lines are shown on stderr.
+    pub(crate) progress: Mode,
     /// Prompts are allowed: not `--json` and stdin is a terminal.
     pub(crate) interactive: bool,
 }
@@ -51,8 +56,14 @@ impl Ctx {
             style: Style {
                 color: !no_color && !global.json && std::io::stdout().is_terminal(),
             },
+            progress: Mode::detect(global.json || global.quiet),
             interactive: !global.json && std::io::stdin().is_terminal(),
         })
+    }
+
+    /// Starts a progress line; finish it with `ok`, `fail` or `clear`.
+    pub(crate) fn spin(&self, text: &str) -> Spinner {
+        Spinner::start(self.progress, self.style, text)
     }
 
     pub(crate) fn client(&self) -> Result<Client> {
@@ -99,7 +110,13 @@ impl Ctx {
             )));
         }
         let mut stderr = std::io::stderr().lock();
-        let _ = write!(stderr, "{question} [y/N] ");
+        let _ = write!(
+            stderr,
+            "  {} {} {} ",
+            self.style.cyan("?"),
+            self.style.bold(question),
+            self.style.dim("[y/N]")
+        );
         let _ = stderr.flush();
         let mut answer = String::new();
         std::io::stdin().read_line(&mut answer)?;

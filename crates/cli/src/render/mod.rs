@@ -1,8 +1,10 @@
 //! Human output. Renderers return strings so tests can compare them with colors off.
 
 pub(crate) mod founding;
+pub(crate) mod layout;
 pub(crate) mod proposals;
 pub(crate) mod review;
+pub(crate) mod spinner;
 pub(crate) mod status;
 pub(crate) mod style;
 pub(crate) mod table;

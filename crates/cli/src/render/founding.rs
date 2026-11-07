@@ -8,7 +8,7 @@ use crate::{
     types::{FoundingState, FoundingStep, LobbyView},
 };
 
-fn label(id: &str) -> &str {
+pub(crate) fn label(id: &str) -> &str {
     match id {
         "agree" => "Agree on the plan",
         "dkg" => "Distributed key generation",
@@ -38,11 +38,6 @@ pub(crate) fn step_line(step: &FoundingStep, now_ms: u64, style: Style) -> Strin
         let _ = write!(line, "  {}", style.dim(detail));
     }
     line.trim_end().to_owned()
-}
-
-/// `… dkg      Distributed key generation`, printed when a step starts.
-pub(crate) fn started_line(step: &FoundingStep, style: Style) -> String {
-    format!("{} {:<9}{}", style.yellow("…"), step.id, label(&step.id))
 }
 
 /// Every step, then the outcome.

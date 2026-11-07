@@ -1,7 +1,7 @@
 //! `lobby open|inspect|join|start|status|list|leave` and the live founding steps.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::Write as _,
     sync::mpsc,
     time::{Duration, Instant},
@@ -14,7 +14,10 @@ use crate::{
     context::Ctx,
     error::{Error, Kind, Result},
     refs::{self, short_hex},
-    render::{self, founding},
+    render::{
+        self, founding, layout,
+        spinner::{self, Spinner},
+    },
     rpc::Client,
     types::{FoundingState, InvitePreview, LobbyView},
 };
@@ -99,7 +102,7 @@ pub(crate) fn run(ctx: &Ctx, cmd: LobbyCmd) -> Result<()> {
                         ctx.style.status(&l.status),
                     ]);
                 }
-                table.render()
+                table.render_with(ctx.style)
             });
             Ok(())
         }
@@ -120,30 +123,42 @@ fn open(ctx: &Ctx, client: &mut Client, args: &LobbyOpen) -> Result<()> {
             "Without a terminal, pass --members <n> (or --no-wait).",
         ));
     }
+    let spin = ctx.spin("Opening a lobby on your keeper");
     let raw: Value = client.call(
         "lobby.create",
         json!({ "name": name, "threshold": threshold, "viewingThreshold": viewing_threshold }),
     )?;
     let lobby: LobbyView = decode(&raw)?;
+    spin.ok(
+        &format!("Lobby {} open", ctx.style.bold(name)),
+        &format!("spend {threshold} of n · view {viewing_threshold} of n"),
+    );
     let invite = lobby.invite.clone().unwrap_or_default();
     ctx.emit(&raw, || {
+        let style = ctx.style;
         format!(
-            "Lobby {} open  (spend {threshold}, view {viewing_threshold})\n\nInvite (send it to the other members):\n\n  {invite}\n\nThey join with: clave lobby join <invite>\n",
-            ctx.style.bold(name)
+            "\n  {}  {}\n\n{}\n\n  {}  {}\n\n",
+            style.bold("Invite"),
+            style.dim("send it to the other members"),
+            style.cyan(&invite),
+            style.dim("They join with"),
+            style.cyan("clave lobby join <invite>")
         )
     });
     if args.no_wait {
-        ctx.out(&format!(
-            "Start founding later: clave {}lobby start\n",
-            ctx.profile.flag()
+        ctx.out(&layout::next(
+            ctx.style,
+            &[&format!("clave {}lobby start", ctx.profile.flag())],
         ));
         return Ok(());
     }
     wait_for_members(ctx, client, &lobby, args.members)?;
+    let spin = ctx.spin("Sending the plan to every member");
     let started: Value = client.call(
         "lobby.start",
         json!({ "lobby": lobby.lobby, "threshold": threshold, "viewingThreshold": viewing_threshold }),
     )?;
+    spin.ok("Founding started", "");
     if ctx.json {
         Ctx::json_line(&started);
     }
@@ -170,15 +185,16 @@ fn join(ctx: &Ctx, client: &mut Client, invite: &str, alias: Option<&str>) -> Re
         "Join {} hosted by {}?",
         preview.name, preview.host_name
     ))?;
+    let spin = ctx.spin(&format!("Joining {}", preview.name));
     let joined: LobbyView = client.call("lobby.join", json!({ "invite": invite }))?;
-    ctx.note(&format!(
-        "Joined{}. Waiting for the host to start…",
-        match my_index(&joined) {
+    spin.ok(
+        &format!("Joined {}", ctx.style.bold(&preview.name)),
+        &match my_index(&joined) {
             0 => String::new(),
-            index => format!(" as member {index}"),
-        }
-    ));
-    wait_until_started(ctx, client, &joined.lobby)?;
+            index => format!("member {index}"),
+        },
+    );
+    wait_until_started(ctx, client, &joined.lobby, &preview.host_name)?;
     client.call::<Value>("founding.begin", json!({ "lobby": joined.lobby }))?;
     follow_founding(ctx, client, &joined.lobby, alias)
 }
@@ -204,29 +220,40 @@ fn pick(client: &mut Client, prefix: Option<&str>) -> Result<String> {
 }
 
 fn plan(preview: &InvitePreview, ctx: &Ctx) -> String {
-    let mut out = String::new();
-    let _ = writeln!(out, "{:<10}{}", "Vault", ctx.style.bold(&preview.name));
-    let _ = writeln!(out, "{:<10}{}", "Host", preview.host_name);
-    let _ = writeln!(
-        out,
-        "{:<10}{} approvals to spend",
-        "Spend", preview.threshold
-    );
-    let _ = writeln!(
-        out,
-        "{:<10}{} keepers to read (t_v)",
-        "View", preview.viewing_threshold
-    );
+    let style = ctx.style;
     let network = if preview.same_network {
-        format!("{} (matches this daemon)", preview.network)
+        format!("{}  {}", preview.network, style.green("matches your node"))
     } else {
-        ctx.style.red(&format!(
-            "{} (differs from this daemon's node)",
-            preview.network
-        ))
+        style.red(&format!("{}  differs from your node", preview.network))
     };
-    let _ = writeln!(out, "{:<10}{network}", "Network");
-    let _ = writeln!(out, "{:<10}{}", "Lobby", short_hex(&preview.lobby));
+    let mut out = String::from("\n");
+    out.push_str(&layout::title(
+        style,
+        &format!("Invitation to {}", preview.name),
+        &[&format!("from {}", preview.host_name)],
+    ));
+    out.push_str(&layout::fields(
+        style,
+        &[
+            (
+                "Spend",
+                format!(
+                    "{} approvals needed for every transaction",
+                    style.bold(&preview.threshold.to_string())
+                ),
+            ),
+            (
+                "View",
+                format!(
+                    "{} keepers needed to read the vault",
+                    style.bold(&preview.viewing_threshold.to_string())
+                ),
+            ),
+            ("Network", network),
+            ("Lobby", style.dim(&short_hex(&preview.lobby))),
+        ],
+    ));
+    out.push('\n');
     out
 }
 
@@ -250,71 +277,89 @@ fn wait_for_members(
     } else {
         None
     };
-    let prompt = match target {
-        Some(n) => {
-            format!("Waiting for {n} members (Enter starts early, Ctrl-C leaves the lobby open)…")
-        }
-        None => {
-            "Waiting for members; press Enter to start founding (Ctrl-C leaves the lobby open)…"
-                .to_owned()
-        }
+    let hint = if enter.is_some() {
+        " · Enter starts early"
+    } else {
+        ""
     };
-    ctx.note(&prompt);
+    let waiting = |count: usize| match target {
+        Some(n) => format!("Waiting for members  {count}/{n}{hint}"),
+        None => format!("Waiting for members  {count} joined · Enter starts founding"),
+    };
+    let spin = ctx.spin(&waiting(1));
     let mut seen = HashSet::new();
     loop {
         let raw: Value = client.call("lobby.get", json!({ "lobby": lobby.lobby }))?;
         let view: LobbyView = decode(&raw)?;
         for member in &view.members {
-            if seen.insert(member.index) {
-                let you = if member.you { " (you)" } else { "" };
+            if seen.insert(member.index) && !member.you {
                 if ctx.json {
                     Ctx::json_line(
                         &json!({ "type": "joined", "index": member.index, "name": member.name }),
                     );
-                } else {
-                    ctx.out(&format!(
-                        "  {} {} {}{you}\n",
-                        ctx.style.ok(),
-                        member.index,
-                        member.name
-                    ));
                 }
+                spin.println(&spinner::line(
+                    ctx.style,
+                    true,
+                    &format!("{} joined", ctx.style.bold(&member.name)),
+                    &format!("member {}", member.index),
+                    "",
+                ));
             }
         }
         let count = view.members.len();
+        spin.set(&waiting(count));
         if target.is_some_and(|n| count >= n) {
+            spin.clear();
             return Ok(());
         }
         if enter.as_ref().is_some_and(|rx| rx.try_recv().is_ok()) {
             if count >= 2 {
+                spin.clear();
                 return Ok(());
             }
-            ctx.note("At least one other member must join first.");
+            spin.println(
+                &ctx.style
+                    .yellow("  At least one other member must join first."),
+            );
         }
         std::thread::sleep(Duration::from_secs(1));
     }
 }
 
-fn wait_until_started(ctx: &Ctx, client: &mut Client, lobby: &str) -> Result<()> {
+fn wait_until_started(ctx: &Ctx, client: &mut Client, lobby: &str, host: &str) -> Result<()> {
+    let spin = ctx.spin(&format!("Waiting for {host} to start the founding"));
     let mut seen = HashSet::new();
     loop {
         let view: LobbyView = client.call("lobby.get", json!({ "lobby": lobby }))?;
         for member in &view.members {
             if seen.insert(member.index) && !member.you {
-                ctx.note(&format!("  member {} {}", member.index, member.name));
+                spin.println(&format!(
+                    "  {} {}",
+                    ctx.style.dim(&format!("member {}", member.index)),
+                    member.name
+                ));
             }
         }
         match view.status.as_str() {
-            "started" => return Ok(()),
-            "closed" => return Err(Error::new(Kind::NotReady, "The host closed the lobby.")),
+            "started" => {
+                spin.ok(&format!("{host} started the founding"), "");
+                return Ok(());
+            }
+            "closed" => {
+                spin.fail("The host closed the lobby");
+                return Err(Error::new(Kind::NotReady, "The host closed the lobby."));
+            }
             _ => std::thread::sleep(Duration::from_secs(1)),
         }
     }
 }
 
-/// Polls `founding.get` every 500 ms, printing steps as they finish, until done or failed.
+/// Polls `founding.get` every 500 ms: the active step spins, finished steps print with their duration.
 fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&str>) -> Result<()> {
-    let mut printed: HashMap<String, String> = HashMap::new();
+    let style = ctx.style;
+    let mut finished: HashSet<String> = HashSet::new();
+    let mut active: Option<(String, Spinner)> = None;
     let started = Instant::now();
     loop {
         let raw: Value = client.call("founding.get", json!({ "lobby": lobby }))?;
@@ -326,27 +371,58 @@ fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&s
             continue;
         }
         let state: FoundingState = decode(&raw)?;
-        let now_ms = render::now_secs() * 1000;
         for step in &state.steps {
-            if printed.get(&step.id) == Some(&step.status) || step.status == "pending" {
-                continue;
-            }
-            printed.insert(step.id.clone(), step.status.clone());
-            if ctx.json {
-                Ctx::json_line(
-                    &json!({ "type": "step", "step": step.id, "status": step.status, "detail": step.detail }),
-                );
-            } else if step.status == "active" {
-                ctx.note(&founding::started_line(step, ctx.style));
-            } else {
-                ctx.out(&format!(
-                    "{}\n",
-                    founding::step_line(step, now_ms, ctx.style)
-                ));
+            let detail = step.detail.clone().unwrap_or_default();
+            match step.status.as_str() {
+                "done" | "failed" if !finished.contains(&step.id) => {
+                    finished.insert(step.id.clone());
+                    if active.as_ref().is_some_and(|(id, _)| *id == step.id)
+                        && let Some((_, spin)) = active.take()
+                    {
+                        spin.clear();
+                    }
+                    if ctx.json {
+                        Ctx::json_line(
+                            &json!({ "type": "step", "step": step.id, "status": step.status, "detail": step.detail }),
+                        );
+                    }
+                    let took = match (step.started_at, step.finished_at) {
+                        (Some(a), Some(b)) => render::elapsed(b.saturating_sub(a)),
+                        _ => String::new(),
+                    };
+                    ctx.note(&spinner::line(
+                        style,
+                        step.status == "done",
+                        founding::label(&step.id),
+                        &short_detail(&detail),
+                        &took,
+                    ));
+                }
+                "active" if active.as_ref().is_none_or(|(id, _)| *id != step.id) => {
+                    if let Some((_, spin)) = active.take() {
+                        spin.clear();
+                    }
+                    let text = format!(
+                        "{}  {}",
+                        founding::label(&step.id),
+                        style.dim(&short_detail(&detail))
+                    );
+                    active = Some((step.id.clone(), ctx.spin(&text)));
+                }
+                "active" => {
+                    if let Some((_, spin)) = &active {
+                        spin.set(&format!(
+                            "{}  {}",
+                            founding::label(&step.id),
+                            style.dim(&short_detail(&detail))
+                        ));
+                    }
+                }
+                _ => {}
             }
         }
         if let Some(error) = &state.error {
-            ctx.out(&founding::outcome(&state, ctx.style));
+            drop(active.take());
             let mut message = format!("Founding failed at {}: {}", error.step, error.message);
             if !error.blamed.is_empty() {
                 let _ = write!(message, " (blamed: {})", error.blamed.join(", "));
@@ -355,14 +431,40 @@ fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&s
                 .hint("Retry: clave lobby start (host) or clave lobby join (guests)"));
         }
         if state.done {
+            drop(active.take());
             if let (Some(alias), Some(vault)) = (alias, &state.vault) {
                 client.call::<Value>("vault.alias", json!({ "vault": vault, "alias": alias }))?;
             }
             ctx.emit(&json!({ "type": "founded", "vault": state.vault }), || {
-                founding::outcome(&state, ctx.style)
+                let mut out = String::from("\n");
+                out.push_str(&layout::title(style, "Vault founded", &[]));
+                let mut rows = vec![(
+                    "Address",
+                    style.cyan(state.vault.as_deref().unwrap_or_default()),
+                )];
+                if let Some(alias) = alias {
+                    rows.push(("Alias", format!("vaults:{alias}")));
+                }
+                out.push_str(&layout::fields(style, &rows));
+                out.push_str(&layout::next(
+                    style,
+                    &["clave vault show", "clave balance", "clave receive"],
+                ));
+                out
             });
             return Ok(());
         }
         std::thread::sleep(Duration::from_millis(500));
+    }
+}
+
+/// Step details can be long (addresses, transcripts): keep one short line.
+fn short_detail(detail: &str) -> String {
+    if detail.len() > 60 && detail.starts_with("0x") {
+        short_hex(detail)
+    } else if detail.chars().count() > 70 {
+        format!("{}…", detail.chars().take(69).collect::<String>())
+    } else {
+        detail.to_owned()
     }
 }

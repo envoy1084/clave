@@ -13,7 +13,7 @@ use crate::{
     http,
     profile::{self, Profile},
     refs::short_hex,
-    render::{self, proposals::OPEN, status::status as render_status},
+    render::{self, layout, proposals::OPEN, status::status as render_status, style},
     rpc::Client,
     secret,
     types::{ProposalView, Settings, Status},
@@ -38,42 +38,65 @@ pub(crate) fn init(ctx: &Ctx, name: Option<String>, touch_id: bool) -> Result<()
     let info = if let Some(info) = daemon::info(profile) {
         info
     } else {
-        ctx.note("Starting the daemon…");
-        daemon::start(&ctx.home, profile)?
+        let spin = ctx.spin("Starting the daemon");
+        let info = daemon::start(&ctx.home, profile)?;
+        spin.ok("Daemon started", &format!("pid {}", info.pid));
+        info
     };
+    if ctx.interactive && secret::passphrase_file_set().is_none() {
+        ctx.note(&format!(
+            "\n  {}\n  {}\n",
+            ctx.style.bold("Choose a passphrase"),
+            ctx.style
+                .dim("It seals your signing key on this device. Nobody can recover it for you.")
+        ));
+    }
     let passphrase = secret::new_passphrase(ctx)?;
     let mut client = ctx.client()?;
-    ctx.note("Creating the signing key, keeper identity and account…");
+    let spin = ctx.spin("Creating your signing key, keeper identity and Aztec account");
     let status: Value = client.call(
         "profile.create",
         json!({ "name": name, "nodeUrl": node_url, "passphrase": passphrase.as_str() }),
     )?;
+    spin.ok("Keys and account created", "");
     if touch_id {
         match secret::enable_touch_id(ctx, &mut client, Some(passphrase.as_str())) {
-            Ok(()) => ctx.note("Touch ID enabled."),
-            Err(e) => ctx.note(&format!("Touch ID not enabled: {e}")),
+            Ok(()) => ctx.note(&format!("{} Touch ID enabled", ctx.style.ok())),
+            Err(e) => ctx.note(&format!("{} Touch ID not enabled: {e}", ctx.style.fail())),
         }
     }
     drop(passphrase);
     let typed: Status = serde_json::from_value(status.clone()).unwrap_or_default();
     ctx.emit(&status, || {
         let style = ctx.style;
-        let mut out = format!("{} Profile {} created\n\n", style.ok(), style.bold(&profile.name));
+        let mut out = String::from("\n");
+        out.push_str(&layout::title(
+            style,
+            &format!("Welcome, {name}"),
+            &["profile created"],
+        ));
+        let mut rows = vec![("Profile", profile.name.clone())];
         if let Some(p) = &typed.profile {
-            let _ = writeln!(out, "  {:<12}{}", "Name", p.name);
-            let _ = writeln!(out, "  {:<12}{}", "Signer key", short_hex(&p.signer_key.x));
+            rows.push(("Signer key", style.cyan(&short_hex(&p.signer_key.x))));
             if !p.account.is_empty() {
-                let _ = writeln!(out, "  {:<12}{}", "Account", p.account);
+                rows.push(("Account", style.cyan(&p.account)));
             }
         }
-        let _ = writeln!(out, "  {:<12}{}", "Node", typed.settings.node_url);
-        let _ = writeln!(out, "  {:<12}running (pid {})", "Daemon", info.pid);
-        let _ = writeln!(out, "  {:<12}{}", "Directory", profile.dir.display());
-        let _ = write!(
-            out,
-            "\nNext: clave {f}lobby open --name <vault> -k 2 --tv 2, or clave {f}lobby join <invite>\n",
-            f = profile.flag()
-        );
+        rows.push(("Node", typed.settings.node_url.clone()));
+        rows.push((
+            "Daemon",
+            format!("running {}", style.dim(&format!("pid {}", info.pid))),
+        ));
+        rows.push(("Directory", style.dim(&profile.dir.display().to_string())));
+        out.push_str(&layout::fields(style, &rows));
+        let f = profile.flag();
+        out.push_str(&layout::next(
+            style,
+            &[
+                &format!("clave {f}lobby open --name <vault> -k 2 --tv 2"),
+                &format!("clave {f}lobby join <invite>"),
+            ],
+        ));
         out
     });
     Ok(())
@@ -233,9 +256,14 @@ pub(crate) fn doctor(ctx: &Ctx) -> Result<()> {
         let mut out = String::new();
         for c in &checks {
             let mark = if c.ok { style.ok() } else { style.fail() };
-            let _ = writeln!(out, "{mark} {:<11}{}", c.name, c.detail);
+            let _ = writeln!(
+                out,
+                "{mark} {}{}",
+                style::pad(&style.bold(c.name), 12),
+                c.detail
+            );
             if let Some(fix) = &c.fix {
-                let _ = writeln!(out, "  {:<11}{}", "", style.dim(&format!("fix: {fix}")));
+                let _ = writeln!(out, "  {}{} {fix}", " ".repeat(12), style.yellow("→"));
             }
         }
         out

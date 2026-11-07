@@ -10,15 +10,20 @@ use crate::{
     context::Ctx,
     error::{Error, Result},
     refs::{self, short_hex},
-    render::table::Table,
-    types::{TokenBalance, TokenInfo},
+    render::{layout, table::Table},
+    types::{TokenBalance, TokenInfo, VaultSummary},
     units::format_amount,
 };
 
 pub(crate) fn balance(ctx: &Ctx, token: Option<&str>) -> Result<()> {
     let mut client = ctx.client()?;
     let vault = ctx.vault(&mut client)?;
+    let spin = ctx.spin(&format!(
+        "Decrypting the vault's notes with {} of {} keepers",
+        vault.viewing_threshold, vault.members
+    ));
     let raw: Value = client.call("tokens.list", json!({ "vault": vault.address }))?;
+    spin.clear();
     let mut balances: Vec<TokenBalance> = serde_json::from_value(raw.clone()).unwrap_or_default();
     let mut value = raw;
     if let Some(reference) = token {
@@ -33,30 +38,61 @@ pub(crate) fn balance(ctx: &Ctx, token: Option<&str>) -> Result<()> {
         }));
     }
     ctx.emit(&value, || {
-        let mut out = format!("{}  {}\n\n", ctx.style.bold(&vault.name), short_hex(&vault.address));
+        let style = ctx.style;
+        let mut out = vault_title(ctx, &vault);
         if balances.is_empty() {
-            out.push_str("No tracked tokens. Track one: clave token add <address> (local network: clave token deploy-test)\n");
+            let _ = write!(out, "\n  {}\n", style.dim("No tracked tokens yet."));
+            out.push_str(&layout::next(
+                style,
+                &["clave token add <address>", "clave token deploy-test"],
+            ));
             return out;
         }
-        let mut table = Table::new(&["TOKEN", "BALANCE", "ADDRESS"]);
+        let mut table = Table::new(&["TOKEN", "BALANCE", "", ""]);
         for b in &balances {
             let amount = match (&b.balance, &b.error) {
-                (Some(units), _) => format_amount(units, b.token.decimals),
-                (None, Some(error)) => ctx.style.red(error),
+                (Some(units), _) => style.bold(&format_amount(units, b.token.decimals)),
+                (None, Some(error)) => style.red(error),
                 (None, None) => "–".to_owned(),
             };
-            table.row(vec![b.token.symbol.clone(), amount, short_hex(&b.token.address)]);
+            table.row(vec![
+                style.bold(&b.token.symbol),
+                amount,
+                style.dim(&b.token.name),
+                style.dim(&short_hex(&b.token.address)),
+            ]);
         }
-        out.push_str(&table.render());
+        out.push('\n');
+        out.push_str(&table.render_with(style));
         out
     });
     Ok(())
 }
 
-fn token_line(token: &TokenInfo) -> String {
-    format!(
-        "{}  {}  ({}, {} decimals)\n",
-        token.symbol, token.address, token.name, token.decimals
+/// `Treasury  · 0x2204…3fc0 · 2-of-2 · view 2`.
+pub(crate) fn vault_title(ctx: &Ctx, vault: &VaultSummary) -> String {
+    layout::title(
+        ctx.style,
+        &vault.name,
+        &[
+            &short_hex(&vault.address),
+            &format!("{}-of-{}", vault.threshold, vault.members),
+            &format!("view {}", vault.viewing_threshold),
+        ],
+    )
+}
+
+fn token_fields(ctx: &Ctx, token: &TokenInfo) -> String {
+    layout::fields(
+        ctx.style,
+        &[
+            (
+                "Token",
+                format!("{}  {}", ctx.style.bold(&token.symbol), token.name),
+            ),
+            ("Address", ctx.style.cyan(&token.address)),
+            ("Decimals", token.decimals.to_string()),
+        ],
     )
 }
 
@@ -70,14 +106,17 @@ pub(crate) fn token(ctx: &Ctx, cmd: TokenCmd) -> Result<()> {
                     "\"{address}\" is not an address (0x and 64 hex digits)"
                 )));
             }
+            let spin = ctx.spin("Registering the token contract in your PXE");
             let raw: Value = client.call(
                 "tokens.add",
                 json!({ "vault": vault.address, "token": address }),
             )?;
             let token: TokenInfo = serde_json::from_value(raw.clone()).unwrap_or_default();
-            ctx.emit(&raw, || {
-                format!("{} Tracking {}", ctx.style.ok(), token_line(&token))
-            });
+            spin.ok(
+                &format!("Tracking {}", ctx.style.bold(&token.symbol)),
+                &token.name,
+            );
+            ctx.emit(&raw, String::new);
         }
         TokenCmd::List => {
             let raw: Value = client.call("tokens.list", json!({ "vault": vault.address }))?;
@@ -91,7 +130,7 @@ pub(crate) fn token(ctx: &Ctx, cmd: TokenCmd) -> Result<()> {
                 ),
                 || {
                     if tokens.is_empty() {
-                        return "No tracked tokens.\n".to_owned();
+                        return format!("  {}\n", ctx.style.dim("No tracked tokens."));
                     }
                     let mut table = Table::new(&["SYMBOL", "NAME", "DECIMALS", "ADDRESS"]);
                     for t in tokens {
@@ -102,17 +141,22 @@ pub(crate) fn token(ctx: &Ctx, cmd: TokenCmd) -> Result<()> {
                             t.address.clone(),
                         ]);
                     }
-                    table.render()
+                    table.render_with(ctx.style)
                 },
             );
         }
         TokenCmd::DeployTest => {
-            ctx.note("Deploying a test token and minting to the vault (local network only)…");
+            let spin = ctx.spin("Deploying a test token and minting 10,000 privately to the vault");
             let raw: Value = client.call("tokens.deployTest", json!({ "vault": vault.address }))?;
             let token: TokenInfo = serde_json::from_value(raw.clone()).unwrap_or_default();
-            ctx.emit(&raw, || {
-                format!("{} Deployed {}", ctx.style.ok(), token_line(&token))
-            });
+            spin.ok(
+                &format!(
+                    "Deployed {} and minted to the vault",
+                    ctx.style.bold(&token.symbol)
+                ),
+                "local network",
+            );
+            ctx.emit(&raw, || format!("\n{}", token_fields(ctx, &token)));
         }
     }
     Ok(())
@@ -132,16 +176,22 @@ pub(crate) fn receive(ctx: &Ctx, show_qr: bool) -> Result<()> {
         Ctx::json_line(&value);
         return Ok(());
     }
-    let mut out = format!("{}\n", vault.address);
+    let style = ctx.style;
+    let mut out = vault_title(ctx, &vault);
+    let _ = write!(out, "\n  {}\n", style.cyan(&vault.address));
     if show_qr {
         out.push('\n');
-        out.push_str(&qr(&vault.address)?);
-        out.push('\n');
+        for line in qr(&vault.address)?.lines() {
+            let _ = writeln!(out, "  {line}");
+        }
     }
     if !ctx.quiet {
         let _ = write!(
             out,
-            "\nSend private notes to this address. Balances need t_v keepers online: clave balance\n"
+            "\n  {}\n",
+            style.dim(
+                "Send private notes to this address. Only the members can read them, together."
+            )
         );
     }
     ctx.out(&out);

@@ -38,6 +38,10 @@ impl Style {
         self.paint("33", text)
     }
 
+    pub(crate) fn cyan(self, text: &str) -> String {
+        self.paint("36", text)
+    }
+
     pub(crate) fn ok(self) -> String {
         self.green("✓")
     }

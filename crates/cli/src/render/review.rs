@@ -2,8 +2,12 @@
 
 use std::fmt::Write as _;
 
-use super::{Style, utc};
-use crate::{refs::short_hex, types::Review, units::group_thousands};
+use super::{Style, layout, proposals::call_line, utc};
+use crate::{
+    refs::{short_hex, short_id},
+    types::Review,
+    units::group_thousands,
+};
 
 /// What the member is about to sign.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -12,6 +16,9 @@ pub(crate) enum Verb {
     Reject,
 }
 
+/// Label column of the screen, shared by every group.
+const LABEL: usize = 13;
+
 /// The full screen, ending before the confirmation prompt.
 pub(crate) fn screen(review: &Review, verb: Verb, style: Style) -> String {
     let p = &review.proposal;
@@ -19,110 +26,161 @@ pub(crate) fn screen(review: &Review, verb: Verb, style: Style) -> String {
         Verb::Approve => "Approve",
         Verb::Reject => "Reject",
     };
-    let mut out = format!(
-        "{} proposal {}… on {} ({})\n\n",
-        style.bold(title),
-        p.id.strip_prefix("0x")
-            .unwrap_or(&p.id)
-            .chars()
-            .take(6)
-            .collect::<String>(),
-        review.vault_name,
-        short_hex(&p.vault)
+    let mut out = layout::title(
+        style,
+        &format!("{title} proposal {}", short_id(&p.id)),
+        &[&review.vault_name, &short_hex(&p.vault)],
     );
-    let mut field = |label: &str, value: &str| {
-        let _ = writeln!(out, "  {label:<14}{value}");
-    };
-    field("Action", &review.action);
-    if let Some(r) = &review.recipient {
-        let value = match (&r.label, r.source.as_deref()) {
-            (Some(label), Some(source)) => {
-                format!("{label}  {}  ({source})", short_hex(&r.address))
-            }
-            (Some(label), None) => format!("{label}  {}", short_hex(&r.address)),
-            (None, _) => format!("{}  (not in address book)", r.address),
-        };
-        field("To", &value);
-    }
-    if let Some(token) = &p.token {
-        field(
-            "Token",
-            &format!(
-                "{}  {}  ({}, {} decimals)",
-                token.symbol,
-                short_hex(&token.address),
-                token.name,
-                token.decimals
-            ),
-        );
-    }
-    for (i, call) in p.calls.iter().enumerate() {
-        let to = call.to_label.clone().unwrap_or_else(|| short_hex(&call.to));
-        let label = if i == 0 { "Calls" } else { "" };
-        field(
-            label,
-            &format!("{i}  {to}.{}({})", call.function, call.args.join(", ")),
-        );
-    }
-    field("Fee", &p.fee_method);
-    let mut proposer = format!("{} (member {})", p.proposer.name, p.proposer.index);
-    if let Some(memo) = p.memo() {
-        let _ = write!(proposer, "    Memo  \"{memo}\"  (proposer's text)");
-    }
-    field("Proposed by", &proposer);
-    field(
-        "Deadline",
-        &format!("{} (block timestamp)", utc(p.expires_at)),
-    );
-    let config = if p.config_version == p.current_config_version {
-        format!("v{} (current)", p.config_version)
-    } else {
-        format!(
-            "v{} (vault is at v{})",
-            p.config_version, p.current_config_version
-        )
-    };
-    field("Config", &config);
+
+    out.push('\n');
+    out.push_str(&layout::heading(style, "What"));
+    out.push_str(&layout::fields_at(style, LABEL, &what(review, style)));
+
+    out.push('\n');
+    out.push_str(&layout::heading(
+        style,
+        "Transaction, rebuilt on this device",
+    ));
+    let calls = p
+        .calls
+        .iter()
+        .enumerate()
+        .map(|(i, call)| format!("{}  {}", style.dim(&i.to_string()), call_line(call, style)))
+        .collect::<Vec<_>>()
+        .join("\n");
     let simulation = match (
         &review.simulation.ok,
         &review.simulation.gas,
         &review.simulation.error,
     ) {
         (true, Some(gas), _) => format!(
-            "ok · gas l2 {} · da {}",
-            group_thousands(&gas.l2.to_string()),
-            group_thousands(&gas.da.to_string())
+            "{} ok  {}",
+            style.ok(),
+            style.dim(&format!(
+                "gas l2 {} · da {}",
+                group_thousands(&gas.l2.to_string()),
+                group_thousands(&gas.da.to_string())
+            ))
         ),
-        (true, None, _) => "ok".to_owned(),
-        (false, _, error) => format!("failed: {}", error.as_deref().unwrap_or("unknown error")),
+        (true, None, _) => format!("{} ok", style.ok()),
+        (false, _, error) => format!(
+            "{} {}",
+            style.fail(),
+            style.red(error.as_deref().unwrap_or("failed"))
+        ),
     };
-    field("Simulation", &simulation);
-    out.push('\n');
-    checks(&mut out, review, verb, style);
-    out
-}
+    let config = if p.config_version == p.current_config_version {
+        format!("v{}  {}", p.config_version, style.dim("current"))
+    } else {
+        style.red(&format!(
+            "v{}  vault is at v{}",
+            p.config_version, p.current_config_version
+        ))
+    };
+    out.push_str(&layout::fields_at(
+        style,
+        LABEL,
+        &[
+            ("Calls", calls),
+            ("Fee", p.fee_method.clone()),
+            ("Simulation", simulation),
+            (
+                "Deadline",
+                format!("{}  {}", utc(p.expires_at), style.dim("block timestamp")),
+            ),
+            ("Config", config),
+        ],
+    ));
 
-/// The checks the daemon ran and the exact message the signature covers.
-fn checks(out: &mut String, review: &Review, verb: Verb, style: Style) {
+    out.push('\n');
     let c = &review.checks;
     let mark = |ok: bool| if ok { style.ok() } else { style.fail() };
-    let _ = writeln!(
-        out,
-        "  {:<14}{} payload rebuilt, outer hash matches   {} config version current   {} not expired",
-        "Checks",
+    let mut checks = format!(
+        "{} payload rebuilt, outer hash matches\n{} config version current\n{} not expired",
         mark(c.rebuilt),
         mark(c.config_current),
         mark(c.not_expired)
     );
     if let Some(failure) = &c.failure {
-        let _ = writeln!(out, "  {:<14}{}", "", style.red(failure));
+        let _ = write!(checks, "\n{}", style.red(failure));
     }
     let signs = match verb {
         Verb::Approve => &review.signs,
         Verb::Reject => &review.rejects,
     };
-    let _ = writeln!(out, "  {:<14}{}", "Signs", signs.formula);
-    let _ = writeln!(out, "  {:<14}= {}", "", signs.message);
+    out.push_str(&layout::fields_at(
+        style,
+        LABEL,
+        &[
+            ("Checks", checks),
+            (
+                "Signs",
+                format!(
+                    "{}\n{}",
+                    signs.formula,
+                    style.dim(&format!("= {}", signs.message))
+                ),
+            ),
+        ],
+    ));
+    out
+}
+
+/// The "What" group: action, recipient, token, memo, proposer.
+fn what(review: &Review, style: Style) -> Vec<(&'static str, String)> {
+    let p = &review.proposal;
+    let mut rows = vec![("Action", style.bold(&review.action))];
+    if let Some(r) = &review.recipient {
+        let value = match (&r.label, r.source.as_deref()) {
+            (Some(label), Some(source)) => format!(
+                "{}  {}  {}",
+                style.bold(label),
+                style.cyan(&short_hex(&r.address)),
+                style.dim(source)
+            ),
+            (Some(label), None) => format!(
+                "{}  {}",
+                style.bold(label),
+                style.cyan(&short_hex(&r.address))
+            ),
+            (None, _) => format!(
+                "{}  {}",
+                style.cyan(&r.address),
+                style.yellow("not in address book")
+            ),
+        };
+        rows.push(("To", value));
+    }
+    if let Some(token) = &p.token {
+        rows.push((
+            "Token",
+            format!(
+                "{}  {}",
+                style.bold(&token.symbol),
+                style.dim(&format!(
+                    "{} · {} decimals · {}",
+                    token.name,
+                    token.decimals,
+                    short_hex(&token.address)
+                ))
+            ),
+        ));
+    }
+    if let Some(memo) = p.memo() {
+        rows.push((
+            "Memo",
+            format!("\"{memo}\"  {}", style.dim("proposer's text")),
+        ));
+    }
+    rows.push((
+        "Proposed by",
+        format!(
+            "{}  {}",
+            p.proposer.name,
+            style.dim(&format!("member {}", p.proposer.index))
+        ),
+    ));
+    rows
 }
 
 /// `Approve as cai (member 3)? [y/N] `.
@@ -207,22 +265,28 @@ mod tests {
         assert_eq!(
             screen(&review(), Verb::Approve, Style::PLAIN),
             "\
-Approve proposal 7f3a1c… on Ops (0x2874…2874)
+Approve proposal 7f3a1c  Ops · 0x2874…2874
 
-  Action        transfer 25 TTT (25000000000000000000 base units)
-  To            bea  0x3029…3029  (address book)
-  Token         TTT  0x0f9d…0f9d  (Clave Test Token, 18 decimals)
-  Calls         0  SponsoredFPC.sponsor_unconditionally()
-                1  Token.transfer(to, amount)
-  Fee           Sponsored FPC
-  Proposed by   ana (member 1)    Memo  \"Q3 retainer\"  (proposer's text)
-  Deadline      2026-11-14 01:16 UTC (block timestamp)
-  Config        v0 (current)
-  Simulation    ok · gas l2 41,203 · da 1,536
+  What
+  Action       transfer 25 TTT (25000000000000000000 base units)
+  To           bea  0x3029…3029  address book
+  Token        TTT  Clave Test Token · 18 decimals · 0x0f9d…0f9d
+  Memo         \"Q3 retainer\"  proposer's text
+  Proposed by  ana  member 1
 
-  Checks        ✓ payload rebuilt, outer hash matches   ✓ config version current   ✓ not expired
-  Signs         Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])
-                = 0x00e28886
+  Transaction, rebuilt on this device
+  Calls        0  SponsoredFPC.sponsor_unconditionally()
+               1  Token.transfer(to, amount)
+  Fee          Sponsored FPC
+  Simulation   ✓ ok  gas l2 41,203 · da 1,536
+  Deadline     2026-11-14 01:16 UTC  block timestamp
+  Config       v0  current
+
+  Checks       ✓ payload rebuilt, outer hash matches
+               ✓ config version current
+               ✓ not expired
+  Signs        Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])
+               = 0x00e28886
 "
         );
         assert_eq!(
@@ -245,7 +309,7 @@ Approve proposal 7f3a1c… on Ops (0x2874…2874)
         assert!(screen.starts_with("Reject proposal"));
         assert!(screen.contains("✗ config version current"));
         assert!(screen.contains("config version changed"));
-        assert!(screen.contains("(not in address book)"));
+        assert!(screen.contains("not in address book"));
         // A rejection shows the rejection message it signs, never the approval message.
         assert!(screen.contains("clave.rejection.v0"));
         assert!(!screen.contains("clave.approval.v0"));

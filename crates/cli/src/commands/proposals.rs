@@ -1,6 +1,6 @@
 //! `proposals`, `proposal show`, `approve`, `reject`, `execute`, `cancel`, `watch`, `activity`, `tx`.
 
-use std::{fmt::Write as _, time::Instant};
+use std::fmt::Write as _;
 
 use serde_json::{Value, json};
 
@@ -9,9 +9,10 @@ use crate::{
     error::{Error, Result},
     refs::{self, short_hex, short_id},
     render::{
-        self,
+        self, layout,
         proposals::{OPEN, describe, show as render_show, table, vault_header},
         review::{Verb, question, screen},
+        spinner::{self, Spinner},
         table::Table,
     },
     rpc::Client,
@@ -133,15 +134,25 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
         Vote::Approve => Verb::Approve,
         Vote::Reject(_) => Verb::Reject,
     };
+    let spin = ctx.spin("Rebuilding the transaction on this device and simulating it");
     let raw: Value = client.call(
         "proposals.review",
         json!({ "vault": vault.address, "id": id }),
     )?;
     let review: Review =
         serde_json::from_value(raw.clone()).map_err(|e| Error::failed(e.to_string()))?;
+    if review.checks.passed() {
+        spin.ok(
+            "Rebuilt and checked",
+            "nothing is taken from the proposer's description",
+        );
+    } else {
+        spin.fail("Rebuilt, and the checks failed");
+    }
     if ctx.json {
         Ctx::json_line(&json!({ "review": raw }));
     } else {
+        ctx.out("\n");
         ctx.out(&screen(&review, verb, ctx.style));
         ctx.out("\n");
     }
@@ -183,33 +194,62 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
             "proposals.reject"
         }
     };
+    let spin = ctx.spin(match vote {
+        Vote::Approve => "Signing the approval and replicating it to the members' keepers",
+        Vote::Reject(_) => "Signing the rejection and replicating it to the members' keepers",
+    });
     let result: Value = client.call(method, params)?;
     drop(secret);
     let proposal: ProposalView = serde_json::from_value(result.clone()).unwrap_or_default();
     let short = short_id(&proposal.id);
-    ctx.emit(&result, || {
-        let (have, k) = (proposal.valid_approvals(), proposal.threshold);
-        let next = match proposal.status.as_str() {
-            "ready" => format!("ready to execute (clave execute {short})"),
-            "blocked" => format!("blocked by rejections; cancel it: clave cancel {short}"),
-            other => other.to_owned(),
-        };
-        let what = if matches!(vote, Vote::Approve) {
-            "Signed and stored"
+    let (have, k) = (proposal.valid_approvals(), proposal.threshold);
+    let state = match proposal.status.as_str() {
+        "ready" => ctx.style.green("ready to execute"),
+        "blocked" => ctx.style.red("blocked by rejections"),
+        other => ctx.style.status(other),
+    };
+    spin.ok(
+        if matches!(vote, Vote::Approve) {
+            "Approved"
         } else {
-            "Rejection signed and stored"
+            "Rejected"
+        },
+        &format!("{have} of {k} approvals"),
+    );
+    ctx.emit(&result, || {
+        let next = match proposal.status.as_str() {
+            "ready" => format!("clave execute {short}"),
+            "blocked" => format!("clave cancel {short}"),
+            _ => "clave proposals".to_owned(),
         };
-        format!("{} {what}. Approvals {have}/{k}: {next}\n", ctx.style.ok())
+        let mut out = String::from("\n");
+        out.push_str(&layout::fields(
+            ctx.style,
+            &[
+                ("Proposal", format!("{}  {state}", ctx.style.bold(&short))),
+                ("Approvals", format!("{have} of {k}")),
+            ],
+        ));
+        out.push_str(&layout::next(ctx.style, &[&next]));
+        out
     });
     Ok(())
 }
 
 fn phase_label(phase: &str) -> &str {
     match phase {
-        "rebuilding" => "Rebuild the transaction and verify approvals",
-        "proving" => "Prove",
-        "sending" => "Send",
-        "mined" => "Mined",
+        "rebuilding" => "Rebuilding the transaction and verifying every approval",
+        "proving" => "Proving the transaction on this device",
+        "sending" => "Sending to the network",
+        other => other,
+    }
+}
+
+fn phase_done(phase: &str) -> &str {
+    match phase {
+        "rebuilding" => "Rebuilt, approvals verified",
+        "proving" => "Proved",
+        "sending" => "Sent",
         other => other,
     }
 }
@@ -218,19 +258,11 @@ pub(crate) fn execute(ctx: &Ctx, prefix: &str) -> Result<()> {
     let mut client = ctx.client()?;
     let (vault, id) = resolve(ctx, &mut client, prefix)?;
     client.subscribe()?;
-    let mut current: Option<(String, Instant)> = None;
     let style = ctx.style;
-    let finish = |current: &mut Option<(String, Instant)>| {
-        if let Some((phase, start)) = current.take() {
-            let took =
-                render::elapsed(u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX));
-            ctx.out(&format!(
-                "{} {:<46}{took:>7}\n",
-                style.ok(),
-                phase_label(&phase)
-            ));
-        }
-    };
+    let mut current: Option<(String, Spinner)> = Some((
+        "start".to_owned(),
+        ctx.spin("Handing the proposal to the daemon"),
+    ));
     let result: Result<Value> = client.call_with(
         "proposals.execute",
         json!({ "vault": vault.address, "id": id }),
@@ -258,39 +290,67 @@ pub(crate) fn execute(ctx: &Ctx, prefix: &str) -> Result<()> {
             if current.as_ref().is_some_and(|(p, _)| *p == phase) {
                 return;
             }
+            if let Some((previous, spin)) = current.take() {
+                match previous.as_str() {
+                    "start" => spin.clear(),
+                    _ => spin.ok(phase_done(&previous), ""),
+                }
+            }
             match phase.as_str() {
-                "failed" => current = None,
+                "failed" => {}
                 "mined" => {
-                    finish(&mut current);
-                    let hash = execution
+                    let tx_hash = execution
                         .get("txHash")
                         .and_then(Value::as_str)
                         .unwrap_or_default();
-                    ctx.out(&format!("{} Mined {hash}\n", style.ok()));
+                    ctx.note(&spinner::line(
+                        style,
+                        true,
+                        "Mined",
+                        &short_hex(tx_hash),
+                        "",
+                    ));
                 }
-                _ => {
-                    finish(&mut current);
-                    ctx.note(&format!("… {}", phase_label(&phase)));
-                    current = Some((phase, Instant::now()));
-                }
+                _ => current = Some((phase.clone(), ctx.spin(phase_label(&phase)))),
             }
         },
     );
+    if let Some((_, spin)) = current.take() {
+        spin.clear();
+    }
     let raw = result?;
-    finish(&mut current);
     let proposal: ProposalView = serde_json::from_value(raw.clone()).unwrap_or_default();
-    ctx.emit(&raw, || match &proposal.execution {
-        Some(execution) => format!(
-            "{} Executed {} · tx {} · receipt replicated to the members' keepers\n",
-            style.ok(),
-            short_id(&proposal.id),
-            execution.tx_hash
-        ),
-        None => format!(
-            "Proposal {} is {}\n",
-            short_id(&proposal.id),
-            proposal.status
-        ),
+    ctx.emit(&raw, || {
+        let mut out = String::from("\n");
+        match &proposal.execution {
+            Some(execution) => {
+                out.push_str(&layout::title(
+                    style,
+                    "Executed",
+                    &[
+                        &short_id(&proposal.id),
+                        "receipt replicated to every member",
+                    ],
+                ));
+                out.push_str(&layout::fields(
+                    style,
+                    &[
+                        ("Action", style.bold(&describe(&proposal, &[]))),
+                        ("Tx", style.cyan(&execution.tx_hash)),
+                    ],
+                ));
+                out.push_str(&layout::next(style, &["clave balance", "clave activity"]));
+            }
+            None => {
+                let _ = writeln!(
+                    out,
+                    "  Proposal {} is {}",
+                    short_id(&proposal.id),
+                    style.status(&proposal.status)
+                );
+            }
+        }
+        out
     });
     Ok(())
 }
@@ -303,19 +363,28 @@ pub(crate) fn cancel(ctx: &Ctx, prefix: &str) -> Result<()> {
         short_id(&id),
         vault.threshold
     ))?;
+    let spin = ctx.spin("Building the nonce burn and storing it as a proposal");
     let raw: Value = client.call(
         "proposals.cancel",
         json!({ "vault": vault.address, "id": id }),
     )?;
     let proposal: ProposalView = serde_json::from_value(raw.clone()).unwrap_or_default();
+    let short = short_id(&proposal.id);
+    spin.ok(
+        &format!("Cancel proposal {} created", ctx.style.bold(&short)),
+        &format!("burns the nonce of {}", short_id(&id)),
+    );
     ctx.emit(&raw, || {
-        let short = short_id(&proposal.id);
-        format!(
-            "{} Proposed cancel {short} of {}. It needs {} approvals: clave approve {short}\n",
-            ctx.style.ok(),
-            short_id(&id),
-            proposal.threshold
-        )
+        let mut out = String::from("\n");
+        out.push_str(&layout::fields(
+            ctx.style,
+            &[("Approvals", format!("0 of {}", proposal.threshold))],
+        ));
+        out.push_str(&layout::next(
+            ctx.style,
+            &[&format!("clave approve {short}")],
+        ));
+        out
     });
     Ok(())
 }
@@ -483,7 +552,7 @@ pub(crate) fn activity(ctx: &Ctx, limit: usize) -> Result<()> {
         };
         table.row(vec![when, kind, detail, tx]);
     }
-    ctx.out(&table.render());
+    ctx.out(&table.render_with(ctx.style));
     Ok(())
 }
 

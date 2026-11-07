@@ -76,6 +76,11 @@ pub(crate) fn source(s: &Situation) -> Result<Source> {
     Err(error)
 }
 
+/// `CLAVE_PASSPHRASE_FILE`, when set.
+pub(crate) fn passphrase_file_set() -> Option<PathBuf> {
+    passphrase_file()
+}
+
 fn passphrase_file() -> Option<PathBuf> {
     std::env::var_os("CLAVE_PASSPHRASE_FILE")
         .filter(|v| !v.is_empty())
@@ -104,7 +109,9 @@ fn read_file(path: &PathBuf) -> Result<Zeroizing<String>> {
 }
 
 fn prompt(label: &str) -> Result<Zeroizing<String>> {
-    rpassword::prompt_password(label)
+    let color = std::env::var_os("NO_COLOR").is_none();
+    let arrow = if color { "\x1b[36m›\x1b[0m" } else { "›" };
+    rpassword::prompt_password(format!("  {label} {arrow} "))
         .map(Zeroizing::new)
         .map_err(|e| Error::failed(format!("could not read the passphrase: {e}")))
 }
@@ -113,7 +120,7 @@ fn prompt(label: &str) -> Result<Zeroizing<String>> {
 pub(crate) fn passphrase(ctx: &Ctx) -> Result<Zeroizing<String>> {
     match passphrase_file() {
         Some(file) => read_file(&file),
-        None if ctx.interactive => prompt("Passphrase: "),
+        None if ctx.interactive => prompt("Passphrase"),
         None => Err(Error::usage(
             "A passphrase is needed: set CLAVE_PASSPHRASE_FILE (prompts are off)",
         )),
@@ -125,8 +132,8 @@ pub(crate) fn new_passphrase(ctx: &Ctx) -> Result<Zeroizing<String>> {
     let passphrase = match passphrase_file() {
         Some(file) => read_file(&file)?,
         None if ctx.interactive => {
-            let first = prompt("New passphrase: ")?;
-            let second = prompt("Repeat passphrase: ")?;
+            let first = prompt("Passphrase")?;
+            let second = prompt("Repeat it")?;
             if first != second {
                 return Err(Error::usage("The passphrases do not match."));
             }
@@ -171,12 +178,12 @@ fn secret_from(ctx: &Ctx, source: Source) -> Result<Option<Secret>> {
     match source {
         Source::Unlocked => Ok(None),
         Source::PassphraseFile(file) => read_file(&file).map(|p| Some(Secret::Passphrase(p))),
-        Source::Prompt => prompt("Passphrase: ").map(|p| Some(Secret::Passphrase(p))),
+        Source::Prompt => prompt("Passphrase").map(|p| Some(Secret::Passphrase(p))),
         Source::TouchId => match read_touch_id(ctx) {
             Ok(key) => Ok(Some(Secret::Key(key))),
             Err(error) => {
                 ctx.note(&format!("{error}; using the passphrase instead"));
-                prompt("Passphrase: ").map(|p| Some(Secret::Passphrase(p)))
+                prompt("Passphrase").map(|p| Some(Secret::Passphrase(p)))
             }
         },
     }

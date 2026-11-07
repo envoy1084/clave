@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use serde_json::Value;
 
-use super::{Style, relative, table::Table, utc};
+use super::{Style, layout, relative, table::Table, utc};
 use crate::{
     refs::{short_hex, short_id},
     types::{Contact, ProposalView, VaultSummary, Vote},
@@ -21,22 +21,17 @@ pub(crate) fn vault_header(
     block: Option<u64>,
     style: Style,
 ) -> String {
-    let mut line = format!(
-        "{}  {}   spend {}/{}  view {}/{}",
-        style.bold(&vault.name),
-        short_hex(&vault.address),
-        vault.threshold,
-        vault.members,
-        vault.viewing_threshold,
-        vault.members
-    );
-    if let Some(v) = config_version {
-        let _ = write!(line, "  config v{v}");
-    }
-    if let Some(block) = block {
-        let _ = write!(line, "   block {block}");
-    }
-    line
+    let spend = format!("{}-of-{}", vault.threshold, vault.members);
+    let view = format!("view {}", vault.viewing_threshold);
+    let config = config_version
+        .map(|v| format!("config v{v}"))
+        .unwrap_or_default();
+    let block = block.map(|b| format!("block {b}")).unwrap_or_default();
+    layout::title(
+        style,
+        &vault.name,
+        &[&short_hex(&vault.address), &spend, &view, &config, &block],
+    )
 }
 
 /// One line describing what a proposal does, from its intent.
@@ -91,6 +86,27 @@ pub(crate) fn recipient(address: &str, contacts: &[Contact]) -> String {
     }
 }
 
+/// `TTT.transfer(0x0793…8897, 100000000000000000000)`: addresses shortened, small field values in decimal.
+pub(crate) fn call_line(call: &crate::types::DecodedCall, style: Style) -> String {
+    let to = call.to_label.clone().unwrap_or_else(|| short_hex(&call.to));
+    let args: Vec<String> = call.args.iter().map(|a| arg(a)).collect();
+    format!("{}.{}({})", to, style.bold(&call.function), args.join(", "))
+}
+
+/// A field argument: decimal when it fits in 128 bits, else a short hex.
+fn arg(value: &str) -> String {
+    let Some(hex) = value.strip_prefix("0x") else {
+        return value.to_owned();
+    };
+    let digits = hex.trim_start_matches('0');
+    if digits.len() <= 32
+        && let Ok(n) = u128::from_str_radix(if digits.is_empty() { "0" } else { digits }, 16)
+    {
+        return n.to_string();
+    }
+    short_hex(value)
+}
+
 fn contract_label(proposal: &ProposalView, address: &str) -> String {
     proposal
         .calls
@@ -101,13 +117,18 @@ fn contract_label(proposal: &ProposalView, address: &str) -> String {
 }
 
 /// `██ 2/2` (filled to the threshold).
-fn approvals_bar(proposal: &ProposalView) -> String {
+fn approvals_bar(proposal: &ProposalView, style: Style) -> String {
     let k = proposal.threshold as usize;
     let have = proposal.valid_approvals();
+    let filled = "█".repeat(have.min(k));
+    let filled = if have >= k {
+        style.green(&filled)
+    } else {
+        style.yellow(&filled)
+    };
     format!(
-        "{}{} {have}/{k}",
-        "█".repeat(have.min(k)),
-        "░".repeat(k.saturating_sub(have))
+        "{filled}{} {have}/{k}",
+        style.dim(&"░".repeat(k.saturating_sub(have)))
     )
 }
 
@@ -128,11 +149,13 @@ pub(crate) fn table(
     now: u64,
     style: Style,
 ) -> String {
-    let mut out = format!("{header}\n\n");
+    let mut out = format!("{header}\n");
     if proposals.is_empty() {
-        out.push_str(
-            "No proposals.\n\nPropose one: clave propose transfer <amount> <token> --to <ref>\n",
-        );
+        let _ = writeln!(out, "  {}", style.dim("No proposals."));
+        out.push_str(&layout::next(
+            style,
+            &["clave propose transfer <amount> <token> --to <ref>"],
+        ));
         return out;
     }
     let mut table = Table::new(&["ID", "PROPOSAL", "APPROVALS", "EXPIRES", "STATUS"]);
@@ -140,25 +163,30 @@ pub(crate) fn table(
         let mut status = style.status(&p.status);
         let rejected = names(&p.rejections);
         if !rejected.is_empty() {
-            let _ = write!(status, "  rejected by {rejected}");
+            let _ = write!(
+                status,
+                "  {}",
+                style.red(&format!("rejected by {rejected}"))
+            );
         }
         table.row(vec![
-            short_id(&p.id),
+            style.bold(&short_id(&p.id)),
             describe(p, contacts),
-            approvals_bar(p),
-            relative(p.expires_at, now),
+            approvals_bar(p, style),
+            style.dim(&relative(p.expires_at, now)),
             status,
         ]);
     }
-    out.push_str(&table.render());
+    out.push_str(&table.render_with(style));
     let open = proposals
         .iter()
         .filter(|p| OPEN.contains(&p.status.as_str()))
         .count();
-    let _ = write!(
-        out,
-        "\n{open} open · clave proposal show <id> · clave approve <id>\n"
-    );
+    let _ = write!(out, "\n  {}\n", style.dim(&format!("{open} open")));
+    out.push_str(&layout::next(
+        style,
+        &["clave proposal show <id>", "clave approve <id>"],
+    ));
     out
 }
 
@@ -170,97 +198,122 @@ pub(crate) fn show(
     style: Style,
 ) -> String {
     let p = proposal;
-    let mut out = format!(
-        "Proposal {}  {}\n\n",
-        style.bold(&p.id),
-        style.status(&p.status)
+    let label = 13;
+    let mut out = layout::title(
+        style,
+        &format!("Proposal {}", short_id(&p.id)),
+        &[&p.status],
     );
-    let mut field = |label: &str, value: String| {
-        let _ = writeln!(out, "  {label:<13}{value}");
-    };
-    field("Action", describe(p, contacts));
+    out.push('\n');
+    let mut summary = vec![("Action", style.bold(&describe(p, contacts)))];
     if let Some(memo) = p.memo() {
-        field("Memo", format!("\"{memo}\"  (proposer's text)"));
+        summary.push((
+            "Memo",
+            format!("\"{memo}\"  {}", style.dim("proposer's text")),
+        ));
     }
-    field(
+    summary.push((
         "Proposed by",
-        format!("{} (member {})", p.proposer.name, p.proposer.index),
-    );
-    field(
-        "Approvals",
         format!(
-            "{} of {} needed ({} members)",
-            p.valid_approvals(),
-            p.threshold,
-            p.members
+            "{}  {}",
+            p.proposer.name,
+            style.dim(&format!("member {}", p.proposer.index))
         ),
-    );
-    field(
-        "Rejections",
+    ));
+    summary.push((
+        "Status",
         format!(
-            "{} (blocked above {})",
-            p.valid_rejections(),
-            p.members.saturating_sub(p.threshold)
+            "{}  {}",
+            style.status(&p.status),
+            style.dim(&format!(
+                "{} of {} approvals · {} rejections · blocked above {}",
+                p.valid_approvals(),
+                p.threshold,
+                p.valid_rejections(),
+                p.members.saturating_sub(p.threshold)
+            ))
         ),
-    );
-    let config = if p.config_version == p.current_config_version {
-        format!("v{} (current)", p.config_version)
-    } else {
-        format!(
-            "v{} (vault is at v{})",
-            p.config_version, p.current_config_version
-        )
-    };
-    field("Config", config);
-    field(
+    ));
+    summary.push((
         "Expires",
-        format!("{} ({})", utc(p.expires_at), relative(p.expires_at, now)),
-    );
-    field("Fee", p.fee_method.clone());
-    field("Tx nonce", p.tx_nonce.clone());
-    field("Outer hash", p.outer_hash.clone());
-    field("Signs", p.approval_message.clone());
+        format!(
+            "{}  {}",
+            utc(p.expires_at),
+            style.dim(&relative(p.expires_at, now))
+        ),
+    ));
     if let Some(execution) = &p.execution {
-        field(
+        summary.push((
             "Executed",
             format!(
-                "{} at {}",
-                execution.tx_hash,
-                utc(super::secs(execution.at))
+                "{}  {}",
+                style.cyan(&execution.tx_hash),
+                style.dim(&utc(super::secs(execution.at)))
             ),
-        );
+        ));
     }
     if let Some(by) = &p.cancelled_by {
-        field("Cancel", by.clone());
+        summary.push(("Cancel", by.clone()));
     }
-    out.push_str("\nCalls\n");
-    for (i, call) in p.calls.iter().enumerate() {
-        let to = call.to_label.clone().unwrap_or_else(|| short_hex(&call.to));
-        let _ = writeln!(
-            out,
-            "  {i}  {to}.{}({})",
-            call.function,
-            call.args.join(", ")
-        );
-    }
-    out.push_str("\nVotes\n");
-    if p.approvals.is_empty() && p.rejections.is_empty() {
-        out.push_str("  none yet\n");
-    }
-    for (word, votes) in [("approved", &p.approvals), ("rejected", &p.rejections)] {
-        for v in votes {
+    out.push_str(&layout::fields_at(style, label, &summary));
+
+    out.push('\n');
+    out.push_str(&layout::heading(style, "Votes"));
+    let mut votes = Vec::new();
+    for (word, list) in [("approved", &p.approvals), ("rejected", &p.rejections)] {
+        for v in list {
             let mark = if v.valid { style.ok() } else { style.fail() };
-            let mut line = format!("  {mark} member {}  {:<10} {word}", v.index, v.name);
+            let mut line = format!(
+                "{mark} {:<10} {}  {word}",
+                v.name,
+                style.dim(&format!("member {}", v.index))
+            );
             if let Some(reason) = v.reason.as_deref().filter(|r| !r.is_empty()) {
                 let _ = write!(line, "  \"{reason}\"");
             }
             if !v.valid {
-                line.push_str("  (invalid signature)");
+                let _ = write!(line, "  {}", style.red("invalid signature"));
             }
-            out.push_str(&line);
-            out.push('\n');
+            votes.push(line);
         }
     }
+    if votes.is_empty() {
+        let _ = writeln!(out, "  {}", style.dim("none yet"));
+    } else {
+        for line in votes {
+            let _ = writeln!(out, "  {line}");
+        }
+    }
+
+    out.push('\n');
+    out.push_str(&layout::heading(style, "Transaction"));
+    let calls = p
+        .calls
+        .iter()
+        .enumerate()
+        .map(|(i, call)| format!("{}  {}", style.dim(&i.to_string()), call_line(call, style)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let config = if p.config_version == p.current_config_version {
+        format!("v{}  {}", p.config_version, style.dim("current"))
+    } else {
+        style.red(&format!(
+            "v{}  vault is at v{}",
+            p.config_version, p.current_config_version
+        ))
+    };
+    out.push_str(&layout::fields_at(
+        style,
+        label,
+        &[
+            ("Calls", calls),
+            ("Fee", p.fee_method.clone()),
+            ("Config", config),
+            ("Tx nonce", style.dim(&p.tx_nonce)),
+            ("Outer hash", style.dim(&p.outer_hash)),
+            ("Signs", style.dim(&p.approval_message)),
+        ],
+    ));
     out
 }
 
@@ -383,14 +436,16 @@ pub(crate) mod tests {
         assert_eq!(
             rendered,
             "\
-Ops  0x2874…2874   spend 2/3  view 2/3  config v0   block 412
+Ops  0x2874…2874 · 2-of-3 · view 2 · config v0 · block 412
 
-ID      PROPOSAL                             APPROVALS  EXPIRES    STATUS
-7f3a1c  transfer 25 TTT → bea (0x3029…3029)  ██ 2/2     in 6d 23h  ready
-c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collecting  rejected by cai
-51bd02  cancel 9a10e2 (burn nonce)           ░░ 0/2     in 6d 22h  collecting
+  ID      PROPOSAL                             APPROVALS  EXPIRES    STATUS
+  7f3a1c  transfer 25 TTT → bea (0x3029…3029)  ██ 2/2     in 6d 23h  ready
+  c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collecting  rejected by cai
+  51bd02  cancel 9a10e2 (burn nonce)           ░░ 0/2     in 6d 22h  collecting
 
-3 open · clave proposal show <id> · clave approve <id>
+  3 open
+
+  Next  clave proposal show <id> · clave approve <id>
 "
         );
     }
@@ -399,19 +454,19 @@ c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collect
     fn show_lists_votes_with_reasons() {
         let rendered = show(&call(), &[], NOW, Style::PLAIN);
         assert!(
-            rendered.contains("  ✓ member 1  ana        approved\n"),
+            rendered.contains("  ✓ ana        member 1  approved\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  ✓ member 3  cai        rejected  \"not yet\"\n"),
+            rendered.contains("  ✓ cai        member 3  rejected  \"not yet\"\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  0  Token.mint_to_public()\n"),
+            rendered.contains("  Calls        0  Token.mint_to_public()\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  Rejections   1 (blocked above 1)\n"),
+            rendered.contains("1 of 2 approvals · 1 rejections · blocked above 1"),
             "{rendered}"
         );
     }

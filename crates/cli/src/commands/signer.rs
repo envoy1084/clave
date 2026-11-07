@@ -6,7 +6,7 @@ use crate::{
     SignerCmd,
     context::Ctx,
     error::Result,
-    render::{self, status::signer as render_signer},
+    render::{self, layout, status::signer as render_signer},
     secret,
     types::SignerStatus,
     units::parse_duration,
@@ -17,15 +17,16 @@ fn show(ctx: &Ctx, raw: &Value) {
     let mut value = raw.clone();
     value["touchId"] = json!(secret::touch_id_enabled(ctx));
     ctx.emit(&value, || {
+        let style = ctx.style;
         let touch = if secret::touch_id_enabled(ctx) {
-            "Touch ID enabled"
+            style.green("enabled")
         } else {
-            "Touch ID off"
+            style.dim("off")
         };
-        format!(
-            "{}   {touch}\n",
-            render_signer(&status, render::now_secs() * 1000, ctx.style)
-        )
+        let state = render_signer(&status, render::now_secs() * 1000, style);
+        let mut rows = vec![("Signer", state.trim_start_matches("signer ").to_owned())];
+        rows.push(("Touch ID", touch));
+        layout::fields(style, &rows)
     });
 }
 

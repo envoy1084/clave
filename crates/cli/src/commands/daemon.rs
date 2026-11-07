@@ -23,11 +23,15 @@ pub(crate) fn run(ctx: &Ctx, cmd: &DaemonCmd) -> Result<()> {
         DaemonCmd::Start { foreground: true } => daemon::run_foreground(&ctx.home, profile),
         DaemonCmd::Start { foreground: false } => start(ctx),
         DaemonCmd::Stop => {
+            let spin = ctx.spin("Stopping the daemon and its keeper");
             let pid = daemon::stop(profile)?;
+            spin.clear();
             ctx.emit(&json!({ "stopped": true, "pid": pid }), || {
                 format!(
-                    "Daemon stopped{}\n",
-                    pid.map(|p| format!(" (pid {p})")).unwrap_or_default()
+                    "{} Daemon stopped  {}\n",
+                    ctx.style.ok(),
+                    ctx.style
+                        .dim(&pid.map(|p| format!("pid {p}")).unwrap_or_default())
                 )
             });
             Ok(())
@@ -91,12 +95,17 @@ pub(crate) fn run(ctx: &Ctx, cmd: &DaemonCmd) -> Result<()> {
 }
 
 fn start(ctx: &Ctx) -> Result<()> {
-    ctx.note("Starting the daemon (the PXE can take a while)…");
+    let spin = ctx.spin("Starting the daemon and opening the PXE");
     let info = daemon::start(&ctx.home, &ctx.profile)?;
-    ctx.emit(
-        &json!({ "pid": info.pid, "version": info.version, "profile": info.profile }),
-        || format!("{} Daemon running (pid {})\n", ctx.style.ok(), info.pid),
+    spin.ok(
+        "Daemon running",
+        &format!("pid {} · profile {}", info.pid, info.profile),
     );
+    if ctx.json {
+        Ctx::json_line(
+            &json!({ "pid": info.pid, "version": info.version, "profile": info.profile }),
+        );
+    }
     Ok(())
 }
 

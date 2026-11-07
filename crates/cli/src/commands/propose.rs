@@ -9,7 +9,10 @@ use crate::{
     context::Ctx,
     error::{Error, Result},
     refs::{self, short_hex, short_id},
-    render::proposals::describe,
+    render::{
+        layout,
+        proposals::{call_line, describe},
+    },
     rpc::Client,
     types::{
         Contact, ContractFunction, ProposalPreview, ProposalView, TokenBalance, TokenInfo,
@@ -220,9 +223,21 @@ fn submit(
     }
     let params = json!({ "vault": vault.address, "intent": intent, "expiresInHours": hours });
     if dry_run {
-        ctx.note("Simulating with the stub account…");
+        let spin = ctx.spin("Simulating the transaction with a stub account");
         let raw: Value = client.call("proposals.preview", params)?;
         let preview: ProposalPreview = serde_json::from_value(raw.clone()).unwrap_or_default();
+        let gas = preview.gas.as_ref().map(|g| {
+            format!(
+                "gas l2 {} · da {}",
+                group_thousands(&g.l2.to_string()),
+                group_thousands(&g.da.to_string())
+            )
+        });
+        if preview.ok {
+            spin.ok("Simulation passed", gas.as_deref().unwrap_or_default());
+        } else {
+            spin.fail("Simulation failed");
+        }
         ctx.emit(&raw, || render_preview(&preview, ctx));
         if !preview.ok {
             return Err(Error::failed(format!(
@@ -232,60 +247,61 @@ fn submit(
         }
         return Ok(());
     }
-    ctx.note("Building the transaction and storing the proposal…");
+    let spin = ctx.spin("Building and simulating the transaction, then storing the proposal");
     let raw: Value = client.call("proposals.create", params)?;
     let proposal: ProposalView = serde_json::from_value(raw.clone()).unwrap_or_default();
+    let id = short_id(&proposal.id);
+    spin.ok(
+        &format!("Proposal {} created", ctx.style.bold(&id)),
+        "replicated to the members' keepers",
+    );
     let contacts: Vec<Contact> = client
         .call("contacts.list", Value::Null)
         .unwrap_or_default();
     ctx.emit(&raw, || {
-        let id = short_id(&proposal.id);
-        format!(
-            "{} Proposed {id}: {}\n  Approvals {}/{} · expires in {} · replicated to the members' keepers\n\nNext: clave approve {id}\n",
-            ctx.style.ok(),
-            describe(&proposal, &contacts),
-            proposal.valid_approvals(),
-            proposal.threshold,
-            if hours.is_multiple_of(24) { format!("{}d", hours / 24) } else { format!("{hours}h") }
-        )
+        let style = ctx.style;
+        let mut rows = vec![("Action", style.bold(&describe(&proposal, &contacts)))];
+        if let Some(memo) = proposal.memo() {
+            rows.push(("Memo", format!("\"{memo}\"")));
+        }
+        rows.push((
+            "Approvals",
+            format!("{} of {}", proposal.valid_approvals(), proposal.threshold),
+        ));
+        let lifetime = if hours.is_multiple_of(24) {
+            format!("{}d", hours / 24)
+        } else {
+            format!("{hours}h")
+        };
+        rows.push(("Expires", format!("in {lifetime}")));
+        let mut out = String::from("\n");
+        out.push_str(&layout::fields(style, &rows));
+        out.push_str(&layout::next(style, &[&format!("clave approve {id}")]));
+        out
     });
     Ok(())
 }
 
 fn render_preview(preview: &ProposalPreview, ctx: &Ctx) -> String {
-    let mut out = String::new();
-    let mark = if preview.ok {
-        ctx.style.ok()
-    } else {
-        ctx.style.fail()
-    };
-    let _ = writeln!(
-        out,
-        "{mark} Simulation {}",
-        if preview.ok { "ok" } else { "failed" }
-    );
-    for (i, call) in preview.calls.iter().enumerate() {
-        let to = call.to_label.clone().unwrap_or_else(|| short_hex(&call.to));
-        let _ = writeln!(
-            out,
-            "  {i}  {to}.{}({})",
-            call.function,
-            call.args.join(", ")
-        );
-    }
-    if let Some(gas) = &preview.gas {
-        let _ = writeln!(
-            out,
-            "  gas l2 {} · da {}",
-            group_thousands(&gas.l2.to_string()),
-            group_thousands(&gas.da.to_string())
-        );
-    }
+    let style = ctx.style;
+    let calls = preview
+        .calls
+        .iter()
+        .enumerate()
+        .map(|(i, call)| format!("{}  {}", style.dim(&i.to_string()), call_line(call, style)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut out = String::from("\n");
+    out.push_str(&layout::fields(style, &[("Calls", calls)]));
     if let Some(error) = &preview.error {
-        let _ = writeln!(out, "  {}", ctx.style.red(error));
+        let _ = writeln!(out, "\n  {}", style.red(error));
     }
     if preview.ok {
-        out.push_str("\nNothing was posted. Propose it without --dry-run.\n");
+        let _ = writeln!(
+            out,
+            "\n  {}",
+            style.dim("Nothing was posted. Run it again without --dry-run to propose.")
+        );
     }
     out
 }

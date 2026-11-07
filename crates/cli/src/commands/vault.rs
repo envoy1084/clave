@@ -9,7 +9,7 @@ use crate::{
     context::Ctx,
     error::Result,
     refs::{self, short_hex},
-    render::{self, table::Table},
+    render::{self, layout, table::Table},
     types::{AuditEntry, MemberReachability, VaultSummary},
 };
 
@@ -35,7 +35,7 @@ fn yes_no(value: &Value, pointer: &str) -> &'static str {
     }
 }
 
-fn vault_table(vaults: &[VaultSummary]) -> String {
+fn vault_table(vaults: &[VaultSummary], style: crate::render::Style) -> String {
     if vaults.is_empty() {
         return "No vaults yet: clave lobby open, or clave lobby join <invite>\n".to_owned();
     }
@@ -48,14 +48,14 @@ fn vault_table(vaults: &[VaultSummary]) -> String {
                 String::new()
             },
             v.alias.clone().unwrap_or_else(|| "–".into()),
-            v.name.clone(),
-            short_hex(&v.address),
+            style.bold(&v.name),
+            style.cyan(&short_hex(&v.address)),
             format!("{}/{}", v.threshold, v.members),
             format!("{}/{}", v.viewing_threshold, v.members),
             v.my_index.to_string(),
         ]);
     }
-    table.render()
+    table.render_with(style)
 }
 
 pub(crate) fn run(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
@@ -64,7 +64,7 @@ pub(crate) fn run(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
         VaultCmd::List => {
             let raw: Value = client.call("vault.list", Value::Null)?;
             let vaults: Vec<VaultSummary> = serde_json::from_value(raw.clone()).unwrap_or_default();
-            ctx.emit(&raw, || vault_table(&vaults));
+            ctx.emit(&raw, || vault_table(&vaults, ctx.style));
         }
         VaultCmd::Use { reference } => {
             let vaults: Vec<VaultSummary> = client.call("vault.list", Value::Null)?;
@@ -98,7 +98,7 @@ pub(crate) fn run(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
             let details: Value = client.call("vault.details", json!({ "vault": vault.address }))?;
             ctx.emit(&details, || match cmd {
                 VaultCmd::Show => show(&vault, &details, ctx),
-                VaultCmd::Members => members(&details),
+                VaultCmd::Members => members(&details, ctx.style),
                 _ => inspect(&details),
             });
         }
@@ -143,7 +143,7 @@ pub(crate) fn run(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
                         e.outcome.clone(),
                     ]);
                 }
-                table.render()
+                table.render_with(ctx.style)
             });
         }
     }
@@ -151,73 +151,80 @@ pub(crate) fn run(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
 }
 
 fn show(vault: &VaultSummary, d: &Value, ctx: &Ctx) -> String {
-    let mut out = String::new();
-    let _ = writeln!(out, "{}  {}", ctx.style.bold(&vault.name), vault.address);
+    let style = ctx.style;
+    let mut out = crate::commands::assets::vault_title(ctx, vault);
+    out.push('\n');
+    let mut rows = vec![("Address", style.cyan(&vault.address))];
     if let Some(alias) = &vault.alias {
-        let _ = writeln!(out, "  {:<16}vaults:{alias}", "Alias");
+        rows.push(("Alias", format!("vaults:{alias}")));
     }
-    let _ = writeln!(
-        out,
-        "  {:<16}{} of {}",
-        "Spend", vault.threshold, vault.members
-    );
-    let _ = writeln!(
-        out,
-        "  {:<16}{} of {}",
-        "View", vault.viewing_threshold, vault.members
-    );
-    let _ = writeln!(out, "  {:<16}{}", "You are member", vault.my_index);
-    if d.get("config").is_some_and(|c| !c.is_null()) {
-        let _ = writeln!(out, "  {:<16}v{}", "Config", number(d, "/config/version"));
-        let _ = writeln!(
-            out,
-            "  {:<16}{}",
-            "Config matches",
-            yes_no(d, "/config/matchesSetup")
-        );
+    rows.push((
+        "Spend",
+        format!(
+            "{} of {} members approve every transaction",
+            style.bold(&vault.threshold.to_string()),
+            vault.members
+        ),
+    ));
+    rows.push((
+        "View",
+        format!(
+            "{} of {} keepers decrypt together",
+            style.bold(&vault.viewing_threshold.to_string()),
+            vault.members
+        ),
+    ));
+    rows.push(("You", format!("member {}", vault.my_index)));
+    let config = if d.get("config").is_some_and(|c| !c.is_null()) {
+        let matches = d.pointer("/config/matchesSetup").and_then(Value::as_bool) == Some(true);
+        format!(
+            "v{}  {}",
+            number(d, "/config/version"),
+            if matches {
+                style.green("on-chain config matches the founding plan")
+            } else {
+                style.red("on-chain config differs from the founding plan")
+            }
+        )
     } else {
-        let _ = writeln!(out, "  {:<16}not read yet", "Config");
-    }
-    let _ = writeln!(
-        out,
-        "  {:<16}{}",
-        "Keeper serving",
-        yes_no(d, "/committee/serving")
-    );
-    let _ = writeln!(
-        out,
-        "  {:<16}{}",
-        "Keeper status",
-        text(d, "/committee/keeperStatus")
-    );
-    let _ = writeln!(
-        out,
-        "  {:<16}{}",
-        "Committee epoch",
-        number(d, "/committee/epoch")
-    );
-    if let Some(tx) = d.pointer("/founding/deployTx").and_then(Value::as_str) {
-        let _ = writeln!(out, "  {:<16}{tx}", "Deploy tx");
-    }
-    let _ = writeln!(
-        out,
-        "  {:<16}{}",
+        style.dim("not read yet")
+    };
+    rows.push(("Config", config));
+    let serving = d.pointer("/committee/serving").and_then(Value::as_bool) == Some(true);
+    rows.push((
+        "Keeper",
+        format!(
+            "{}  {}",
+            if serving {
+                style.green("serving")
+            } else {
+                style.yellow("not serving")
+            },
+            style.dim(&format!(
+                "committee epoch {}",
+                number(d, "/committee/epoch")
+            ))
+        ),
+    ));
+    rows.push((
         "Founded",
-        render::utc(render::secs(vault.founded_at))
-    );
-    out.push_str("\nMembers\n");
-    out.push_str(&members(d));
+        style.dim(&render::utc(render::secs(vault.founded_at))),
+    ));
+    out.push_str(&layout::fields(style, &rows));
+    out.push('\n');
+    out.push_str(&layout::heading(style, "Members"));
+    out.push_str(&members(d, style));
     out
 }
 
-fn members(d: &Value) -> String {
+fn members(d: &Value, style: crate::render::Style) -> String {
     let list = d
         .pointer("/committee/members")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
     let mut table = Table::new(&[
-        "SLOT",
+        "#",
         "NAME",
         "SIGNER KEY",
         "VERIFICATION SHARE",
@@ -226,20 +233,20 @@ fn members(d: &Value) -> String {
     ]);
     for m in &list {
         let you = if m.get("you").and_then(Value::as_bool) == Some(true) {
-            " (you)"
+            format!("  {}", style.dim("you"))
         } else {
-            ""
+            String::new()
         };
         table.row(vec![
             number(m, "/index"),
-            format!("{}{you}", text(m, "/name")),
+            format!("{}{you}", style.bold(text(m, "/name"))),
             short_hex(text(m, "/signerKey/x")),
             short_hex(text(m, "/verificationShare/x")),
             short_hex(text(m, "/identity")),
-            text(m, "/peerId").to_owned(),
+            style.dim(text(m, "/peerId")),
         ]);
     }
-    table.render()
+    table.render_with(style)
 }
 
 fn inspect(d: &Value) -> String {
@@ -353,7 +360,7 @@ fn peers_table(peers: &[MemberReachability], vault: &VaultSummary, ctx: &Ctx) ->
         ]);
     }
     let reachable = peers.iter().filter(|p| p.you || p.connected).count();
-    let mut out = table.render();
+    let mut out = table.render_with(ctx.style);
     let enough = reachable >= vault.viewing_threshold as usize;
     let line = format!(
         "\nECDH available {reachable}/{} (t_v {})",
