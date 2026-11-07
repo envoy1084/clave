@@ -3,6 +3,7 @@ name = "clave-demo"
 description = "clave-demo: a narrated two-member Clave demo in one terminal (Alice and Bob side by side)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 

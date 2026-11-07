@@ -3,6 +3,7 @@ name = "clave-crypto"
 description = "Threshold viewing-key cryptography for Clave vaults"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 

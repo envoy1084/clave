@@ -3,6 +3,7 @@ name = "clave-wire"
 description = "Wire format for messages exchanged between Clave engines, keepers and relays"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 

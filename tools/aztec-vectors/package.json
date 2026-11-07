@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Generates golden vectors from @aztec-labs/* for byte-compatibility tests in clave-crypto",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "generate": "node generate.mjs",

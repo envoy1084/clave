@@ -3,6 +3,7 @@ name = "clave-cli"
 description = "clave: the Clave command line, a client of the per-profile claved daemon"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 

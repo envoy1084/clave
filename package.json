@@ -2,6 +2,7 @@
   "name": "clave",
   "private": true,
   "description": "Private k-of-n multisig on Aztec",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build": "turbo run build",

@@ -3,6 +3,7 @@ name = "clave-napi"
 description = "Node-API bindings of Clave crypto and wire for the vault wallet"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 

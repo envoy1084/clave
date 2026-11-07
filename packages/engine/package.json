@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "claved: the member's background daemon (PXE, signer, founding and proposals) behind the clave CLI",
+  "license": "Apache-2.0",
   "bin": {
     "engine": "./dist/claved.js"
   },

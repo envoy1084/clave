@@ -3,6 +3,7 @@ name = "clave-keeper"
 description = "Clave keeper: viewing-share custody, threshold ECDH, ceremonies and the proposal store"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
