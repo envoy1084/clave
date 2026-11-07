@@ -1,7 +1,9 @@
 # CLI and daemon
 
+## Purpose
+
 A member operates Clave from the terminal. `clave` (`crates/cli`, Rust) is a short-lived client; `claved`
-(`packages/engine`, Node 24) is a per-profile background daemon that hosts the member's PXE, signer and founding and
+(`packages/engine`, Node 24) is a per-profile background daemon that hosts the member's PXE, signer, founding and
 proposal workflows, and supervises the member's `clave-keeper`. Node is a prerequisite and is not bundled.
 
 ```text
@@ -9,6 +11,26 @@ clave (Rust) ──JSON-RPC, unix socket──▶ claved (Node) ──JSON-RPC, 
  per command                              one per profile                           child of claved
  args, refs, rendering, prompts           PXE, signer, founding, proposals          viewing share, DKG, ECDH, p2p
 ```
+
+`clave` complements `aztec-wallet` rather than replacing it: it manages Clave vaults, and its output is rich text by
+default or JSON with `--json`.
+
+## Commands
+
+| Group     | Commands                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------- |
+| Setup     | `init`, `doctor`, `status`, `profile list/show/remove`, `completions`                                           |
+| Daemon    | `daemon start/stop/restart/status/logs`, `config get/set`, `relay add/list/remove`                              |
+| Signer    | `unlock <duration>`, `lock`, `signer status/enable-touch-id/disable-touch-id`                                   |
+| Founding  | `lobby open/inspect/join/start/status/list/leave`                                                               |
+| Vaults    | `vault list/use/alias/show/members/peers/inspect/audit`, `balance`, `token add/list/deploy-test`, `receive`     |
+| Proposals | `propose transfer/call/...`, `simulate`, `proposals`, `proposal show`, `approve`, `reject`, `execute`, `cancel` |
+| Activity  | `watch`, `activity`, `tx <hash>`, `contacts add/list/remove`                                                    |
+
+Global options: `-P, --profile` (`CLAVE_PROFILE`), `-V, --vault` (`CLAVE_VAULT`; alias, name or address, default the
+profile's selected or only vault), `-n, --node-url` (`AZTEC_NODE_URL`, used by `init` and `doctor`), `--json` (machine
+output on stdout, errors as JSON on stderr, never prompts), `--yes` (skips confirmations, never authentication),
+`--quiet`, `--verbose`, `--no-color` (also `NO_COLOR`). Proposal ids accept a unique prefix.
 
 ## Profiles and files
 
@@ -42,16 +64,18 @@ is `CLAVE_KEEPER_BIN`, else `$CLAVE_HOME/bin/clave-keeper`, else `crates/target/
 ### Transport
 
 Newline-delimited JSON-RPC 2.0 over `daemon.sock`, the keeper's framing: the first call of every connection is
-`session.auth { token }` with the contents of `daemon.token` (compared in constant time); events arrive as
-notifications `{"jsonrpc":"2.0","method":"event","params":<event>}` after `events.subscribe`. Results and params are
-plain JSON: field elements and bytes are `0x` hex, points `{ x, y }`, amounts decimal strings of base units. Times are
-unix milliseconds (`startedAt`, `foundedAt`, `createdAt`, `unlockedUntil`, `checkedAt`) except the chain's: a proposal's
-`expiresAt` and an execution's `at` are unix seconds, and a received transfer's `at` is its block number. Validation
-beyond the shapes: contact labels and vault aliases match `^[a-z0-9][a-z0-9_-]{0,31}$`, `viewingThreshold` is at least
-2, unlock windows are at least 60 s and at most `unlockTimeoutSecs`. `events.subscribe` is handled by the server itself
-and is not in the engine's method table.
+`session.auth { token }` with the contents of `daemon.token` (compared in constant time); events arrive as notifications
+`{"jsonrpc":"2.0","method":"event","params":<event>}` after `events.subscribe`. Results and params are plain JSON: field
+elements and bytes are `0x` hex, points `{ x, y }`, amounts decimal strings of base units. Times are unix milliseconds
+(`startedAt`, `foundedAt`, `createdAt`, `unlockedUntil`, `checkedAt`) except the chain's: a proposal's `expiresAt` and
+an execution's `at` are unix seconds, and a received transfer's `at` is its block number. Validation beyond the shapes:
+contact labels and vault aliases match `^[a-z0-9][a-z0-9_-]{0,31}$`, thresholds are 1..=8 and `viewingThreshold` is at
+least 2, vault names are at most 48 characters, proposal lifetimes are 1..=720 hours, an unlock window is at most
+`unlockTimeoutSecs` (a setting of 60..=86 400 s, default 3600), and at most 8 relays are set. `events.subscribe` is
+handled by the server itself and is not in the engine's method table.
 
-Errors are `{ code, message, data?: { kind } }`. `kind` maps to the CLI's exit codes:
+Errors are `{ code, message, data?: { kind } }`. `kind` maps to the CLI's exit codes; the CLI adds exit 3 when the
+profile's daemon is not running and exit 5 when the member answers no at a confirmation prompt.
 
 | `kind`      | Meaning                                                                   | Exit |
 | ----------- | ------------------------------------------------------------------------- | ---- |
@@ -160,8 +184,9 @@ Events: `{ type: "vault-activity", vault }`, `{ type: "lobby", lobby: LobbyView 
 The approval signing key (Grumpkin) exists at rest only as `signer.sealed`:
 
 ```text
-sealing key = Argon2id(passphrase, salt, memory 64 MiB, passes 3, parallelism 1, 32 bytes)
-signer.sealed = { v: 1, kdf: { salt }, nonce, ciphertext }      ChaCha20-Poly1305, AAD "clave.signer.v1"
+sealing key   = Argon2id(passphrase, salt (16 random bytes), memory 64 MiB, passes 3, parallelism 1, 32 bytes)
+signer.sealed = { v: 1, kdf: { salt }, nonce, ciphertext }   hex fields; ChaCha20-Poly1305, 12-byte nonce,
+                                                             16-byte tag appended, AAD "clave.signer.v1"
 ```
 
 It is decrypted only inside the daemon, for one signature or for an unlock window (`signer.unlock { ttlSecs }`), and
@@ -173,11 +198,38 @@ Touch ID (macOS, optional): `clave signer enable-touch-id` asks for the passphra
 `LocalAuthentication` check (Touch ID, or the account password as fallback) in the CLI, which then passes
 `{ key }` as the secret. The passphrase always remains the recovery path.
 
-`--yes` skips confirmations, never authentication. `clave approve` shows the review screen before asking.
+`clave approve` and `clave reject` show the review screen (rebuilt transaction, outer hash, config version, deadline,
+simulation, and the exact message signed) before asking, and refuse to sign when a check fails.
 
-## Trust boundaries
+## Guarantees and limits
 
 - The daemon's socket accepts only the profile owner (file mode) and the token holder.
 - The member's account secrets, keeper master key and vault records are protected by file permissions on the member's
   device. The approval signing key additionally needs the passphrase (or Touch ID).
 - Viewing shares never leave the keeper; the daemon never sees them.
+- Fees are paid by the sponsored FPC, the only fee method `claved` offers.
+- `claved` does not run membership rotations and does not report on-chain configs or vault transactions to its keeper
+  (`vault.observeConfig`, `vault.observeTx`); see [membership.md](membership.md#guarantees-and-limits).
+
+## Code and tests
+
+| Path                                       | Contents                                               |
+| ------------------------------------------ | ------------------------------------------------------ |
+| `crates/cli/src/main.rs`                   | Command tree and global options                        |
+| `crates/cli/src/commands/`                 | One module per command group                           |
+| `crates/cli/src/render/`                   | Status, proposal, review and founding renderers        |
+| `crates/cli/src/secret/`                   | Passphrase prompt, `CLAVE_PASSPHRASE_FILE`, Touch ID   |
+| `crates/cli/src/daemon.rs`, `rpc.rs`       | Daemon discovery, start, and the RPC client            |
+| `crates/cli/src/error.rs`                  | Error kinds and exit codes                             |
+| `packages/engine/src/claved.ts`            | Daemon entry point                                     |
+| `packages/engine/src/rpc/contract.ts`      | Method table and param schemas                         |
+| `packages/engine/src/rpc/server.ts`        | Socket server, authentication, events                  |
+| `packages/engine/src/engine/`              | Engine, founding, proposals and operations, keeper API |
+| `packages/engine/src/signer/`              | Sealed signer                                          |
+| `packages/engine/src/keeper/supervisor.ts` | Keeper supervision                                     |
+| `packages/engine/src/profile/`             | Profile files, paths and stores                        |
+| `packages/engine/src/types.ts`             | Every RPC shape and event                              |
+
+`cargo test -p clave-cli` covers parsing, references, renderers and a fake daemon; `pnpm --filter @clave/engine test`
+covers the contract, signer, secrets and socket server; `pnpm test:cli` drives three members through `clave` only
+against `aztec start --local-network`.

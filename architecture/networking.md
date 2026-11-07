@@ -1,10 +1,10 @@
 # Networking
 
+## Purpose
+
 How keepers reach each other: a libp2p mesh limited to each vault's committee, with optional untrusted relays for
 members behind NATs and for members that are offline. There is no coordinator server; any member (or anyone) can run a
 relay, and a vault can name several.
-
-Status: Phase 9.
 
 ## Topology
 
@@ -18,13 +18,13 @@ Status: Phase 9.
                                    (ciphertext mailbox)
 ```
 
-- **Routable addresses only.** A wildcard listener also reports `127.0.0.1`; a keeper with any routable address
-  never advertises loopback, and a keeper never records a peer address equal to one of its own listen addresses.
-  Either would make the dialer reach itself: libp2p settles a dial on its first transport success, so that
-  self-connection (wrong peer id) fails the whole dial, relay circuit included. The namespace test caught this.
 - **Direct first.** A keeper advertises its external and listen addresses first and its relay circuits
   (`<relay>/p2p-circuit`) last, at most 8 in total. Peers dial them in order; DCUtR upgrades a relayed connection to a
   direct one when hole punching works.
+- **Routable addresses only.** A wildcard listener also reports `127.0.0.1`; a keeper with any routable address never
+  advertises loopback, and never records a peer address equal to one of its own listen addresses. Either would make the
+  dialer reach itself, and because libp2p settles a dial on its first transport success, that self-connection (wrong
+  peer id) would fail the whole dial, relay circuit included.
 - **Relay as fallback.** A keeper started with `--relay <multiaddr>/p2p/<id>` (repeatable) reserves a slot on each
   relay and listens on its circuit, so members that cannot reach it directly still can.
 - **Mailbox for offline members.** A frame that cannot be delivered is sealed into the recipient's pairwise mailbox on
@@ -40,42 +40,42 @@ the identity in the manifest (`transport::peer_id`) and Noise authenticates it. 
 | ------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------- |
 | `/clave/ecdh/0`     | `EcdhRequest`, `EcdhResponse`                                                    | request ≤ 1 MiB, empty ack                        |
 | `/clave/ceremony/0` | DKG and reshare messages, complaints, justifications, aborts, `Echo`             | request ≤ 1 MiB, empty ack                        |
-| `/clave/sync/0`     | `Proposal`, `Approval`, `ExecutionReceipt`, `SyncRequest`                        | request ≤ 1 MiB, empty ack                        |
+| `/clave/sync/0`     | `Proposal`, `Approval`, `Rejection`, `ExecutionReceipt`, `SyncRequest`           | request ≤ 1 MiB, empty ack                        |
 | `/clave/lobby/0`    | `LobbyJoin`, `LobbyState`, `LobbyPlan`, `LobbyLeave`                             | request ≤ 1 MiB, empty ack; 10/min per non-member |
 | `/clave/mailbox/0`  | `MailboxRequest` / `MailboxResponse` (keeper → relay only; keepers never accept) | 4 MiB per message, 256 KiB envelopes              |
 
-Every keeper frame is a `SignedMessage`; the lane is chosen by its body. Requests are one-way: the receiver
-acknowledges with an empty response and answers, if at all, with its own request (an `EcdhResponse` is a request back
-to the gatherer). Frames use a u32 length prefix (`clave_wire::p2p::FrameCodec`); request timeout 10 s, 30 s for
-mailbox calls.
+Every keeper frame is a `SignedMessage`; the lane is chosen by its body (anything not listed above goes on the ceremony
+lane). Requests are one-way: the receiver acknowledges with an empty response and answers, if at all, with its own
+request (an `EcdhResponse` is a request back to the gatherer). Frames use a u32 length prefix
+(`clave_wire::p2p::FrameCodec`); request timeout 10 s, 30 s for mailbox calls.
 
 ### Reachability
 
-The swarm task keeps a link record per peer for `Transport::peer_status` (behind `peers.status`, `keeper.md`): open
-connections and whether each is a relay circuit (`ConnectedPoint::is_relayed`), the time of the last established
-connection or received request or response (system clock, unix seconds), and the last ping round trip. A peer is
-`connected` while any connection is open and `relayed` when every open connection is a circuit, so a DCUtR upgrade
-flips it to direct. Records of peers that are neither connected nor in the allow list are dropped, so strangers met
-through a lobby are not retained. Because idle connections close after 2 minutes, an idle member can show as not
-connected until the next sync (every minute) or request reconnects it. The in-memory test transport reports a peer
-connected while it is joined and the test filter passes frames both ways.
+The swarm task keeps a link record per peer for `Transport::peer_status` (behind `peers.status`,
+[keeper.md](keeper.md#local-rpc)): open connections and whether each is a relay circuit
+(`ConnectedPoint::is_relayed`), the time of the last established connection or received request or response (system
+clock, unix seconds), and the last ping round trip. A peer is `connected` while any connection is open and `relayed`
+when every open connection is a circuit, so a DCUtR upgrade flips it to direct. Records of peers that are neither
+connected nor in the allow list are dropped, so strangers met through a lobby are not retained. Because idle
+connections close after 2 minutes, an idle member can show as not connected until the next sync (every minute) or
+request reconnects it.
 
 ### Membership enforcement
 
 - **Connections.** A connection gate (`transport::gate`) admits exactly the peer ids of current committees, running and
   just-finished ceremonies and open lobbies (the host for a guest, the guests for the host), updated whenever they
-  change, plus the configured relays. Any other peer's connection is closed before a protocol runs, so outsiders
-  cannot even probe which protocols a keeper speaks.
+  change, plus the configured relays. Any other peer's connection is closed before a protocol runs, so outsiders cannot
+  even probe which protocols a keeper speaks.
 - **Open lobbies.** While a keeper hosts at least one open lobby, the gate admits connections from anyone so that
-  co-founders it does not know yet can join. A non-member's request is delivered only on `/clave/lobby/0`, only if
-  its body is a lobby message, and at most 10 per minute per peer (4096 peers tracked); requests on every other lane are
+  co-founders it does not know yet can join. A non-member's request is delivered only on `/clave/lobby/0`, only if its
+  body is a lobby message, and at most 10 per minute per peer (4096 peers tracked); requests on every other lane are
   dropped unanswered. The sender is delivered as `Channel::Peer(identity)` with the identity derived from its peer id
   (the inlined Ed25519 key), and the keeper checks the join proof. When the last open lobby starts or closes, the gate
   closes again and connections from non-members are dropped. A lobby's peers stay admitted for one round timeout after
   it starts or closes, for late retries and the DKG start.
 - **Messages.** Inbound requests are accepted only from members, delivered as `Channel::Peer(identity)`, and the
-  frame's signer must be that identity. The keeper then applies the same checks as before (signature, epoch, replay
-  window, committee membership, budget). Authenticity never depends on the transport.
+  frame's signer must be that identity. The keeper then applies its own checks (signature, epoch, replay window,
+  committee membership, budget). Authenticity never depends on the transport.
 - **Outbound.** A keeper sends only to members of a committee or ceremony it belongs to.
 
 ### Retries
@@ -86,29 +86,31 @@ first `t_v` valid answers within its timeout. Proposal records fall back to the 
 
 ## Replication
 
-**Echo broadcast.** When a keeper receives a dealer's signed `DkgRound1` or `ReshareDeal`, it forwards the frame once
-to every other participant inside an `Echo`. A recipient that sees two different signed packages from one dealer in
-the same session aborts the ceremony and blames the dealer ("two different round 1" / deals). This turns a dealer that
-sends different commitments to different members into a provable, attributable fault.
+**Echo broadcast.** When a keeper receives a dealer's signed `DkgRound1` or `ReshareDeal`, it forwards the frame once to
+every other participant inside an `Echo`. A recipient that sees two different signed packages from one dealer in the
+same session aborts the ceremony and blames the dealer. This turns a dealer that sends different commitments to
+different members into a provable, attributable fault.
 
-**Sync.** Every `sync_interval_secs` (60 s by default) and on `vault.sync`, a keeper sends each member a
-`SyncRequest` with its inventory for the vault: proposal ids, `(proposal, slot)` approval references and receipted
+**Sync.** Every `sync_interval_secs` (60 s by default) and on `vault.sync`, a keeper sends each member a `SyncRequest`
+with its inventory for the vault: proposal ids, `(proposal, slot)` approval and rejection references, and receipted
 proposals (the newest 4096 of each). The member answers with up to 1024 missing records, proposals first, as ordinary
 signed frames; the requester syncs again for the rest. Approvals that arrive before their proposal are held (up to 1024)
-and stored when it arrives. Replicated records are re-verified (membership, approval signatures) and skip the replay
-window, since a record may legitimately be days old.
+and stored when it arrives. Replicated records are re-verified (membership, signatures) and skip the replay window,
+since a record may legitimately be days old.
 
-**Mailboxes.** For each ordered pair of members (sender `S`, recipient `R`, transport keys) and each UTC day:
+### Mailboxes
+
+For each ordered pair of members (sender `S`, recipient `R`, transport keys) and each UTC day:
 
 ```text
 mailbox_id = SHA-256("clave.mailbox.v0" ‖ X25519(s, R) ‖ S_pub ‖ R_pub ‖ be32(day))   (day = unix time / 86400)
 sealed     = HPKE Auth (X25519, HKDF-SHA256, ChaCha20-Poly1305), kind 3, session = mailbox_id, epoch = day
 ```
 
-The sender deposits `RelayEnvelope { recipient: mailbox_id, expires_at, sealed }` at every relay (success if any
-stored it). Every `mailbox_interval_secs` (30 s) and on `mailbox.poll`, a keeper computes the ids for every committee
-peer over the last `mailbox_ttl_days` (7), fetches in chunks of 128 ids, opens each envelope with the sender's key,
-processes the frame as direct traffic and deletes it at the relays.
+The sender deposits `RelayEnvelope { recipient: mailbox_id, expires_at, sealed }` at every relay (success if any stored
+it). Every `mailbox_interval_secs` (30 s) and on `mailbox.poll`, a keeper computes the ids for every committee peer over
+the last `mailbox_ttl_days` (7), fetches in chunks of 128 ids, opens each envelope with the sender's key, processes the
+frame as direct traffic and deletes it at the relays.
 
 ## Relay (`clave-relay`)
 
@@ -120,9 +122,16 @@ One binary, two services on one libp2p identity:
   envelopes and 32 MiB per mailbox, 1 GiB in total, 3600 deposits per peer per hour, fetches up to 3 MiB. Expired
   envelopes are purged every minute. The depositor's peer id is never stored.
 
-`clave-relay run --data-dir --listen --external --health --allow-peer`; `/health` and `/metrics` (Prometheus: reservations,
-circuits, deposits, fetches, rejections, stored bytes) on the health address. `--allow-peer` (repeatable) turns it into a
-private relay. Deployment files: `crates/deploy/Dockerfile` (relay and keeper image) and systemd units with sandboxing.
+```text
+clave-relay run --data-dir <dir> (or CLAVE_RELAY_DATA) [--listen <multiaddr>]... [--external <multiaddr>]...
+                [--health <addr>] [--allow-peer <peer id>]... [--max-ttl-days 14] [--max-total-mib 1024]
+```
+
+Listens on `/ip4/0.0.0.0/udp/4001/quic-v1` and `/ip4/0.0.0.0/tcp/4001` by default; idle connections close after 5
+minutes. `/health` and `/metrics` (Prometheus: reservations, circuits, deposits, fetches, rejections, stored bytes) are
+served on the health address. `--allow-peer` (repeatable) turns it into a private relay. Deployment files:
+`crates/deploy/Dockerfile` (relay and keeper image) and systemd units with sandboxing (`clave-relay.service`,
+`clave-keeper.service`).
 
 ### Trust model
 
@@ -136,7 +145,7 @@ The relay is untrusted for confidentiality and integrity and trusted only for av
 | refuse service                                                                          | learn a share, a partial's meaning, a signer or a threshold         |
 
 Mitigations: members can name several relays; mailbox ids rotate daily and are unlinkable without the pair's X25519
-secret; anyone who knows a mailbox id (only the pair) can fetch and delete it. Members who need to hide even circuit
+secret; only the pair knows a mailbox id, so only they can fetch and delete it. Members who need to hide even circuit
 metadata run their own relay or keep direct connectivity.
 
 ### Metadata exposure
@@ -144,33 +153,44 @@ metadata run their own relay or keep direct connectivity.
 - Keepers of one vault learn each other's IP addresses (they are members; this is inherent to a peer mesh without a
   mixnet).
 - Peer ids are derived from keeper identities, which appear only in the manifest shared among members, never on chain.
-- Identify announces the protocol version and listen addresses to allowed peers only (the gate closes other
-  connections first), and to anyone who connects while the keeper hosts an open lobby.
-- An invite reveals the host keeper's identity and addresses to whoever holds it; hosting a lobby exposes the keeper
-  to connections from anyone who learns its address until the lobby starts or closes.
+- Identify announces the protocol version and listen addresses to allowed peers only (the gate closes other connections
+  first), and to anyone who connects while the keeper hosts an open lobby.
+- An invite reveals the host keeper's identity and addresses to whoever holds it; hosting a lobby exposes the keeper to
+  connections from anyone who learns its address until the lobby starts or closes.
 
-## Measured
+## Guarantees and limits
+
+- **Relay availability.** A vault whose members are all behind symmetric NATs depends on at least one reachable relay.
+- **Mailbox discovery cost.** A keeper fetches `members × ttl_days` mailbox ids per poll (at most 8 × 7 = 56 ids).
+- **Finished ceremonies linger.** A ceremony's participants stay on the allow list for one round timeout after it ends,
+  so a member that finishes first still delivers its last messages to a joining member that is in none of its
+  committees yet.
+- **Lobby exposure.** An open lobby lets strangers open connections and spend up to 10 lobby requests a minute each;
+  hosts should start or close lobbies promptly. The join secret, not the transport, keeps strangers off the roster.
+- **Echo is one hop.** It detects a dealer equivocating between honest members; it is not a full reliable broadcast
+  under a malicious majority (ceremonies abort and blame instead of completing).
+
+## Code and measurements
+
+| Path                                           | Contents                                           |
+| ---------------------------------------------- | -------------------------------------------------- |
+| `crates/keeper/src/transport/p2p.rs`           | Swarm, lanes, address advertising, reachability    |
+| `crates/keeper/src/transport/gate.rs`          | Connection gate                                    |
+| `crates/keeper/src/transport/relay_mailbox.rs` | Mailbox client                                     |
+| `crates/keeper/src/keeper/sync.rs`             | Sync inventory and answers                         |
+| `crates/keeper/src/keeper/mailbox.rs`          | Mailbox deposit and poll                           |
+| `crates/crypto/src/mailbox.rs`                 | Mailbox ids and sealing                            |
+| `crates/relay/src/`                            | Relay node, limits, mailbox store, health, metrics |
+| `crates/deploy/`                               | Dockerfile, systemd units                          |
 
 | Scenario                                                                                                                                                                   | Result                                         |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart, lobby with strangers then DKG | 6 tests, ~6 s                                  |
-| Real binaries on one host (relay + 3 keepers, `network_scenario`)                                                                                                          | DKG 291 ms, ECDH 25 ms, total 710 ms           |
-| Docker: 3 keepers on 3 internal networks, reachable only through the relay (3 runs)                                                                                        | DKG 258–262 ms, ECDH 7–12 ms, total 567–579 ms |
+| `tests/p2p.rs` (loopback): DKG 2-of-3, ECDH, replication, reshare with a joiner, outsider refused, relay-only keeper, mailbox after restart, lobby with strangers then DKG | 6 tests, about 6 s                             |
+| Real binaries on one host (relay + 3 keepers, `examples/network_scenario.rs`)                                                                                              | DKG 291 ms, ECDH 25 ms, total 710 ms           |
+| Docker: 3 keepers on 3 internal networks, reachable only through the relay (3 runs)                                                                                        | DKG 258-262 ms, ECDH 7-12 ms, total 567-579 ms |
 
 `crates/keeper/tests/network/run.sh` (`pnpm test:network`) builds the node image and starts a relay attached to three
 internal Docker networks and one keeper on each. No keeper can route to another; the driver container has no network
 and talks to each keeper over the RPC socket in its volume. It runs a 2-of-3 DKG, registers the vault, gathers
 threshold ECDH from two keepers and checks they combine to the same point, puts a proposal on one keeper and waits for
 all three to hold it.
-
-## Known limits
-
-- **Relay availability.** A vault whose members are all behind symmetric NATs depends on at least one reachable relay.
-- **Mailbox discovery cost.** A keeper fetches `members × ttl_days` mailbox ids per poll (at most 8 × 7 = 56 ids).
-- **Finished ceremonies linger.** A ceremony's participants stay on the allow list for one round timeout after it
-  ends, so a member that finishes first still delivers its last messages to a joining member that is in none of its
-  committees yet.
-- **Lobby exposure.** An open lobby lets strangers open connections and spend up to 10 lobby requests a minute each;
-  hosts should start or close lobbies promptly. The join secret, not the transport, keeps strangers off the roster.
-- **Echo is one hop.** It detects a dealer equivocating between honest members; it is not a full reliable broadcast
-  under a malicious majority (ceremonies abort and blame instead of completing).

@@ -1,20 +1,19 @@
 # Wire format and Node bindings
 
-`crates/wire` (`clave-wire`) is the single definition of every message exchanged between engines, keepers and relays.
-`crates/napi` (`@clave/napi`) exposes it and the public parts of `clave-crypto` to TypeScript, so the vault wallet
-and its hosts never reimplement cryptography or encoding.
+## Purpose
 
-Status: Phase 6 (library and bindings). Keepers send these messages from Phase 8 (over libp2p from Phase 9); the vault wallet uses the bindings
-from Phase 7.
+`clave-wire` (`crates/wire`) is the single definition of every message exchanged between engines, keepers and relays:
+their fields, bounds, canonical encoding, signatures and replay rules. `@clave/napi` (`crates/napi`) exposes it and the
+public parts of `clave-crypto` to TypeScript, so the vault wallet and `claved` never reimplement cryptography or
+encoding.
 
 ## Encoding
 
 - [`postcard`](https://docs.rs/postcard) over serde: varint integers, length-prefixed sequences, enum variants as a
   varint index. `WIRE_VERSION = 0`.
 - **Canonical only.** postcard also parses overlong varints, so `decode` re-encodes and rejects any input that differs
-  from its canonical form (found by fuzzing). Every message has exactly one byte form; byte-level hashing and dedup
-  are sound.
-- Decode rejects: input over `MAX_MESSAGE_BYTES` (1 MiB), trailing bytes, unknown variants, other wire versions, and
+  from its canonical form. Every message has exactly one byte form, so byte-level hashing and deduplication are sound.
+- Decode rejects input over `MAX_MESSAGE_BYTES` (1 MiB), trailing bytes, unknown variants, other wire versions, and
   bodies outside their bounds (below). Cryptographic validity (points on the curve, canonical scalars, proofs) is
   checked when a body is converted to `clave-crypto` types.
 
@@ -33,24 +32,27 @@ Header        { scope: [u8; 32], epoch: u32, id: [u8; 16], created_at: u64 }
 signature     = Ed25519(keeper, "clave.wire.v0" ‖ postcard(version, header, body, signer))
 ```
 
-- **Keeper identity.** Each keeper has an Ed25519 identity (`KeeperIdentity`), which is also its libp2p peer
-  id, and a separate X25519 transport key for envelopes. Verification uses `verify_strict` (no small-order keys,
-  canonical `S`). The identity's `Debug` output is redacted.
-- **Signer binding.** `verify_from(expected)` checks the signer is the manifest entry of the member the message
-  claims to come from, before checking the signature.
-- **Scope** is the vault address, or the ceremony session id before the vault exists. **Epoch** is the committee epoch:
-  the vault config version at which the current viewing committee became active (0 from the DKG). Config changes that
-  keep the committee (`set_threshold`, `invalidate_pending`) do not change it; DKG messages use 0 and reshare messages
-  the old committee's epoch.
+- **Keeper identity.** Each keeper has an Ed25519 identity (`KeeperIdentity`), which is also its libp2p peer id, and a
+  separate X25519 transport key for envelopes. Verification uses `verify_strict` (no small-order keys, canonical `S`).
+  The identity's `Debug` output is redacted.
+- **Signer binding.** `verify_from(expected)` checks the signer is the manifest entry of the member the message claims
+  to come from, before checking the signature.
+- **Scope** is the vault address, the ceremony session id before the vault exists, or a lobby id zero-padded to 32
+  bytes. **Epoch** is the committee epoch: the vault config version at which the current viewing committee became
+  active (0 from the DKG). Config changes that keep the committee (`set_threshold`, `invalidate_pending`) do not change
+  it. DKG and lobby messages use 0, reshare messages the old committee's epoch.
 
 ### Replay rules (`ReplayGuard`)
 
 Applied after signature verification, in this order:
 
 1. `header.epoch` must equal the receiver's current epoch (`WrongEpoch`).
-2. `|created_at − now| ≤ max_skew` (`Stale`).
-3. `(signer, id)` must not have been seen (`Replayed`). Remembered ids are bounded (oldest evicted); an evicted id is
-   already outside the skew window, so it cannot be replayed.
+2. `|created_at - now| ≤ max_skew` (`Stale`; the keeper's default is 300 s).
+3. `(signer, id)` must not have been seen (`Replayed`). Remembered ids are bounded (65,536 in the keeper, oldest
+   evicted); an evicted id is already outside the skew window, so it cannot be replayed.
+
+Replicated proposal records skip the skew window, since a record may legitimately be days old; they are re-verified
+instead ([networking.md](networking.md#replication)).
 
 ## Message catalogue
 
@@ -87,14 +89,15 @@ Variants are append-only: the index is the encoding. Golden bytes for every kind
 
 Members are listed in slot order with `index = slot + 1`, each with its signer key, verification share `Y_i`, keeper
 identity, transport key and up to 8 addresses (≤ 256 bytes each). `validate` checks indices `1..=n`, distinct
-identities, `1 ≤ k ≤ n` and `2 ≤ t_v ≤ n`. A manifest is trusted only after
-`signer_set_commitment()` and `committee_commitment()` equal the vault's on-chain config and `address_context()`
-confirms the vault address from `preaddress` and `Ivpk`.
+identities, `1 ≤ k ≤ n` and `2 ≤ t_v ≤ n`. A manifest is trusted only after `signer_set_commitment()` and
+`committee_commitment()` equal the vault's on-chain config and `address_context()` confirms the vault address from
+`preaddress` and `Ivpk`.
 
 ### Lobbies (`clave_wire::lobby`)
 
-A founder's keeper hosts a lobby that co-founders join before any committee exists (flow and checks in `keeper.md`).
-Lobby frames are ordinary `SignedMessage`s with `scope` = the 16-byte lobby id zero-padded to 32 bytes and epoch 0.
+A founder's keeper hosts a lobby that co-founders join before any committee exists (flow and checks in
+[keeper.md](keeper.md#lobbies)). Lobby frames are ordinary `SignedMessage`s with `scope` = the 16-byte lobby id
+zero-padded to 32 bytes and epoch 0.
 
 ```text
 KeeperContact { identity: [u8; 32], transport: [u8; 32], addresses: Vec<String> }      ≤ 8 addresses of ≤ 256 bytes
@@ -108,11 +111,11 @@ proof         = HMAC-SHA256(secret, "clave.lobby.join.v0" ‖ lobby ‖ joiner i
 - **Invite string.** `clave-invite-v0:` followed by base64url without padding of the invite's canonical postcard bytes,
   at most 4096 characters. Decoding accepts only the canonical bytes and the canonical base64 form (no padding, no
   non-zero trailing bits), applies the bounds above, and ignores surrounding whitespace. The secret is zeroized on drop
-  and omitted from `Debug`. `network` is an opaque label set by the engine. Anyone holding the invite can join while the
-  lobby is open, so it is shared like a password.
-- **Plan secrets** are the engine's opaque protocol secrets (≤ 1 KiB, never interpreted by keepers), sealed per member
-  with envelope kind 4: session = plan session, epoch 0, sender 1 (the host), recipient = the member's 1-based index
-  (`viewing-keys.md`).
+  and omitted from `Debug`. `network` is an opaque label set by the engine. Anyone holding the invite can join while
+  the lobby is open, so it is shared like a password.
+- **Plan secrets** are the engine's opaque protocol secrets (≤ 1 KiB plaintext, never interpreted by keepers), sealed
+  per member with envelope kind 4: session = plan session, epoch 0, sender 1 (the host), recipient = the member's
+  1-based index ([viewing-keys.md](viewing-keys.md#envelopes)).
 - `LobbyState.revision` increases with every roster change; members apply only newer states, since sends race.
 
 ### Ceremony complaints
@@ -124,22 +127,21 @@ Third parties cannot open another member's envelope, so a complaint is resolved 
 3. Everyone checks `Justification::holds(C_j)`. A share that does not match, or no justification before the round
    deadline, blames `j`. A share that matches is unattributable (nobody else saw what `j` sent), so nobody is blamed.
    Either way the ceremony aborts: the revealed share is now public, and members restart with a new session (without
-   `j` if it was blamed). See `keeper.md`.
+   `j` if it was blamed).
 
-### Proposals and approvals
+### Proposals, approvals and rejections
 
 - `Proposal::id() = SHA-256("clave.proposal.v0" ‖ postcard(proposal))`, covering every field.
 - `Proposal::approval_message(vault)` is the contract's `Poseidon2("clave.approval.v0", [vault, outer_hash, version,
-  expires_at])` (see `contract.md`).
+  expires_at])` ([contract.md](contract.md#approval-message)).
 - `Approval::verify(proposal, vault, signer_key)` requires the approval to name that proposal id and the signature to
   verify exactly as the contract checks it. Approvers recompute `outer_hash` from `payload` before signing.
 - `Rejection` is an off-chain vote, never seen by the contract: a Schnorr signature by the slot's signer over
-  `Poseidon2("clave.rejection.v0", [vault, id_hi, id_lo])`, where `id_hi` and `id_lo` are the big-endian 128-bit
-  halves of the proposal id. The separate domain means an approval signature can never pass as a rejection or the
-  reverse. When more than `n - k` members reject, `k` approvals are out of reach and engines show the proposal as
-  blocked; cancelling it burns its nonce. An approval outranks a rejection from the same slot (it is already a usable
+  `Poseidon2("clave.rejection.v0", [vault, id_hi, id_lo])`, where `id_hi` and `id_lo` are the big-endian 128-bit halves
+  of the proposal id. The separate domain means an approval signature can never pass as a rejection or the reverse.
+  When more than `n - k` members reject, `k` approvals are out of reach and engines show the proposal as blocked;
+  cancelling it burns its nonce. An approval outranks a rejection from the same slot (it is already a usable
   signature), so engines refuse to reject after approving.
-- `SyncRequest.rejections` was appended in Phase 13 (v0 has no deployed peers to stay compatible with).
 
 ### Relay mailbox protocol (`clave_wire::mailbox`)
 
@@ -153,13 +155,13 @@ envelope id     = SHA-256("clave.mailbox.envelope.v0" ‖ canonical envelope)
 ```
 
 Bounds: 128 mailboxes per fetch, 1024 ids per delete, envelopes ≤ 256 KiB, messages ≤ 4 MiB. Mailbox ids and the
-sealing of envelope contents are defined in `networking.md`.
+sealing of envelope contents are defined in [networking.md](networking.md#mailboxes).
 
 ### libp2p codec (feature `p2p`)
 
-`FrameCodec` frames each request and response with a u32 big-endian length: keeper lanes accept requests up to 1 MiB
-and responses up to 64 bytes (an empty acknowledgement); the mailbox lane accepts 4 MiB. Protocol names are
-`/clave/{ecdh,ceremony,sync,lobby,mailbox}/0`.
+`FrameCodec` frames each request and response with a u32 big-endian length. Keeper lanes accept requests up to 1 MiB
+and responses up to 64 bytes (an empty acknowledgement); the mailbox lane accepts 4 MiB both ways. Protocol names are
+`/clave/{ecdh,ceremony,sync,lobby,mailbox}/0`, and identify announces `/clave/0`.
 
 ### Unsigned bodies
 
@@ -180,21 +182,41 @@ throws an `InvalidArg` error on failure.
 | Wire    | `wireVersion`, `proposalId`, `proposalApprovalMessage`, `encodeProposal` / `decodeProposal`, `encodeApproval` / `decodeApproval`, `verifyProposalApproval`, `proposalRejectionMessage`, `encodeRejection` / `decodeRejection`, `verifyProposalRejection` |
 
 - **No secrets in the production addon.** Envelope sealing and opening stay in the keeper (which holds the transport
-  key); signing keys stay in the member's signer. Helpers that deal or use viewing shares and a test Schnorr
-  signer exist only in the separate `@clave/napi/testing` binary, built with the `testing` feature.
-- `pnpm --filter @clave/napi build` writes `index.js`, `index.d.ts` and `clave.<platform>.node` to `dist/` (the
-  testing build to `dist/testing/`). `dist/` is build output and is not committed.
-- Node-API is ABI-stable: the same binary loads in Node 24 and in Electron 45 (verified with Node 24.22.2 and
-  Electron 45.2.3, when the desktop app existed). Per-platform prebuilds are produced by the release pipeline.
+  key); signing keys stay in the member's signer. Helpers that deal or use viewing shares and a test Schnorr signer
+  (`testingDealShares`, `testingPartials`, `testingPublicKey`, `testingSign`) exist only in the separate
+  `@clave/napi/testing` binary, built with the `testing` feature.
+- `pnpm --filter @clave/napi build` writes `index.js`, `index.d.ts` and `clave.<platform>.node` to `dist/` (the testing
+  build to `dist/testing/`). `dist/` is build output and is not committed.
+- Node-API is ABI-stable, so one binary per platform serves every supported Node version.
 
-## Tests
+## Guarantees and limits
+
+- Every keeper-to-keeper frame is signed by a manifest identity and checked against the claimed member before use;
+  authenticity never depends on the transport.
+- One byte form per message: hashes over encodings (proposal ids, envelope ids) are well defined.
+- Bounds are structural. A well-formed message can still carry invalid cryptography, which conversion rejects.
+
+## Code and tests
+
+| Path                          | Contents                                                                |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `crates/wire/src/codec.rs`    | `WIRE_VERSION`, `MAX_MESSAGE_BYTES`, canonical encode / decode          |
+| `crates/wire/src/signed.rs`   | `SignedMessage`, `Header`                                               |
+| `crates/wire/src/identity.rs` | `KeeperIdentity`, signing domain                                        |
+| `crates/wire/src/replay.rs`   | `ReplayGuard`                                                           |
+| `crates/wire/src/messages.rs` | Message catalogue, bounds, proposal id, conversions                     |
+| `crates/wire/src/lobby.rs`    | Lobby types and invite strings                                          |
+| `crates/wire/src/mailbox.rs`  | Relay mailbox protocol                                                  |
+| `crates/wire/src/p2p.rs`      | Protocol names, `FrameCodec`                                            |
+| `crates/napi/src/`            | Bindings (`vault.rs`, `address.rs`, `ecdh.rs`, `wire.rs`, `testing.rs`) |
 
 | Suite                              | Covers                                                                                                                                                                                    |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `crates/wire/tests/lobby.rs`       | Invite string round trip, redacted `Debug`, prefix / padding / alphabet / trailing-bit / truncation / overlong-varint rejection, invite and lobby message bounds                          |
 | `crates/wire/tests/codec.rs`       | Round trips, golden bytes, variant tags, truncation, trailing bytes, overlong varints, unknown variants, versions, size and count bounds                                                  |
 | `crates/wire/tests/signed.rs`      | Signatures over every kind, signer binding, every flipped bit rejected, replay guard                                                                                                      |
 | `crates/wire/tests/messages.rs`    | Manifest validation and commitments vs the contract vectors, approvals with real Schnorr, proposal id, DKG / reshare / ECDH conversions with real ceremonies, justifications              |
+| `crates/wire/tests/lobby.rs`       | Invite string round trip, redacted `Debug`, prefix / padding / alphabet / trailing-bit / truncation / overlong-varint rejection, invite and lobby message bounds                          |
+| `crates/wire/tests/mailbox.rs`     | Mailbox protocol encoding and bounds                                                                                                                                                      |
 | `crates/napi/test/aztec.test.ts`   | Against live `@aztec-labs` 6.0.0: address and sign (both branches), preaddress, 2-of-3 threshold ECDH vs `deriveEcdhSharedSecretPoint`, Aztec Schnorr approvals, codecs, contract vectors |
 | `crates/crypto/fuzz` `wire_decode` | Decoding signed messages, bare bodies and invites never panics; accepted input re-encodes identically                                                                                     |
 
