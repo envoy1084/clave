@@ -157,24 +157,7 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
         ctx.out("\n");
     }
     if !review.checks.passed() {
-        let reason = review.checks.failure.clone().unwrap_or_else(|| {
-            let failed: Vec<&str> = [
-                (
-                    review.checks.rebuilt,
-                    "the rebuilt transaction does not match the proposal",
-                ),
-                (
-                    review.checks.config_current,
-                    "the vault's config changed since it was proposed",
-                ),
-                (review.checks.not_expired, "the proposal has expired"),
-            ]
-            .into_iter()
-            .filter(|(ok, _)| !ok)
-            .map(|(_, why)| why)
-            .collect();
-            failed.join("; ")
-        });
+        let reason = refusal(&review.checks);
         return Err(Error::failed(format!("Refusing to sign: {reason}."))
             .hint("Nothing was signed. Propose it again if it is still wanted."));
     }
@@ -234,6 +217,28 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
         out
     });
     Ok(())
+}
+
+/// Why the checks refuse to sign, in words.
+fn refusal(checks: &crate::types::Checks) -> String {
+    checks.failure.clone().unwrap_or_else(|| {
+        [
+            (
+                checks.rebuilt,
+                "the rebuilt transaction does not match the proposal",
+            ),
+            (
+                checks.config_current,
+                "the vault's config changed since it was proposed",
+            ),
+            (checks.not_expired, "the proposal has expired"),
+        ]
+        .into_iter()
+        .filter(|(ok, _)| !ok)
+        .map(|(_, why)| why)
+        .collect::<Vec<_>>()
+        .join("; ")
+    })
 }
 
 fn phase_label(phase: &str) -> &str {

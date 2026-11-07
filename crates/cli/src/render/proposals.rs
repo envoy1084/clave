@@ -190,6 +190,37 @@ pub(crate) fn table(
     out
 }
 
+/// One line per vote, with reasons; `none yet` when empty.
+fn votes(p: &ProposalView, style: Style) -> String {
+    let mut out = String::new();
+    let mut votes = Vec::new();
+    for (word, list) in [("approved", &p.approvals), ("rejected", &p.rejections)] {
+        for v in list {
+            let mark = if v.valid { style.ok() } else { style.fail() };
+            let mut line = format!(
+                "{mark} {:<10} {}  {word}",
+                v.name,
+                style.dim(&format!("member {}", v.index))
+            );
+            if let Some(reason) = v.reason.as_deref().filter(|r| !r.is_empty()) {
+                let _ = write!(line, "  \"{reason}\"");
+            }
+            if !v.valid {
+                let _ = write!(line, "  {}", style.red("invalid signature"));
+            }
+            votes.push(line);
+        }
+    }
+    if votes.is_empty() {
+        let _ = writeln!(out, "  {}", style.dim("none yet"));
+    } else {
+        for line in votes {
+            let _ = writeln!(out, "  {line}");
+        }
+    }
+    out
+}
+
 /// Everything about one proposal.
 pub(crate) fn show(
     proposal: &ProposalView,
@@ -259,32 +290,7 @@ pub(crate) fn show(
 
     out.push('\n');
     out.push_str(&layout::heading(style, "Votes"));
-    let mut votes = Vec::new();
-    for (word, list) in [("approved", &p.approvals), ("rejected", &p.rejections)] {
-        for v in list {
-            let mark = if v.valid { style.ok() } else { style.fail() };
-            let mut line = format!(
-                "{mark} {:<10} {}  {word}",
-                v.name,
-                style.dim(&format!("member {}", v.index))
-            );
-            if let Some(reason) = v.reason.as_deref().filter(|r| !r.is_empty()) {
-                let _ = write!(line, "  \"{reason}\"");
-            }
-            if !v.valid {
-                let _ = write!(line, "  {}", style.red("invalid signature"));
-            }
-            votes.push(line);
-        }
-    }
-    if votes.is_empty() {
-        let _ = writeln!(out, "  {}", style.dim("none yet"));
-    } else {
-        for line in votes {
-            let _ = writeln!(out, "  {line}");
-        }
-    }
-
+    out.push_str(&votes(p, style));
     out.push('\n');
     out.push_str(&layout::heading(style, "Transaction"));
     let calls = p
