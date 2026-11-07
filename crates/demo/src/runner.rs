@@ -94,6 +94,11 @@ impl Runner {
     /// Runs the current step (from its first action, also after a failure).
     pub(crate) fn go(&mut self) {
         if matches!(self.state, State::Ready | State::Failed(_)) && self.shells_ready() {
+            if self.steps.get(self.step).is_some_and(|s| s.clear) {
+                for pane in &mut self.panes {
+                    pane.clear();
+                }
+            }
             self.state = State::Running;
             self.act = 0;
             self.started = false;

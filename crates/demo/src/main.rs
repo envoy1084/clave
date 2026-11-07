@@ -234,7 +234,10 @@ fn interactive(runner: &mut Runner, auto: Option<u64>) -> std::io::Result<()> {
                 };
             }
             Input::Forward(bytes) => {
-                let target = runner.busy_pane().unwrap_or(runner.focus);
+                let target = match runner.state {
+                    State::Running => runner.busy_pane().unwrap_or(runner.focus),
+                    _ => runner.focus,
+                };
                 runner.pane(target).send(&bytes);
             }
             Input::Ignore => {}

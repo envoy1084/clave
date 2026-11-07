@@ -260,78 +260,68 @@ fn inspect(d: &Value) -> String {
         ("Deployer", "deployer"),
         ("Init hash", "initializationHash"),
     ] {
-        let _ = writeln!(out, "  {label:<20}{}", text(d, &format!("/contract/{key}")));
+        let _ = writeln!(out, "{label:<20}{}", text(d, &format!("/contract/{key}")));
     }
     out.push_str("\nPublic keys\n");
     if let Some(keys) = d.pointer("/contract/publicKeys").and_then(Value::as_object) {
         for (name, value) in keys {
-            let _ = writeln!(out, "  {name:<20}{}", value.as_str().unwrap_or("–"));
+            let _ = writeln!(out, "{name:<20}{}", value.as_str().unwrap_or("–"));
         }
     }
     out.push_str("\nOn-chain config\n");
     if d.get("config").is_some_and(|c| !c.is_null()) {
-        let _ = writeln!(out, "  {:<20}v{}", "Version", number(d, "/config/version"));
+        let _ = writeln!(out, "{:<20}v{}", "Version", number(d, "/config/version"));
+        let _ = writeln!(out, "{:<20}{}", "Threshold", number(d, "/config/threshold"));
         let _ = writeln!(
             out,
-            "  {:<20}{}",
-            "Threshold",
-            number(d, "/config/threshold")
-        );
-        let _ = writeln!(
-            out,
-            "  {:<20}{}",
+            "{:<20}{}",
             "Viewing threshold",
             number(d, "/config/viewingThreshold")
         );
+        let _ = writeln!(out, "{:<20}{}", "Signers", number(d, "/config/signerCount"));
         let _ = writeln!(
             out,
-            "  {:<20}{}",
-            "Signers",
-            number(d, "/config/signerCount")
-        );
-        let _ = writeln!(
-            out,
-            "  {:<20}{}",
+            "{:<20}{}",
             "Signer set",
             text(d, "/config/signerSetCommitment")
         );
         let _ = writeln!(
             out,
-            "  {:<20}{}",
+            "{:<20}{}",
             "Committee",
             text(d, "/config/committeeCommitment")
         );
         let _ = writeln!(
             out,
-            "  {:<20}{}",
+            "{:<20}{}",
             "Matches setup",
             yes_no(d, "/config/matchesSetup")
         );
     } else {
-        out.push_str("  not read yet\n");
+        out.push_str("not read yet\n");
     }
     out.push_str("\nViewing committee\n");
-    let _ = writeln!(out, "  {:<20}{}", "Epoch", number(d, "/committee/epoch"));
+    let _ = writeln!(out, "{:<20}{}", "Epoch", number(d, "/committee/epoch"));
     let _ = writeln!(
         out,
-        "  {:<20}{}",
+        "{:<20}{}",
         "Group key x",
         text(d, "/committee/groupKey/x")
     );
     let _ = writeln!(
         out,
-        "  {:<20}{}",
+        "{:<20}{}",
         "Group key y",
         text(d, "/committee/groupKey/y")
     );
     let _ = writeln!(
         out,
-        "  {:<20}{}",
+        "{:<20}{}",
         "Founding session",
         text(d, "/founding/session")
     );
     if let Some(t) = d.pointer("/founding/transcript").and_then(Value::as_str) {
-        let _ = writeln!(out, "  {:<20}{t}", "Transcript");
+        let _ = writeln!(out, "{:<20}{t}", "Transcript");
     }
     out
 }

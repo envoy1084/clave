@@ -200,11 +200,6 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
         &format!("{have} of {k} approvals"),
     );
     ctx.emit(&result, || {
-        let next = match proposal.status.as_str() {
-            "ready" => format!("clave execute {short}"),
-            "blocked" => format!("clave cancel {short}"),
-            _ => "clave proposals".to_owned(),
-        };
         let mut out = String::from("\n");
         out.push_str(&layout::fields(
             ctx.style,
@@ -213,7 +208,6 @@ pub(crate) fn vote(ctx: &Ctx, prefix: &str, vote: &Vote) -> Result<()> {
                 ("Approvals", format!("{have} of {k}")),
             ],
         ));
-        out.push_str(&layout::next(ctx.style, &[&next]));
         out
     });
     Ok(())
@@ -344,12 +338,11 @@ pub(crate) fn execute(ctx: &Ctx, prefix: &str) -> Result<()> {
                         ("Tx", style.cyan(&execution.tx_hash)),
                     ],
                 ));
-                out.push_str(&layout::next(style, &["clave balance", "clave activity"]));
             }
             None => {
                 let _ = writeln!(
                     out,
-                    "  Proposal {} is {}",
+                    "Proposal {} is {}",
                     short_id(&proposal.id),
                     style.status(&proposal.status)
                 );
@@ -384,10 +377,6 @@ pub(crate) fn cancel(ctx: &Ctx, prefix: &str) -> Result<()> {
         out.push_str(&layout::fields(
             ctx.style,
             &[("Approvals", format!("0 of {}", proposal.threshold))],
-        ));
-        out.push_str(&layout::next(
-            ctx.style,
-            &[&format!("clave approve {short}")],
         ));
         out
     });

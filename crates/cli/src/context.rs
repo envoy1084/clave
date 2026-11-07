@@ -112,7 +112,7 @@ impl Ctx {
         let mut stderr = std::io::stderr().lock();
         let _ = write!(
             stderr,
-            "  {} {} {} ",
+            "{} {} {} ",
             self.style.cyan("?"),
             self.style.bold(question),
             self.style.dim("[y/N]")

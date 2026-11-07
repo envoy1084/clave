@@ -276,7 +276,6 @@ fn submit(
         rows.push(("Expires", format!("in {lifetime}")));
         let mut out = String::from("\n");
         out.push_str(&layout::fields(style, &rows));
-        out.push_str(&layout::next(style, &[&format!("clave approve {id}")]));
         out
     });
     Ok(())
@@ -294,12 +293,12 @@ fn render_preview(preview: &ProposalPreview, ctx: &Ctx) -> String {
     let mut out = String::from("\n");
     out.push_str(&layout::fields(style, &[("Calls", calls)]));
     if let Some(error) = &preview.error {
-        let _ = writeln!(out, "\n  {}", style.red(error));
+        let _ = writeln!(out, "\n{}", style.red(error));
     }
     if preview.ok {
         let _ = writeln!(
             out,
-            "\n  {}",
+            "\n{}",
             style.dim("Nothing was posted. Run it again without --dry-run to propose.")
         );
     }

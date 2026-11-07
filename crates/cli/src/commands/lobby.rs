@@ -137,7 +137,7 @@ fn open(ctx: &Ctx, client: &mut Client, args: &LobbyOpen) -> Result<()> {
     ctx.emit(&raw, || {
         let style = ctx.style;
         format!(
-            "\n  {}  {}\n\n{}\n\n  {}  {}\n\n",
+            "\n{}  {}\n\n{}\n\n{}  {}\n",
             style.bold("Invite"),
             style.dim("send it to the other members"),
             style.cyan(&invite),
@@ -146,10 +146,6 @@ fn open(ctx: &Ctx, client: &mut Client, args: &LobbyOpen) -> Result<()> {
         )
     });
     if args.no_wait {
-        ctx.out(&layout::next(
-            ctx.style,
-            &[&format!("clave {}lobby start", ctx.profile.flag())],
-        ));
         return Ok(());
     }
     wait_for_members(ctx, client, &lobby, args.members)?;
@@ -320,7 +316,7 @@ fn wait_for_members(
             }
             spin.println(
                 &ctx.style
-                    .yellow("  At least one other member must join first."),
+                    .yellow("At least one other member must join first."),
             );
         }
         std::thread::sleep(Duration::from_secs(1));
@@ -335,7 +331,7 @@ fn wait_until_started(ctx: &Ctx, client: &mut Client, lobby: &str, host: &str) -
         for member in &view.members {
             if seen.insert(member.index) && !member.you {
                 spin.println(&format!(
-                    "  {} {}",
+                    "{} {}",
                     ctx.style.dim(&format!("member {}", member.index)),
                     member.name
                 ));
@@ -446,10 +442,6 @@ fn follow_founding(ctx: &Ctx, client: &mut Client, lobby: &str, alias: Option<&s
                     rows.push(("Alias", format!("vaults:{alias}")));
                 }
                 out.push_str(&layout::fields(style, &rows));
-                out.push_str(&layout::next(
-                    style,
-                    &["clave vault show", "clave balance", "clave receive"],
-                ));
                 out
             });
             return Ok(());

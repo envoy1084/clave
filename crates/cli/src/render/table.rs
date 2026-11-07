@@ -18,7 +18,7 @@ impl Table {
         self.rows.push(cells);
     }
 
-    /// Indented by two with a dimmed header, for screens.
+    /// With a dimmed header, for screens.
     pub(crate) fn render_with(&self, style: super::Style) -> String {
         let mut rows = self.rows.clone();
         if let Some(header) = rows.first_mut() {
@@ -26,15 +26,7 @@ impl Table {
                 *cell = style.dim(cell);
             }
         }
-        Self { rows }
-            .render()
-            .lines()
-            .fold(String::new(), |mut out, line| {
-                out.push_str("  ");
-                out.push_str(line);
-                out.push('\n');
-                out
-            })
+        Self { rows }.render()
     }
 
     pub(crate) fn render(&self) -> String {

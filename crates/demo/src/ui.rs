@@ -55,8 +55,8 @@ pub(crate) fn draw(frame: &mut Frame, runner: &mut Runner, countdown: Option<u64
 }
 
 fn draw_pane(frame: &mut Frame, runner: &mut Runner, who: Who, area: Rect) {
-    let typing_here =
-        runner.busy_pane() == Some(who) || (runner.state == State::Finished && runner.focus == who);
+    let typing_here = (runner.state == State::Running && runner.busy_pane() == Some(who))
+        || (runner.state == State::Finished && runner.focus == who);
     let pane = runner.pane(who);
     let (color, status) = if typing_here && pane.busy {
         (
@@ -230,7 +230,10 @@ pub(crate) fn input(runner: &Runner, key: KeyEvent) -> Input {
     if key.code == KeyCode::Tab {
         return Input::SwitchFocus;
     }
-    let to_terminal = runner.busy_pane().is_some() || runner.state == State::Finished;
+    // Between steps a background command (Alice's lobby waiting for Bob) may still run; Enter then means "next step",
+    // never input for that command.
+    let to_terminal = (runner.state == State::Running && runner.busy_pane().is_some())
+        || runner.state == State::Finished;
     if to_terminal {
         return bytes(key).map_or(Input::Ignore, Input::Forward);
     }

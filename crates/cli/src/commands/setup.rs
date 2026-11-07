@@ -45,7 +45,7 @@ pub(crate) fn init(ctx: &Ctx, name: Option<String>, touch_id: bool) -> Result<()
     };
     if ctx.interactive && secret::passphrase_file_set().is_none() {
         ctx.note(&format!(
-            "\n  {}\n  {}\n",
+            "\n{}\n{}\n",
             ctx.style.bold("Choose a passphrase"),
             ctx.style
                 .dim("It seals your signing key on this device. Nobody can recover it for you.")
@@ -89,14 +89,6 @@ pub(crate) fn init(ctx: &Ctx, name: Option<String>, touch_id: bool) -> Result<()
         ));
         rows.push(("Directory", style.dim(&profile.dir.display().to_string())));
         out.push_str(&layout::fields(style, &rows));
-        let f = profile.flag();
-        out.push_str(&layout::next(
-            style,
-            &[
-                &format!("clave {f}lobby open --name <vault> -k 2 --tv 2"),
-                &format!("clave {f}lobby join <invite>"),
-            ],
-        ));
         out
     });
     Ok(())

@@ -1,5 +1,5 @@
-//! Building blocks shared by every screen, in the Aztec CLI's manner: a title line, aligned `label  value` blocks
-//! indented by two, and a closing `Next` hint.
+//! Building blocks shared by every screen, in the Aztec CLI's manner: a title line, then aligned `label  value`
+//! blocks separated by blank lines.
 
 use std::fmt::Write as _;
 
@@ -16,7 +16,7 @@ pub(crate) fn title(style: Style, text: &str, details: &[&str]) -> String {
     line
 }
 
-/// Aligned `label  value` rows, indented by two; labels dimmed.
+/// Aligned `label  value` rows; labels dimmed.
 pub(crate) fn fields(style: Style, rows: &[(&str, String)]) -> String {
     let width = rows
         .iter()
@@ -32,30 +32,17 @@ pub(crate) fn fields_at(style: Style, width: usize, rows: &[(&str, String)]) -> 
     rows.iter().fold(String::new(), |mut out, (label, value)| {
         let mut lines = value.lines();
         let first = lines.next().unwrap_or_default();
-        let _ = writeln!(out, "  {}{first}", pad(&style.dim(label), width));
+        let _ = writeln!(out, "{}{first}", pad(&style.dim(label), width));
         for more in lines {
-            let _ = writeln!(out, "  {}{more}", " ".repeat(width));
+            let _ = writeln!(out, "{}{more}", " ".repeat(width));
         }
         out
     })
 }
 
-/// A dimmed group heading, indented by two.
+/// A bold group heading.
 pub(crate) fn heading(style: Style, text: &str) -> String {
-    format!("  {}\n", style.bold(text))
-}
-
-/// `  Next  clave approve 3bb4` (several commands joined by ` · `).
-pub(crate) fn next(style: Style, commands: &[&str]) -> String {
-    format!(
-        "\n  {}  {}\n",
-        style.dim("Next"),
-        commands
-            .iter()
-            .map(|c| style.cyan(c))
-            .collect::<Vec<_>>()
-            .join(&style.dim(" · "))
-    )
+    format!("{}\n", style.bold(text))
 }
 
 #[cfg(test)]
@@ -77,11 +64,7 @@ mod tests {
                     ("Spend", "2 of 2\nview 2".into())
                 ]
             ),
-            "  Address  0x12\n  Spend    2 of 2\n           view 2\n"
-        );
-        assert_eq!(
-            next(s, &["clave approve 3bb4", "clave proposals"]),
-            "\n  Next  clave approve 3bb4 · clave proposals\n"
+            "Address  0x12\nSpend    2 of 2\n         view 2\n"
         );
     }
 }

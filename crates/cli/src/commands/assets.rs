@@ -41,11 +41,7 @@ pub(crate) fn balance(ctx: &Ctx, token: Option<&str>) -> Result<()> {
         let style = ctx.style;
         let mut out = vault_title(ctx, &vault);
         if balances.is_empty() {
-            let _ = write!(out, "\n  {}\n", style.dim("No tracked tokens yet."));
-            out.push_str(&layout::next(
-                style,
-                &["clave token add <address>", "clave token deploy-test"],
-            ));
+            let _ = write!(out, "\n{}\n", style.dim("No tracked tokens yet."));
             return out;
         }
         let mut table = Table::new(&["TOKEN", "BALANCE", "", ""]);
@@ -130,7 +126,7 @@ pub(crate) fn token(ctx: &Ctx, cmd: TokenCmd) -> Result<()> {
                 ),
                 || {
                     if tokens.is_empty() {
-                        return format!("  {}\n", ctx.style.dim("No tracked tokens."));
+                        return format!("{}\n", ctx.style.dim("No tracked tokens."));
                     }
                     let mut table = Table::new(&["SYMBOL", "NAME", "DECIMALS", "ADDRESS"]);
                     for t in tokens {
@@ -178,17 +174,17 @@ pub(crate) fn receive(ctx: &Ctx, show_qr: bool) -> Result<()> {
     }
     let style = ctx.style;
     let mut out = vault_title(ctx, &vault);
-    let _ = write!(out, "\n  {}\n", style.cyan(&vault.address));
+    let _ = write!(out, "\n{}\n", style.cyan(&vault.address));
     if show_qr {
         out.push('\n');
         for line in qr(&vault.address)?.lines() {
-            let _ = writeln!(out, "  {line}");
+            let _ = writeln!(out, "{line}");
         }
     }
     if !ctx.quiet {
         let _ = write!(
             out,
-            "\n  {}\n",
+            "\n{}\n",
             style.dim(
                 "Send private notes to this address. Only the members can read them, together."
             )

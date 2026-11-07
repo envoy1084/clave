@@ -108,20 +108,19 @@ pub(crate) fn screen(review: &Review, verb: Verb, style: Style) -> String {
         Verb::Approve => &review.signs,
         Verb::Reject => &review.rejects,
     };
+    out.push_str(&layout::fields_at(style, LABEL, &[("Checks", checks)]));
+    out.push('\n');
     out.push_str(&layout::fields_at(
         style,
         LABEL,
-        &[
-            ("Checks", checks),
-            (
-                "Signs",
-                format!(
-                    "{}\n{}",
-                    signs.formula,
-                    style.dim(&format!("= {}", signs.message))
-                ),
+        &[(
+            "Signs",
+            format!(
+                "{}\n{}",
+                signs.formula,
+                style.dim(&format!("= {}", signs.message))
             ),
-        ],
+        )],
     ));
     out
 }
@@ -267,26 +266,27 @@ mod tests {
             "\
 Approve proposal 7f3a1c  Ops · 0x2874…2874
 
-  What
-  Action       transfer 25 TTT (25000000000000000000 base units)
-  To           bea  0x3029…3029  address book
-  Token        TTT  Clave Test Token · 18 decimals · 0x0f9d…0f9d
-  Memo         \"Q3 retainer\"  proposer's text
-  Proposed by  ana  member 1
+What
+Action       transfer 25 TTT (25000000000000000000 base units)
+To           bea  0x3029…3029  address book
+Token        TTT  Clave Test Token · 18 decimals · 0x0f9d…0f9d
+Memo         \"Q3 retainer\"  proposer's text
+Proposed by  ana  member 1
 
-  Transaction, rebuilt on this device
-  Calls        0  SponsoredFPC.sponsor_unconditionally()
-               1  Token.transfer(to, amount)
-  Fee          Sponsored FPC
-  Simulation   ✓ ok  gas l2 41,203 · da 1,536
-  Deadline     2026-11-14 01:16 UTC  block timestamp
-  Config       v0  current
+Transaction, rebuilt on this device
+Calls        0  SponsoredFPC.sponsor_unconditionally()
+             1  Token.transfer(to, amount)
+Fee          Sponsored FPC
+Simulation   ✓ ok  gas l2 41,203 · da 1,536
+Deadline     2026-11-14 01:16 UTC  block timestamp
+Config       v0  current
 
-  Checks       ✓ payload rebuilt, outer hash matches
-               ✓ config version current
-               ✓ not expired
-  Signs        Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])
-               = 0x00e28886
+Checks       ✓ payload rebuilt, outer hash matches
+             ✓ config version current
+             ✓ not expired
+
+Signs        Poseidon2(clave.approval.v0, [vault, outer hash, v0, expires_at])
+             = 0x00e28886
 "
         );
         assert_eq!(

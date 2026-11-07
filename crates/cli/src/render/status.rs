@@ -191,11 +191,11 @@ mod tests {
             "\
 cai  daemon running · pid 48121
 
-  Signer  locked
-  Keeper  12D3KooWAt4u…MJt · running · 2 addresses · no relays
-  Node    http://localhost:8080 · Aztec 6.0.0 · L1 31337 (local) · block 413
-  PXE     synced to block 413
-  Vaults  ops  0x2874…5e69  2-of-3 · view 2 · 1 open proposal
+Signer  locked
+Keeper  12D3KooWAt4u…MJt · running · 2 addresses · no relays
+Node    http://localhost:8080 · Aztec 6.0.0 · L1 31337 (local) · block 413
+PXE     synced to block 413
+Vaults  ops  0x2874…5e69  2-of-3 · view 2 · 1 open proposal
 "
         );
     }

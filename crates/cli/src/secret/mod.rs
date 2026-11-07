@@ -111,7 +111,7 @@ fn read_file(path: &PathBuf) -> Result<Zeroizing<String>> {
 fn prompt(label: &str) -> Result<Zeroizing<String>> {
     let color = std::env::var_os("NO_COLOR").is_none();
     let arrow = if color { "\x1b[36m›\x1b[0m" } else { "›" };
-    rpassword::prompt_password(format!("  {label} {arrow} "))
+    rpassword::prompt_password(format!("{label} {arrow} "))
         .map(Zeroizing::new)
         .map_err(|e| Error::failed(format!("could not read the passphrase: {e}")))
 }

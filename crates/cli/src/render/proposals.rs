@@ -151,11 +151,7 @@ pub(crate) fn table(
 ) -> String {
     let mut out = format!("{header}\n");
     if proposals.is_empty() {
-        let _ = writeln!(out, "  {}", style.dim("No proposals."));
-        out.push_str(&layout::next(
-            style,
-            &["clave propose transfer <amount> <token> --to <ref>"],
-        ));
+        let _ = writeln!(out, "{}", style.dim("No proposals."));
         return out;
     }
     let mut table = Table::new(&["ID", "PROPOSAL", "APPROVALS", "EXPIRES", "STATUS"]);
@@ -182,11 +178,7 @@ pub(crate) fn table(
         .iter()
         .filter(|p| OPEN.contains(&p.status.as_str()))
         .count();
-    let _ = write!(out, "\n  {}\n", style.dim(&format!("{open} open")));
-    out.push_str(&layout::next(
-        style,
-        &["clave proposal show <id>", "clave approve <id>"],
-    ));
+    let _ = write!(out, "\n{}\n", style.dim(&format!("{open} open")));
     out
 }
 
@@ -212,10 +204,10 @@ fn votes(p: &ProposalView, style: Style) -> String {
         }
     }
     if votes.is_empty() {
-        let _ = writeln!(out, "  {}", style.dim("none yet"));
+        let _ = writeln!(out, "{}", style.dim("none yet"));
     } else {
         for line in votes {
-            let _ = writeln!(out, "  {line}");
+            let _ = writeln!(out, "{line}");
         }
     }
     out
@@ -444,14 +436,12 @@ pub(crate) mod tests {
             "\
 Ops  0x2874…2874 · 2-of-3 · view 2 · config v0 · block 412
 
-  ID      PROPOSAL                             APPROVALS  EXPIRES    STATUS
-  7f3a1c  transfer 25 TTT → bea (0x3029…3029)  ██ 2/2     in 6d 23h  ready
-  c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collecting  rejected by cai
-  51bd02  cancel 9a10e2 (burn nonce)           ░░ 0/2     in 6d 22h  collecting
+ID      PROPOSAL                             APPROVALS  EXPIRES    STATUS
+7f3a1c  transfer 25 TTT → bea (0x3029…3029)  ██ 2/2     in 6d 23h  ready
+c09e44  call Token.mint_to_public(…)         █░ 1/2     in 2d 4h   collecting  rejected by cai
+51bd02  cancel 9a10e2 (burn nonce)           ░░ 0/2     in 6d 22h  collecting
 
-  3 open
-
-  Next  clave proposal show <id> · clave approve <id>
+3 open
 "
         );
     }
@@ -460,15 +450,15 @@ Ops  0x2874…2874 · 2-of-3 · view 2 · config v0 · block 412
     fn show_lists_votes_with_reasons() {
         let rendered = show(&call(), &[], NOW, Style::PLAIN);
         assert!(
-            rendered.contains("  ✓ ana        member 1  approved\n"),
+            rendered.contains("✓ ana        member 1  approved\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  ✓ cai        member 3  rejected  \"not yet\"\n"),
+            rendered.contains("✓ cai        member 3  rejected  \"not yet\"\n"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("  Calls        0  Token.mint_to_public()\n"),
+            rendered.contains("Calls        0  Token.mint_to_public()\n"),
             "{rendered}"
         );
         assert!(

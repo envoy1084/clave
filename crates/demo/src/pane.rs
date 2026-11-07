@@ -102,6 +102,13 @@ impl Pane {
         let _ = self.writer.flush();
     }
 
+    /// Clears the screen of an idle shell (readline's Ctrl-L redraws the prompt at the top).
+    pub(crate) fn clear(&mut self) {
+        if !self.busy {
+            self.send(b"\x0c");
+        }
+    }
+
     /// Submits a line the runner typed: the shell is now busy until its marker arrives.
     pub(crate) fn submit(&mut self) {
         self.busy = true;

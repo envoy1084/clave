@@ -61,15 +61,12 @@ pub(crate) fn outcome(state: &FoundingState, style: Style) -> String {
             error.message
         );
         if !error.blamed.is_empty() {
-            let _ = writeln!(out, "  Blamed: {}", error.blamed.join(", "));
+            let _ = writeln!(out, "Blamed: {}", error.blamed.join(", "));
         }
         return out;
     }
     match (&state.vault, state.done) {
-        (Some(vault), true) => format!(
-            "{} Vault founded at {vault}\n  Next: clave receive · clave balance · clave token deploy-test\n",
-            style.ok()
-        ),
+        (Some(vault), true) => format!("{} Vault founded at {vault}\n", style.ok()),
         _ => String::new(),
     }
 }
@@ -87,7 +84,7 @@ pub(crate) fn roster(lobby: &LobbyView, style: Style) -> String {
     );
     for member in &lobby.members {
         let you = if member.you { "  (you)" } else { "" };
-        let _ = writeln!(out, "  {}  {}{you}", member.index, member.name);
+        let _ = writeln!(out, "{}  {}{you}", member.index, member.name);
     }
     out
 }
@@ -153,7 +150,7 @@ mod tests {
         });
         assert_eq!(
             outcome(&state, Style::PLAIN),
-            "✗ Founding failed at dkg: complaint against bea\n  Blamed: bea\n"
+            "✗ Founding failed at dkg: complaint against bea\nBlamed: bea\n"
         );
     }
 
@@ -183,7 +180,7 @@ mod tests {
         };
         assert_eq!(
             roster(&lobby, Style::PLAIN),
-            "Lobby Ops  0x0123…cdef  spend 2-of-n  view 2-of-n  local  open\n  1  ana  (you)\n  2  bea\n"
+            "Lobby Ops  0x0123…cdef  spend 2-of-n  view 2-of-n  local  open\n1  ana  (you)\n2  bea\n"
         );
     }
 }

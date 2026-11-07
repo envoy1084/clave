@@ -65,6 +65,8 @@ pub(crate) enum Act {
 
 /// One narrated step.
 pub(crate) struct Step {
+    /// Clear both terminals before this step: a new chapter of the story.
+    pub(crate) clear: bool,
     pub(crate) title: &'static str,
     pub(crate) lines: &'static [&'static str],
     pub(crate) acts: Vec<Act>,
@@ -87,6 +89,7 @@ pub(crate) fn story() -> Vec<Step> {
     use Who::{Alice, Bob};
     vec![
         Step {
+            clear: false,
             title: "Alice creates her wallet",
             lines: &[
                 "A signing key is generated on her machine and sealed under her passphrase.",
@@ -95,6 +98,7 @@ pub(crate) fn story() -> Vec<Step> {
             acts: vec![run(Alice, "clave init --name Alice{yes}")],
         },
         Step {
+            clear: false,
             title: "Bob creates his wallet",
             lines: &[
                 "Same on Bob's machine: his own keys, his own keeper. Type his passphrase twice.",
@@ -102,6 +106,7 @@ pub(crate) fn story() -> Vec<Step> {
             acts: vec![run(Bob, "clave init --name Bob{yes}")],
         },
         Step {
+            clear: true,
             title: "Alice opens a 2-of-2 vault",
             lines: &[
                 "k = 2: both must approve every spend. t_v = 2: both keepers are needed to read it.",
@@ -117,6 +122,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: false,
             title: "Bob joins with the invite",
             lines: &[
                 "He checks the plan (name, host, thresholds, network) and confirms with y.",
@@ -128,6 +134,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: true,
             title: "Both see the same vault",
             lines: &[
                 "Same address, same members, same on-chain config, each verified on its own machine.",
@@ -135,6 +142,7 @@ pub(crate) fn story() -> Vec<Step> {
             acts: vec![run(Alice, "clave vault show"), run(Bob, "clave vault show")],
         },
         Step {
+            clear: false,
             title: "Fund the vault",
             lines: &[
                 "On the local network: deploy a test token (TTT) and mint 10,000 privately to the vault.",
@@ -146,6 +154,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: false,
             title: "Bob reads the balance too",
             lines: &[
                 "The vault's notes decrypt only with both keepers (threshold ECDH).",
@@ -157,6 +166,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: true,
             title: "Alice proposes paying Bob 100 TTT",
             lines: &[
                 "She labels Bob's account, then proposes. The proposal is replicated to Bob's keeper.",
@@ -172,6 +182,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: false,
             title: "Alice approves",
             lines: &[
                 "Her daemon rebuilds the transaction itself and shows exactly what she signs.",
@@ -180,6 +191,7 @@ pub(crate) fn story() -> Vec<Step> {
             acts: vec![run(Alice, "clave approve {id}{yes}")],
         },
         Step {
+            clear: false,
             title: "Bob reviews and approves",
             lines: &[
                 "Bob's daemon rebuilds the same transaction independently; if anything differed it would refuse.",
@@ -191,6 +203,7 @@ pub(crate) fn story() -> Vec<Step> {
             ],
         },
         Step {
+            clear: true,
             title: "Bob executes",
             lines: &[
                 "Two of two approvals: Bob's daemon builds the witness, proves and sends the transaction.",
@@ -198,6 +211,7 @@ pub(crate) fn story() -> Vec<Step> {
             acts: vec![run(Bob, "clave execute {id}")],
         },
         Step {
+            clear: false,
             title: "Both verify",
             lines: &[
                 "Each machine reads the result on its own: executed, and the vault is down by 100.",
