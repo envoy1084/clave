@@ -6,5 +6,5 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cargo build -q --manifest-path "$root/crates/Cargo.toml" -p clave-cli -p clave-keeper -p clave-demo
-[ -f "$root/packages/engine/dist/claved.js" ] || pnpm --dir "$root" --filter @clave/engine... build >/dev/null
+pnpm --dir "$root" exec turbo run build --filter=@clave/engine... --output-logs=errors-only >/dev/null
 exec "$root/crates/target/debug/clave-demo" "$@"

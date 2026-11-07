@@ -136,7 +136,7 @@ Vote        { slot, index, name, valid, reason? }
 Review      { proposal: ProposalView, vaultName, myName,
               checks: { rebuilt: boolean, outerHash: string, configCurrent: boolean, notExpired: boolean,
                         failure?: string },
-              action: string,               // "transfer 25 TTT (25000000000000000000 base units)"
+              action: string,               // "transfer 25 JADE (25000000000000000000 base units)"
               recipient?: { address, label?, source: "address book" | "member" | null },
               simulation: { ok: boolean, gas?: { da, l2 }, error? },
               signs: { message: string, formula: string },     // what an approval signs

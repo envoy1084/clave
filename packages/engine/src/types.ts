@@ -340,7 +340,7 @@ export interface Review {
     readonly notExpired: boolean;
     readonly failure?: string;
   };
-  /** One line: "transfer 25 TTT (25000000000000000000 base units)". */
+  /** One line: "transfer 25 JADE (25000000000000000000 base units)". */
   readonly action: string;
   readonly recipient?: {
     readonly address: string;

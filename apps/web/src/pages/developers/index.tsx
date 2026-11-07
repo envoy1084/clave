@@ -54,7 +54,7 @@ const CLI = [
   { cmd: "clave lobby join <invite>", what: "join, confirm the plan, run DKG and deployment" },
   { cmd: "clave balance", what: "private balances, read through t keepers" },
   {
-    cmd: "clave propose transfer 25 ttt --to bea",
+    cmd: "clave propose transfer 25 jade --to bea",
     what: "propose a private transfer (--dry-run simulates)",
   },
   {

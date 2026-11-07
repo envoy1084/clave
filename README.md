@@ -49,7 +49,7 @@ export PATH="$HOME/.clave/bin:$PATH"
 clave init                          # a profile per member; -P <name> selects one
 clave lobby open --name Ops -k 2 --tv 2 --members 3   # prints an invite; others: clave lobby join <invite>
 clave balance
-clave propose transfer 25 ttt --to bea
+clave propose transfer 25 jade --to bea
 clave approve <id>                  # shows what you sign, then asks for your passphrase
 clave execute <id>
 ```

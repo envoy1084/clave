@@ -90,9 +90,9 @@ t -P ana contacts add "$bea_account" bea
 t -P bea token add "$token" >/dev/null
 t -P cai token add "$token" >/dev/null
 
-step "propose 25 TTT to bea"
-t -P ana simulate transfer 25 ttt --to bea
-id="$(t -P ana --json propose transfer 25 ttt --to bea --memo "Q3 retainer" | field .id)"
+step "propose 25 JADE to bea"
+t -P ana simulate transfer 25 jade --to bea
+id="$(t -P ana --json propose transfer 25 jade --to bea --memo "Q3 retainer" | field .id)"
 short="${id:2:8}"
 echo "proposal $short"
 wait_for "replication" "[ -n \"\$(status_of cai $short)\" ] && [ -n \"\$(status_of bea $short)\" ]" 120
@@ -107,7 +107,7 @@ wait_for "ready" "[ \"\$(status_of bea $short)\" = ready ]" 60
 t -P bea proposal show "$short"
 
 step "--yes never skips authentication"
-second="$(t -P ana --json propose transfer 1 ttt --to bea | field .id)"
+second="$(t -P ana --json propose transfer 1 jade --to bea | field .id)"
 wait_for "replication" "[ -n \"\$(status_of bea ${second:2:8})\" ]" 120
 set +e
 CLAVE_PASSPHRASE_FILE='' t -P bea --json -y approve "${second:2:8}" </dev/null >/dev/null 2>"$work/locked.err"

@@ -27,13 +27,13 @@ const ROWS = [
   },
   {
     what: "Balance",
-    value: "9,975 TTT",
+    value: "9,975 JADE",
     where: "encrypted notes, read through the keepers",
     hidden: true,
   },
   {
     what: "Pending proposal",
-    value: "send 25 TTT",
+    value: "send 25 JADE",
     where: "sealed between keepers; relays hold ciphertext",
     hidden: true,
   },

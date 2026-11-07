@@ -92,9 +92,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Alice creates her wallet",
             lines: &[
-                "Generates a Grumpkin signing key, sealed at rest under Argon2id(passphrase) + ChaCha20-Poly1305.",
-                "Also creates her keeper's libp2p identity and an Aztec Schnorr account; starts her PXE and keeper.",
-                "→ Type a passphrase twice in Alice's terminal. It never leaves her machine.",
+                "Her signing key is created on her machine and locked with a passphrase only she knows.",
+                "→ Type a passphrase twice in Alice's terminal.",
             ],
             acts: vec![run(Alice, "clave init --name Alice{yes}")],
         },
@@ -102,8 +101,7 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Bob creates his wallet",
             lines: &[
-                "Same on Bob's side: his own signing key, keeper identity, account and PXE.",
-                "No shared server: the two machines only ever talk keeper to keeper over libp2p.",
+                "Same for Bob: his own key, his own keeper. No server sits between them.",
                 "→ Type Bob's passphrase twice.",
             ],
             acts: vec![run(Bob, "clave init --name Bob{yes}")],
@@ -112,9 +110,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: true,
             title: "Alice opens a 2-of-2 vault",
             lines: &[
-                "k = 2: the contract accepts a transaction only with both members' signatures.",
-                "t_v = 2: the vault's viewing secret will be Shamir-shared, so both keepers are needed to read it.",
-                "Her keeper opens a lobby; the invite carries its peer id, addresses and the network.",
+                "Both must sign every payment, and both are needed to see the balance.",
+                "Alice gets an invite to send to Bob.",
             ],
             acts: vec![
                 Act::Run {
@@ -129,9 +126,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Bob joins with the invite",
             lines: &[
-                "Bob checks the plan (thresholds, host, network) and confirms. → y in Bob's terminal.",
-                "Founding: a Feldman DKG gives each keeper a share of the viewing secret; nobody ever holds the whole.",
-                "Then both derive the same vault address, Alice deploys it, and both verify the on-chain config.",
+                "→ Bob checks the plan and types y. Their keepers then create the vault's viewing key together,",
+                "split in two shares, so neither of them ever holds the whole key.",
             ],
             acts: vec![
                 run(Bob, "clave lobby join {invite} --alias treasury{yes}"),
@@ -142,8 +138,7 @@ pub(crate) fn story() -> Vec<Step> {
             clear: true,
             title: "Both see the same vault",
             lines: &[
-                "Each machine reads the contract's config itself: version, k, t_v, and the Poseidon2",
-                "commitments to the signer set and the viewing committee, checked against the founding plan.",
+                "Each machine checks the deployed contract on its own: same address, same members, same rules.",
             ],
             acts: vec![run(Alice, "clave vault show"), run(Bob, "clave vault show")],
         },
@@ -151,10 +146,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Fund the vault",
             lines: &[
-                "Local network only: deploy a test token (TTT) and mint 10,000 to the vault as private notes.",
-                "Reading the balance needs t_v keepers: each returns x_i · P (its share of the address secret)",
-                "with a Chaum-Pedersen DLEQ proof,",
-                "and Alice's PXE combines them by Lagrange interpolation into address_secret · P to decrypt.",
+                "Mint 10,000 JADE, a test token, privately into the vault.",
+                "Alice can read the balance only because Bob's keeper helps decrypt it.",
             ],
             acts: vec![
                 run(Alice, "clave token deploy-test"),
@@ -166,8 +159,7 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Bob reads the balance too",
             lines: &[
-                "Bob's PXE runs the same threshold decryption, with Alice's keeper answering his request.",
-                "Neither member can decrypt alone, and every partial is proof-checked before it is used.",
+                "Bob sees the same balance, with Alice's keeper helping. Neither can read the vault alone.",
             ],
             acts: vec![
                 run(Bob, "clave token add {token}"),
@@ -176,18 +168,16 @@ pub(crate) fn story() -> Vec<Step> {
         },
         Step {
             clear: true,
-            title: "Alice proposes paying Bob 100 TTT",
+            title: "Alice proposes paying Bob 100 JADE",
             lines: &[
-                "Her PXE builds a private Token.transfer, simulates it and pins a tx nonce and expiry.",
-                "The proposal (payload, outer hash, config version) is signed and replicated to Bob's keeper.",
-                "Nothing touches the chain yet, and the proposal is visible to members only.",
+                "The payment is prepared and shared with Bob's keeper. Nothing is on-chain yet.",
             ],
             acts: vec![
                 Act::Capture(Capture::BobAccount),
                 run(Alice, "clave contacts add {bob} bob"),
                 run(
                     Alice,
-                    "clave propose transfer 100 ttt --to bob --memo 'Invoice 42'",
+                    "clave propose transfer 100 jade --to bob --memo 'Invoice 42'",
                 ),
                 Act::Capture(Capture::Proposal),
             ],
@@ -196,9 +186,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Alice approves",
             lines: &[
-                "Her daemon rebuilds the transaction from the payload and checks the outer hash, config and expiry.",
-                "She signs Poseidon2(clave.approval.v0, [vault, outer hash, config version, expires_at]).",
-                "→ y, then her passphrase: the key is unsealed in memory for this one signature.",
+                "Her machine rebuilds the transaction and shows exactly what she signs.",
+                "→ y, then her passphrase.",
             ],
             acts: vec![run(Alice, "clave approve {id}{yes}")],
         },
@@ -206,9 +195,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Bob reviews and approves",
             lines: &[
-                "Bob's daemon rebuilds the same transaction independently. If anything differed, it would refuse.",
-                "What he sees is decoded from his own rebuild, not from Alice's description.",
-                "→ y, then Bob's passphrase.",
+                "Bob's machine rebuilds it independently and would refuse if anything differed.",
+                "→ y, then his passphrase.",
             ],
             acts: vec![
                 run(Bob, "clave proposals"),
@@ -219,9 +207,8 @@ pub(crate) fn story() -> Vec<Step> {
             clear: true,
             title: "Bob executes",
             lines: &[
-                "With 2 of 2 approvals, Bob's PXE packs the signatures into the 49-field auth witness and runs",
-                "the vault's private entrypoint, which checks both signatures inside Bob's proof. The network",
-                "verifies the proof, never the signatures: signer identities and thresholds stay private.",
+                "Two of two signatures: Bob proves the transaction on his machine and sends it.",
+                "The vault contract checks both signatures; who signed stays private.",
             ],
             acts: vec![run(Bob, "clave execute {id}")],
         },
@@ -229,8 +216,7 @@ pub(crate) fn story() -> Vec<Step> {
             clear: false,
             title: "Both verify",
             lines: &[
-                "Each member reads the receipt and the new balance on their own machine:",
-                "executed, and 100 TTT less in the vault, decrypted once more by both keepers together.",
+                "Each machine confirms the payment on its own: executed, and 100 JADE less in the vault.",
             ],
             acts: vec![
                 run(Alice, "clave proposal show {id}"),

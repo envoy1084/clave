@@ -53,7 +53,9 @@ import type { VaultRecord } from "./protocol.ts";
 /** Sponsored fee payment (the only method until the paymaster). */
 const FEE_SPONSORED = 1;
 const CONFIG_TTL_MS = 8000;
-const TEST_TOKEN_SUPPLY = 10_000n * 10n ** 18n;
+/** The local-network test token: Jade, after Mesoamerica's most precious stone. */
+const TEST_TOKEN = { name: "Jade", symbol: "JADE", decimals: 18 } as const;
+const TEST_TOKEN_SUPPLY = 10_000n * 10n ** BigInt(TEST_TOKEN.decimals);
 
 const hex = (bytes: Uint8Array) => `0x${Buffer.from(bytes).toString("hex")}`;
 const fromHex = (value: string) => Buffer.from(value.replace(/^0x/u, ""), "hex");
@@ -108,7 +110,7 @@ export class Operations {
     return info;
   }
 
-  /** Local networks only: deploys a test token from this member's account and mints it privately to the vault. */
+  /** Local networks only: deploys the Jade test token from this member's account and mints it privately to the vault. */
   async deployTestToken(vault: VaultRecord): Promise<TokenInfo> {
     if (this.#engine.nodeStatus.l1ChainId !== 31337)
       throw new DaemonError("invalid", "Test tokens are only for a local network (L1 chain 31337)");
@@ -118,18 +120,16 @@ export class Operations {
     const { contract } = await TokenContract.deploy(
       wallet,
       from,
-      "Clave Test Token",
-      "TTT",
-      18,
+      TEST_TOKEN.name,
+      TEST_TOKEN.symbol,
+      TEST_TOKEN.decimals,
     ).send({ from, fee });
     await contract.methods
       .mint_to_private(addressOf(vault.address), TEST_TOKEN_SUPPLY)
       .send({ from, fee });
     const info: TokenInfo = {
       address: contract.address.toString(),
-      name: "Clave Test Token",
-      symbol: "TTT",
-      decimals: 18,
+      ...TEST_TOKEN,
     };
     await this.#rememberToken(vault, info);
     this.#engine.host.emit({ type: "vault-activity", vault: vault.address });
