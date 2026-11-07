@@ -152,7 +152,8 @@ pub(crate) fn story() -> Vec<Step> {
             title: "Fund the vault",
             lines: &[
                 "Local network only: deploy a test token (TTT) and mint 10,000 to the vault as private notes.",
-                "Reading the balance needs t_v keepers: each returns s_i · P with a Chaum-Pedersen DLEQ proof,",
+                "Reading the balance needs t_v keepers: each returns x_i · P (its share of the address secret)",
+                "with a Chaum-Pedersen DLEQ proof,",
                 "and Alice's PXE combines them by Lagrange interpolation into address_secret · P to decrypt.",
             ],
             acts: vec![
@@ -218,9 +219,9 @@ pub(crate) fn story() -> Vec<Step> {
             clear: true,
             title: "Bob executes",
             lines: &[
-                "With 2 of 2 approvals, Bob's PXE packs the signatures into the 49-field auth witness,",
-                "proves the transaction on his machine and sends it. The vault's entrypoint verifies both",
-                "signatures on-chain; signer identities and thresholds stay private.",
+                "With 2 of 2 approvals, Bob's PXE packs the signatures into the 49-field auth witness and runs",
+                "the vault's private entrypoint, which checks both signatures inside Bob's proof. The network",
+                "verifies the proof, never the signatures: signer identities and thresholds stay private.",
             ],
             acts: vec![run(Bob, "clave execute {id}")],
         },
