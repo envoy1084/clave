@@ -23,7 +23,7 @@ pub(crate) fn draw(frame: &mut Frame, runner: &mut Runner, countdown: Option<u64
     let [header, panes, narration] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(8),
-        Constraint::Length(7),
+        Constraint::Length(8),
     ])
     .areas(frame.area());
     let [left, right] =
