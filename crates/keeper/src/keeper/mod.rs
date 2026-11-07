@@ -20,7 +20,7 @@ pub use ceremonies::{CeremonyInfo, DkgResult, NewMember, ReshareRequest, Reshare
 use clave_crypto::ecdh::AddressSecretShare;
 use clave_wire::{
     Header, IdentityPublic, Message, ReplayGuard, SignedMessage, decode, encode,
-    messages::{Approval, EcdhResponse},
+    messages::EcdhResponse,
 };
 pub use ecdh::MemberPartials;
 pub use lobby::{LobbyInfo, LobbyOpen, LobbyPlanInfo, LobbyRole, LobbyStatus};
@@ -132,8 +132,8 @@ pub(crate) struct State {
     pub(crate) last_sync: HashMap<[u8; 32], u64>,
     /// Last mailbox poll (unix seconds).
     pub(crate) last_mailbox_poll: u64,
-    /// Replicated approvals whose proposal has not arrived yet, by proposal id.
-    pub(crate) orphans: HashMap<[u8; 32], Vec<([u8; 32], Approval)>>,
+    /// Replicated votes whose proposal has not arrived yet, by proposal id.
+    pub(crate) orphans: HashMap<[u8; 32], Vec<([u8; 32], proposals::Vote)>>,
     /// Participants of finished ceremonies with the time they stay reachable: a member that finishes first must still
     /// deliver its last messages (and accept retries) to members that are not in any of its committees yet.
     pub(crate) lingering: HashMap<[u8; 32], (u64, Vec<Participant>)>,

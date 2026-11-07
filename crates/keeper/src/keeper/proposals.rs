@@ -6,8 +6,23 @@ use clave_wire::{
 
 use super::Keeper;
 
-/// Approvals held while their proposal has not arrived yet.
+/// Votes held while their proposal has not arrived yet.
 const MAX_ORPHANS: usize = 1024;
+
+/// A replicated vote, held until its proposal arrives.
+pub(crate) enum Vote {
+    Approval(Approval),
+    Rejection(Rejection),
+}
+
+impl Vote {
+    fn proposal(&self) -> [u8; 32] {
+        match self {
+            Self::Approval(approval) => approval.proposal,
+            Self::Rejection(rejection) => rejection.proposal,
+        }
+    }
+}
 use crate::{Error, Result, events::Event, store::ManifestStatus};
 
 impl Keeper {
@@ -155,29 +170,19 @@ impl Keeper {
                 Err(error) => Err(error),
             },
             Message::Approval(approval) => {
-                if self
-                    .0
-                    .store
-                    .proposal(&approval.proposal)
-                    .ok()
-                    .flatten()
-                    .is_none()
-                {
-                    // Arrived before its proposal (records are processed concurrently): keep it for later.
-                    let mut state = self.0.state.lock().await;
-                    if state.orphans.values().map(Vec::len).sum::<usize>() < MAX_ORPHANS {
-                        state
-                            .orphans
-                            .entry(approval.proposal)
-                            .or_default()
-                            .push((vault, approval));
-                    }
-                    return;
+                match self.hold_orphan(vault, Vote::Approval(approval)).await {
+                    Some(Vote::Approval(approval)) => self.store_approval(vault, &approval).await,
+                    _ => return,
                 }
-                self.store_approval(vault, &approval).await
             }
-            // A rejection that arrives before its proposal is dropped; the next sync brings it again.
-            Message::Rejection(rejection) => self.store_rejection(vault, &rejection).await,
+            Message::Rejection(rejection) => {
+                match self.hold_orphan(vault, Vote::Rejection(rejection)).await {
+                    Some(Vote::Rejection(rejection)) => {
+                        self.store_rejection(vault, &rejection).await
+                    }
+                    _ => return,
+                }
+            }
             Message::ExecutionReceipt(receipt) => {
                 self.store_receipt(vault, receipt.proposal, receipt.tx_hash)
             }
@@ -188,7 +193,26 @@ impl Keeper {
         }
     }
 
-    /// Stores approvals that arrived before proposal `id`.
+    /// Keeps a vote whose proposal has not arrived yet (records are processed concurrently) and returns `None`, or
+    /// hands the vote back when its proposal is stored. The check runs under the state lock that
+    /// [`Self::adopt_orphans`] takes after storing a proposal, so a vote is never parked after its proposal's adoption.
+    async fn hold_orphan(&self, vault: [u8; 32], vote: Vote) -> Option<Vote> {
+        let proposal = vote.proposal();
+        let mut state = self.0.state.lock().await;
+        if self.0.store.proposal(&proposal).ok().flatten().is_some() {
+            return Some(vote);
+        }
+        if state.orphans.values().map(Vec::len).sum::<usize>() < MAX_ORPHANS {
+            state
+                .orphans
+                .entry(proposal)
+                .or_default()
+                .push((vault, vote));
+        }
+        None
+    }
+
+    /// Stores votes that arrived before proposal `id`.
     async fn adopt_orphans(&self, vault: [u8; 32], id: [u8; 32]) {
         let waiting = self
             .0
@@ -198,11 +222,16 @@ impl Keeper {
             .orphans
             .remove(&id)
             .unwrap_or_default();
-        for (orphan_vault, approval) in waiting {
-            if orphan_vault == vault
-                && let Err(error) = self.store_approval(vault, &approval).await
-            {
-                tracing::debug!(%error, "dropped an early approval");
+        for (orphan_vault, vote) in waiting {
+            if orphan_vault != vault {
+                continue;
+            }
+            let result = match vote {
+                Vote::Approval(approval) => self.store_approval(vault, &approval).await,
+                Vote::Rejection(rejection) => self.store_rejection(vault, &rejection).await,
+            };
+            if let Err(error) = result {
+                tracing::debug!(%error, "dropped an early vote");
             }
         }
     }

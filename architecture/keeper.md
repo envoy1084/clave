@@ -177,9 +177,9 @@ every engine:  lobby.status → plan → ceremony.dkg { session = plan.session, 
 
 `proposals.put`, `approvals.put`, `rejections.put` and `receipts.put` store records and push them to the other members,
 who store them after checking the sender is a member. Approvals and rejections are verified against the slot's signing
-key (and the proposal's approval or rejection message) before they are stored, one of each per slot. An approval that
-arrives before its proposal is held (up to 1024) until it does; a rejection is dropped and comes back with the next
-sync. `vault.observeTx` raises `unexpectedSpend` for a vault transaction that matches no stored receipt.
+key (and the proposal's approval or rejection message) before they are stored, one of each per slot. Inbound frames are
+handled concurrently, so an approval or rejection that arrives before its proposal is held (up to 1024 votes) until
+the proposal is stored. `vault.observeTx` raises `unexpectedSpend` for a vault transaction that matches no stored receipt.
 
 Every newly stored record raises an event, whether it was put locally or arrived from a member by push, sync or
 mailbox: `proposal`, `approval`, `rejection` and `receipt`, each naming its vault. Storing the same record again raises
